@@ -1,11 +1,10 @@
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
-import { Request, Response, NextFunction } from 'express';
-
-const JWT_ACCESS_SECRET = process.env.JWT_SECRET || 'wedding_invitation_secret_jwt_key_2026';
-const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'wedding_invitation_refresh_jwt_key_2026_refresh_secret';
-const ENV_ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'admin';
-const ENV_ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
+import type { NextFunction, Request, Response } from 'express';
+import { config, ENV_ADMIN_ID } from './config.js';
+import { db } from './db/index.js';
+import { HttpError } from './http.js';
+import type { AdminUser } from '../src/types.js';
 
 export interface TokenPayload {
   id: string;
@@ -19,112 +18,94 @@ export interface AuthenticatedRequest extends Request {
   user?: TokenPayload;
 }
 
-export function hashPassword(password: string): string {
-  const salt = bcrypt.genSaltSync(10);
-  return bcrypt.hashSync(password, salt);
-}
+const ACCESS_TTL_SECONDS = 3600;
 
-export function comparePassword(password: string, hash: string): boolean {
-  return bcrypt.compareSync(password, hash);
-}
+export const hashPassword = (password: string) => bcrypt.hashSync(password, 10);
+export const comparePassword = (password: string, hash: string) => bcrypt.compareSync(password, hash);
 
-// Generate Access Token (Short-lived: 1 hour)
-export function generateAccessToken(payload: Omit<TokenPayload, 'type'>): string {
-  return jwt.sign({ ...payload, type: 'access' }, JWT_ACCESS_SECRET, { expiresIn: '1h' });
-}
-
-// Generate Refresh Token (Long-lived: 7 days)
-export function generateRefreshToken(payload: Omit<TokenPayload, 'type'>): string {
-  return jwt.sign({ id: payload.id, username: payload.username, role: payload.role, name: payload.name, type: 'refresh' }, JWT_REFRESH_SECRET, {
-    expiresIn: '7d',
-  });
-}
-
-// Generate both tokens simultaneously
-export function generateTokenPair(payload: Omit<TokenPayload, 'type'>) {
-  const accessToken = generateAccessToken(payload);
-  const refreshToken = generateRefreshToken(payload);
+function envAdminProfile(): AdminUser {
   return {
-    accessToken,
-    refreshToken,
-    token: accessToken, // backward compatibility
-    expiresIn: 3600, // 1 hour in seconds
+    id: ENV_ADMIN_ID,
+    username: config.admin.username,
+    email: `${config.admin.username}@wedding.local`,
+    name: 'Admin Utama',
+    role: 'SUPERADMIN',
+    createdAt: new Date().toISOString(),
   };
 }
 
-// Legacy helper for backward compatibility
-export function generateToken(payload: TokenPayload): string {
-  return generateAccessToken(payload);
-}
+const isEnvAdmin = (idOrUsername: { id?: string; username?: string }) =>
+  idOrUsername.id === ENV_ADMIN_ID || idOrUsername.username?.toLowerCase() === config.admin.username.toLowerCase();
 
-// Verify Access Token
-export function verifyAccessToken(token: string): { payload: TokenPayload | null; expired: boolean } {
-  try {
-    const decoded = jwt.verify(token, JWT_ACCESS_SECRET) as TokenPayload;
-    return { payload: decoded, expired: false };
-  } catch (err: any) {
-    const expired = err?.name === 'TokenExpiredError';
-    return { payload: null, expired };
+const withoutHash = ({ passwordHash: _hash, ...admin }: AdminUser & { passwordHash: string }): AdminUser => admin;
+
+/** Check credentials against the env superadmin first, then stored admin accounts. */
+export function authenticate(username: string, password: string): AdminUser | null {
+  const name = username.trim();
+  if (isEnvAdmin({ username: name })) {
+    return password === config.admin.password ? envAdminProfile() : null;
   }
+  const stored = db.findAdminByUsername(name);
+  return stored && comparePassword(password, stored.passwordHash) ? withoutHash(stored) : null;
 }
 
-// Verify Refresh Token
-export function verifyRefreshToken(token: string): { payload: TokenPayload | null; expired: boolean } {
-  try {
-    const decoded = jwt.verify(token, JWT_REFRESH_SECRET) as TokenPayload;
-    if (decoded.type && decoded.type !== 'refresh') {
-      return { payload: null, expired: false };
-    }
-    return { payload: decoded, expired: false };
-  } catch (err: any) {
-    const expired = err?.name === 'TokenExpiredError';
-    return { payload: null, expired };
-  }
+/** Look up the admin a token was issued to; null when the account no longer exists. */
+export function resolveAdmin(payload: Pick<TokenPayload, 'id' | 'username'>): AdminUser | null {
+  if (isEnvAdmin(payload)) return envAdminProfile();
+  const stored = db.findAdminById(payload.id);
+  return stored ? withoutHash(stored) : null;
 }
 
-// Legacy verifyToken helper
-export function verifyToken(token: string): TokenPayload | null {
-  const res = verifyAccessToken(token);
-  return res.payload;
-}
-
-export function getEnvAdminCredentials() {
+export function issueTokens(user: AdminUser) {
+  const claims = { id: user.id, username: user.username, role: user.role, name: user.name };
   return {
-    username: ENV_ADMIN_USERNAME,
-    password: ENV_ADMIN_PASSWORD,
+    accessToken: jwt.sign({ ...claims, type: 'access' }, config.jwt.accessSecret, { expiresIn: ACCESS_TTL_SECONDS }),
+    refreshToken: jwt.sign({ ...claims, type: 'refresh' }, config.jwt.refreshSecret, { expiresIn: '7d' }),
+    expiresIn: ACCESS_TTL_SECONDS,
+    user,
   };
+}
+
+function verify(token: string, secret: string, type: 'access' | 'refresh') {
+  try {
+    const decoded = jwt.verify(token, secret) as TokenPayload;
+    if (decoded.type && decoded.type !== type) return { payload: null, expired: false };
+    return { payload: decoded, expired: false };
+  } catch (err) {
+    return { payload: null, expired: (err as Error)?.name === 'TokenExpiredError' };
+  }
+}
+
+export const verifyRefreshToken = (token: string) => verify(token, config.jwt.refreshSecret, 'refresh');
+
+export function changePassword(user: TokenPayload, currentPassword: string, newPassword: string) {
+  if (isEnvAdmin(user)) {
+    throw new HttpError(400, 'Kata sandi akun utama diatur lewat ADMIN_PASSWORD di file environment server.');
+  }
+  const stored = db.findAdminById(user.id);
+  if (!stored || !comparePassword(currentPassword, stored.passwordHash)) {
+    throw new HttpError(400, 'Kata sandi saat ini salah.');
+  }
+  db.updateAdminPassword(stored.id, hashPassword(newPassword));
 }
 
 export function requireAdminAuth(req: AuthenticatedRequest, res: Response, next: NextFunction) {
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({
-      success: false,
-      code: 'AUTH_REQUIRED',
-      message: 'Akses ditolak. Token otentikasi admin diperlukan.',
-    });
+  const header = req.headers.authorization;
+  if (!header?.startsWith('Bearer ')) {
+    res.status(401).json({ success: false, code: 'AUTH_REQUIRED', message: 'Silakan masuk sebagai admin.' });
+    return;
   }
 
-  const token = authHeader.substring(7);
-  const { payload, expired } = verifyAccessToken(token);
-
-  if (expired) {
-    return res.status(401).json({
-      success: false,
-      code: 'TOKEN_EXPIRED',
-      message: 'Sesi login telah berakhir. Silakan segarkan token Anda.',
-    });
-  }
-
+  const { payload, expired } = verify(header.substring(7), config.jwt.accessSecret, 'access');
   if (!payload) {
-    return res.status(401).json({
+    res.status(401).json({
       success: false,
-      code: 'INVALID_TOKEN',
-      message: 'Token login tidak valid.',
+      code: expired ? 'TOKEN_EXPIRED' : 'INVALID_TOKEN',
+      message: expired ? 'Sesi berakhir. Silakan masuk lagi.' : 'Token login tidak valid.',
     });
+    return;
   }
 
   req.user = payload;
   next();
 }
-

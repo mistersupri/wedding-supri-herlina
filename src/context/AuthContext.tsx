@@ -1,183 +1,67 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { AdminUser } from '../types.js';
-import {
-  fetchCurrentAdmin,
-  getAccessToken,
-  getRefreshToken,
-  setAuthTokens,
-  clearAuthTokens,
-  logoutAdminApi,
-  refreshAuthToken,
-} from '../lib/api.js';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import type { AdminUser } from '../types.js';
+import { AUTH_TOKEN_STORAGE_KEY, UNAUTHORIZED_EVENT, authApi, getAccessToken, getRefreshToken } from '../lib/api.js';
 
-interface AuthContextType {
+interface AuthContextValue {
   user: AdminUser | null;
-  token: string | null;
-  refreshToken: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (accessToken: string, user: AdminUser, refreshToken?: string) => void;
+  login: (username: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
-  refreshUser: () => Promise<void>;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<AdminUser | null>(null);
-  const [token, setToken] = useState<string | null>(() => getAccessToken());
-  const [refreshToken, setRefreshToken] = useState<string | null>(() => getRefreshToken());
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const logout = useCallback(async () => {
+  // Restore the session on load. authApi.me() refreshes an expired access token by itself.
+  const restore = useCallback(async () => {
+    if (!getAccessToken() && !getRefreshToken()) {
+      setUser(null);
+      return;
+    }
     try {
-      await logoutAdminApi();
+      setUser(await authApi.me());
     } catch {
-      // Ignore network errors on logout
-    } finally {
-      clearAuthTokens();
-      setToken(null);
-      setRefreshToken(null);
       setUser(null);
     }
   }, []);
 
-  const refreshUser = useCallback(async () => {
-    const currentToken = getAccessToken();
-    if (currentToken) {
-      try {
-        const admin = await fetchCurrentAdmin();
-        setUser(admin);
-      } catch (err) {
-        console.warn('Failed to refresh user profile:', err);
-        // Attempt refresh token fallback
-        const newAccess = await refreshAuthToken();
-        if (newAccess) {
-          try {
-            const admin = await fetchCurrentAdmin();
-            setUser(admin);
-            setToken(newAccess);
-            return;
-          } catch {
-            await logout();
-          }
-        } else {
-          await logout();
-        }
-      }
-    }
-  }, [logout]);
-
-  // Initial authentication check on app load
   useEffect(() => {
-    let isMounted = true;
+    restore().finally(() => setIsLoading(false));
 
-    async function initAuth() {
-      const storedToken = getAccessToken();
-      const storedRefreshToken = getRefreshToken();
-
-      if (storedToken || storedRefreshToken) {
-        try {
-          const admin = await fetchCurrentAdmin();
-          if (isMounted) {
-            setUser(admin);
-            setToken(getAccessToken());
-            setRefreshToken(getRefreshToken());
-          }
-        } catch (err) {
-          console.warn('Initial session validation error, trying refresh token...', err);
-          if (storedRefreshToken) {
-            const refreshed = await refreshAuthToken();
-            if (refreshed && isMounted) {
-              try {
-                const admin = await fetchCurrentAdmin();
-                if (isMounted) {
-                  setUser(admin);
-                  setToken(refreshed);
-                  setRefreshToken(getRefreshToken());
-                }
-              } catch {
-                if (isMounted) await logout();
-              }
-            } else if (isMounted) {
-              await logout();
-            }
-          } else if (isMounted) {
-            await logout();
-          }
-        }
-      }
-
-      if (isMounted) {
-        setIsLoading(false);
-      }
-    }
-
-    initAuth();
-
-    // Listen for custom 401 unhandled unauthorized events
-    const handleUnauthorizedEvent = () => {
-      clearAuthTokens();
-      setToken(null);
-      setRefreshToken(null);
-      setUser(null);
+    const onUnauthorized = () => setUser(null);
+    // Another tab signed in or out.
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === AUTH_TOKEN_STORAGE_KEY) restore();
     };
-
-    // Listen for cross-tab login/logout events
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'wedding_admin_token') {
-        if (!e.newValue) {
-          setToken(null);
-          setRefreshToken(null);
-          setUser(null);
-        } else {
-          setToken(e.newValue);
-          refreshUser();
-        }
-      }
-    };
-
-    window.addEventListener('auth:unauthorized', handleUnauthorizedEvent);
-    window.addEventListener('storage', handleStorageChange);
-
+    window.addEventListener(UNAUTHORIZED_EVENT, onUnauthorized);
+    window.addEventListener('storage', onStorage);
     return () => {
-      isMounted = false;
-      window.removeEventListener('auth:unauthorized', handleUnauthorizedEvent);
-      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener(UNAUTHORIZED_EVENT, onUnauthorized);
+      window.removeEventListener('storage', onStorage);
     };
-  }, [logout, refreshUser]);
+  }, [restore]);
 
-  const login = (accessToken: string, newUser: AdminUser, newRefreshToken?: string) => {
-    setAuthTokens(accessToken, newRefreshToken);
-    setToken(accessToken);
-    if (newRefreshToken) {
-      setRefreshToken(newRefreshToken);
-    }
-    setUser(newUser);
-  };
+  const login = useCallback(async (username: string, password: string) => {
+    const auth = await authApi.login(username, password);
+    setUser(auth.user);
+  }, []);
 
-  return (
-    <AuthContext.Provider
-      value={{
-        user,
-        token,
-        refreshToken,
-        isAuthenticated: !!user && !!token,
-        isLoading,
-        login,
-        logout,
-        refreshUser,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
-  );
+  const logout = useCallback(async () => {
+    await authApi.logout();
+    setUser(null);
+  }, []);
+
+  const value = useMemo(() => ({ user, isAuthenticated: Boolean(user), isLoading, login, logout }), [user, isLoading, login, logout]);
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
-export const useAuth = () => {
+export function useAuth() {
   const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
+  if (!context) throw new Error('useAuth must be used within an AuthProvider');
   return context;
-};
+}

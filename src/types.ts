@@ -2,13 +2,19 @@ export type AttendanceStatus = 'HADIR' | 'TIDAK_HADIR' | 'RAGU';
 
 export type GalleryCategory = 'PREWEDDING' | 'MOMENTS' | 'ENGAGEMENT' | 'CEREMONY';
 
-export type ThemePreset = 'natural' | 'rose' | 'sage' | 'gold' | 'ivory';
+/** Colour presets, each named after a batik dye tradition (see DESIGN.md). */
+export type ThemePreset = 'sogan' | 'wedel' | 'gadung' | 'jambon';
+
+export type MediaType = 'IMAGE' | 'VIDEO';
+
+export type UploadCategory = 'hero' | 'gallery' | 'couples' | 'moments' | 'general';
 
 export interface GiftAccount {
   id: string;
   bankName: string;
   accountNumber: string;
   accountHolder: string;
+  /** Older records store the QR image here; new ones use qrisImageUrl. */
   qrCodeUrl?: string;
   isQris?: boolean;
   qrisImageUrl?: string;
@@ -44,7 +50,7 @@ export interface GalleryPhoto {
   caption?: string;
   category: GalleryCategory;
   orderIndex: number;
-  mediaType?: 'IMAGE' | 'VIDEO';
+  mediaType?: MediaType;
   thumbnailUrl?: string;
 }
 
@@ -61,8 +67,15 @@ export interface GuestWish {
   voiceUrl?: string | null;
 }
 
-export interface InvitationData {
-  id: string;
+export interface RSVPStats {
+  totalWishes: number;
+  attendingCount: number;
+  declinedCount: number;
+  tentativeCount: number;
+  totalGuestSeats: number;
+}
+
+export interface CoupleProfile {
   groomName: string;
   groomShortName: string;
   groomParents: string;
@@ -73,30 +86,38 @@ export interface InvitationData {
   brideParents: string;
   brideInstagram?: string;
   bridePhoto: string;
-  weddingDate: string;
-  countdownTarget: string;
   heroImage: string;
   heroVideoUrl?: string;
-  heroMediaType?: 'IMAGE' | 'VIDEO';
+  heroMediaType?: MediaType;
   quoteText: string;
   quoteSource: string;
+}
+
+export interface ThemeSettings {
+  themeColor: ThemePreset;
   musicUrl: string;
   musicTitle: string;
+  weddingDate: string;
+  countdownTarget: string;
   whatsappNumber: string;
   whatsappTemplate: string;
-  themeColor: ThemePreset;
+}
+
+/** The invitation record as stored, without the collections joined in for the public page. */
+export interface InvitationRecord extends CoupleProfile, ThemeSettings {
+  id: string;
   giftInfo: GiftAccount[];
   loveStories: LoveStoryItem[];
+}
+
+export interface InvitationData extends InvitationRecord {
   events: WeddingEvent[];
   gallery: GalleryPhoto[];
-  stats?: {
-    totalWishes: number;
-    attendingCount: number;
-    declinedCount: number;
-    tentativeCount: number;
-    totalGuestSeats: number;
-  };
+  stats?: RSVPStats;
 }
+
+export type CMSCoupleData = CoupleProfile;
+export type CMSThemeData = ThemeSettings;
 
 export interface AdminUser {
   id: string;
@@ -110,15 +131,17 @@ export interface AdminUser {
 export interface InvitedGuest {
   id: string;
   name: string;
-  slug: string; // Unique 4-character code e.g. "A7K9", "X2B4"
+  /** Unique 4-character access code, e.g. "A7K9". */
+  slug: string;
   phone?: string;
-  instagram?: string; // Guest Instagram handle or link e.g. "@username"
-  category: string; // e.g. "VIP", "Keluarga", "Sahabat", "Rekan Kerja", "Umum"
-  pax: number; // Allocated quota (e.g. 2 seats)
-  tableNumber?: string; // e.g. "Meja 05", "VIP B"
+  instagram?: string;
+  category: string;
+  /** Seats allocated to this invitation. */
+  pax: number;
+  tableNumber?: string;
   customNote?: string;
-  invitationSent?: boolean; // Whether the invitation link/card has been sent
-  invitationSentAt?: string | null; // Timestamp when invitation was sent
+  invitationSent?: boolean;
+  invitationSentAt?: string | null;
   isCheckedIn: boolean;
   checkInTime?: string | null;
   checkInMethod?: 'QR_SCAN' | 'MANUAL' | null;
@@ -128,9 +151,12 @@ export interface InvitedGuest {
   updatedAt: string;
 }
 
+/** The subset of an invited guest that the public verification endpoints expose. */
+export type PublicGuest = Pick<InvitedGuest, 'id' | 'name' | 'slug' | 'category' | 'pax' | 'tableNumber' | 'isCheckedIn' | 'checkInTime'>;
+
 export interface GuestAccessVerification {
   isValid: boolean;
-  guest: InvitedGuest | null;
+  guest: PublicGuest | null;
   message?: string;
 }
 
@@ -170,49 +196,14 @@ export interface PresensiCheckInPayload {
 }
 
 export interface AuthResponse {
-  token: string;
   accessToken: string;
   refreshToken: string;
   expiresIn?: number;
   user: AdminUser;
 }
 
-export interface CMSCoupleData {
-  groomName: string;
-  groomShortName: string;
-  groomParents: string;
-  groomInstagram?: string;
-  groomPhoto: string;
-  brideName: string;
-  brideShortName: string;
-  brideParents: string;
-  brideInstagram?: string;
-  bridePhoto: string;
-  heroImage: string;
-  heroVideoUrl?: string;
-  heroMediaType?: 'IMAGE' | 'VIDEO';
-  quoteText: string;
-  quoteSource: string;
-}
-
-export interface CMSThemeData {
-  themeColor: ThemePreset;
-  musicUrl: string;
-  musicTitle: string;
-  weddingDate: string;
-  countdownTarget: string;
-  whatsappNumber: string;
-  whatsappTemplate: string;
-}
-
 export interface CMSStatsData {
-  stats: {
-    totalWishes: number;
-    attendingCount: number;
-    declinedCount: number;
-    tentativeCount: number;
-    totalGuestSeats: number;
-  };
+  stats: RSVPStats;
   counts: {
     eventsCount: number;
     galleryCount: number;
@@ -229,3 +220,7 @@ export interface CMSGeneralData {
   brideShortName: string;
   adminProfile?: AdminUser;
 }
+
+export type InvitedGuestInput = Partial<
+  Pick<InvitedGuest, 'slug' | 'phone' | 'instagram' | 'category' | 'pax' | 'tableNumber' | 'customNote' | 'invitationSent'>
+> & { name: string };

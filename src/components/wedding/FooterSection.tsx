@@ -1,52 +1,28 @@
 import React from 'react';
-import { Heart, Sparkles } from 'lucide-react';
-import { useTheme } from '../../context/ThemeContext.js';
-import { InvitationData } from '../../types.js';
+import { Link } from 'react-router-dom';
+import { KawungDivider } from '../ui/Kawung.js';
+import type { InvitationData } from '../../types.js';
 
-interface FooterSectionProps {
-  invitation: InvitationData;
-  isAuthenticated: boolean;
-}
-
-export const FooterSection: React.FC<FooterSectionProps> = ({
-  invitation,
-  isAuthenticated,
-}) => {
-  const { styles } = useTheme();
-
-  return (
-    <footer
-      className="py-16 px-4 text-center border-t relative overflow-hidden"
-      style={{ borderColor: styles.borderAccent, backgroundColor: styles.bgPrimary }}
-    >
-      <div className="max-w-3xl mx-auto flex flex-col items-center">
-        {/* Subtitle */}
-        <div className="flex items-center gap-2 mb-3">
-          <Sparkles className="w-3 h-3" style={{ color: styles.accent }} />
-          <span
-            className="text-[10px] font-semibold uppercase tracking-[0.3em] font-sans"
-            style={{ color: styles.textSecondary }}
-          >
-            Ungkapan Terima Kasih
-          </span>
-          <Sparkles className="w-3 h-3" style={{ color: styles.accent }} />
-        </div>
-
-        <p className="text-sm text-[#78786A] max-w-xl mx-auto leading-relaxed mb-6">
-          Merupakan suatu kehormatan dan kebahagiaan bagi kami apabila Bapak/Ibu/Saudara/i berkenan hadir
-          untuk memberikan doa restu kepada kami berdua.
-        </p>
-
-        <h3 className="font-['Alex_Brush'] text-5xl sm:text-6xl my-2" style={{ color: styles.accent }}>
-          {invitation.groomShortName} & {invitation.brideShortName}
-        </h3>
-
-        <div className="flex items-center justify-center gap-1 text-xs text-[#78786A] mt-6">
-          <span>Made with</span>
-          <Heart className="w-3 h-3 text-red-500 fill-red-500" />
-          <span>for our sacred wedding day</span>
-        </div>
-      </div>
-    </footer>
-  );
-};
+/** Closing band, the counterpart of the cover. */
+export const FooterSection: React.FC<{ invitation: InvitationData; isAuthenticated: boolean }> = ({ invitation, isAuthenticated }) => (
+  <footer className="on-deep kawung-field px-5 pt-20 pb-32 text-center">
+    <div className="mx-auto max-w-xl">
+      <p className="text-[15px] leading-relaxed text-on-deep-soft sm:text-base">
+        Merupakan suatu kehormatan dan kebahagiaan bagi kami apabila Bapak/Ibu/Saudara/i berkenan hadir dan memberikan doa restu.
+      </p>
+      <KawungDivider tone="deep" className="my-8" />
+      <p className="text-sm text-on-deep-soft">Kami yang berbahagia,</p>
+      <p className="mt-2 font-display text-5xl italic sm:text-6xl">
+        {invitation.groomShortName} <span className="text-prada-on-deep not-italic">&amp;</span> {invitation.brideShortName}
+      </p>
+      {isAuthenticated && (
+        <Link
+          to="/cms/overview"
+          className="mt-10 inline-flex min-h-11 items-center text-sm text-on-deep-soft underline underline-offset-4 hover:text-on-deep"
+        >
+          Kelola undangan di CMS
+        </Link>
+      )}
+    </div>
+  </footer>
+);

@@ -1,1 +1,219 @@
-@import "tailwindcss";
+@import 'tailwindcss';
+
+/*
+ * Design tokens. Direction and the reason for every value: DESIGN.md.
+ * Presets are switched with <html data-theme="...">; sogan is the default.
+ */
+:root,
+[data-theme='sogan'] {
+  --paper: #f4ecdf;
+  --paper-2: #eadfcc;
+  --card: #fbf7f0;
+  --ink: #2a1b12;
+  --ink-soft: #5e4836;
+  --line: #d9c9ae;
+  --field: #857a6a;
+  --primary: #6e3b1e;
+  --primary-hover: #582f17;
+  --on-primary: #fbf7f0;
+  --prada: #b4862e;
+  --prada-ink: #80591a;
+  --deep: #1f2338;
+  --deep-2: #2a2f48;
+  --on-deep: #f1e7d6;
+  --on-deep-soft: #c4b8a3;
+  --prada-on-deep: #d6ad5b;
+}
+
+[data-theme='wedel'] {
+  --paper: #f0eee8;
+  --paper-2: #e4e1d8;
+  --card: #faf9f6;
+  --ink: #1c2030;
+  --ink-soft: #4a5066;
+  --line: #cfcbc0;
+  --primary: #2c3b63;
+  --primary-hover: #222e4e;
+  --on-primary: #faf9f6;
+  --prada-ink: #7a5716;
+  --deep: #161c30;
+  --deep-2: #222a44;
+  --on-deep: #ede8dc;
+  --on-deep-soft: #bdb8ac;
+}
+
+[data-theme='gadung'] {
+  --paper: #f1eee2;
+  --paper-2: #e5e1d0;
+  --card: #faf8f1;
+  --ink: #1f2a1d;
+  --ink-soft: #4c5a47;
+  --line: #d0cbb5;
+  --primary: #3e5a3a;
+  --primary-hover: #30472d;
+  --on-primary: #faf8f1;
+  --prada: #b08a35;
+  --prada-ink: #75591b;
+  --deep: #1f2b1e;
+  --deep-2: #2c3a2a;
+  --on-deep: #eeeadb;
+  --on-deep-soft: #bfbba8;
+  --prada-on-deep: #d3af5e;
+}
+
+[data-theme='jambon'] {
+  --paper: #f6ece6;
+  --paper-2: #eddcd3;
+  --card: #fcf7f4;
+  --ink: #2e1a1a;
+  --ink-soft: #634544;
+  --line: #dfc8be;
+  --primary: #8a3838;
+  --primary-hover: #722d2d;
+  --on-primary: #fcf7f4;
+  --prada-ink: #7e5a1a;
+  --deep: #341a1c;
+  --deep-2: #462527;
+  --on-deep: #f4e6de;
+  --on-deep-soft: #cbb4ab;
+  --prada-on-deep: #d9ae5e;
+}
+
+:root {
+  /* Status colours, only for RSVP and check-in chips. */
+  --ok: #2f6b3f;
+  --ok-bg: #e4eee2;
+  --no: #9b2c2c;
+  --no-bg: #f5e1de;
+  --maybe: #7a4e0e;
+  --maybe-bg: #f3e6cf;
+  --focus: var(--primary);
+}
+
+@theme inline {
+  --color-paper: var(--paper);
+  --color-paper-2: var(--paper-2);
+  --color-card: var(--card);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-line: var(--line);
+  --color-field: var(--field);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-on-primary: var(--on-primary);
+  --color-prada: var(--prada);
+  --color-prada-ink: var(--prada-ink);
+  --color-deep: var(--deep);
+  --color-deep-2: var(--deep-2);
+  --color-on-deep: var(--on-deep);
+  --color-on-deep-soft: var(--on-deep-soft);
+  --color-prada-on-deep: var(--prada-on-deep);
+  --color-ok: var(--ok);
+  --color-ok-bg: var(--ok-bg);
+  --color-no: var(--no);
+  --color-no-bg: var(--no-bg);
+  --color-maybe: var(--maybe);
+  --color-maybe-bg: var(--maybe-bg);
+
+  --font-display: 'Fraunces', Georgia, 'Times New Roman', serif;
+  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-md: 8px;
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  ::selection {
+    background: var(--prada);
+    color: var(--ink);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+  }
+
+  button,
+  [role='button'],
+  label[for],
+  select {
+    cursor: pointer;
+  }
+
+  button:disabled {
+    cursor: not-allowed;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@layer components {
+  /* Dark wedel band: re-points text and focus colours for everything inside. */
+  .on-deep {
+    --focus: var(--prada-on-deep);
+    background-color: var(--deep);
+    color: var(--on-deep);
+  }
+
+  .muted {
+    color: var(--ink-soft);
+  }
+  .on-deep .muted {
+    color: var(--on-deep-soft);
+  }
+  .danger-text {
+    color: var(--no);
+  }
+  /* #F2A49B on the deep tones: at least 7:1. */
+  .on-deep .danger-text {
+    color: #f2a49b;
+  }
+
+  /* Kawung tiling, used only on the cover and the closing band (the identity motif). */
+  .kawung-field {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='44' height='44' viewBox='0 0 44 44'%3E%3Cg fill='%23D6AD5B' fill-opacity='0.14'%3E%3Cellipse cx='28.8' cy='28.8' rx='6.0' ry='7.0' transform='rotate(135 28.8 28.8)'/%3E%3Cellipse cx='15.2' cy='28.8' rx='6.0' ry='7.0' transform='rotate(225 15.2 28.8)'/%3E%3Cellipse cx='15.2' cy='15.2' rx='6.0' ry='7.0' transform='rotate(315 15.2 15.2)'/%3E%3Cellipse cx='28.8' cy='15.2' rx='6.0' ry='7.0' transform='rotate(405 28.8 15.2)'/%3E%3Ccircle cx='22' cy='22' r='2.0'/%3E%3C/g%3E%3C/svg%3E");
+    background-size: 44px 44px;
+  }
+
+  /* Pointed gunungan arch for portraits. */
+  .gunungan {
+    clip-path: polygon(50% 0%, 78% 12%, 100% 34%, 100% 100%, 0% 100%, 0% 34%, 22% 12%);
+  }
+
+  .display-numeral {
+    font-family: var(--font-display);
+    font-variant-numeric: lining-nums tabular-nums;
+    font-optical-sizing: auto;
+  }
+
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+}
