@@ -1,0 +1,189 @@
+{
+  "invitation": {
+    "id": "inv_main_01",
+    "groomName": "Arya Pradipta, S.T.",
+    "groomShortName": "Arya",
+    "groomParents": "Putra Pertama dari Bpk. Bambang Sutrisno & Ibu Sri Rahayu",
+    "groomInstagram": "aryapradipta",
+    "groomPhoto": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=800&q=80",
+    "brideName": "Nadhira Kirana, S.Ds.",
+    "brideShortName": "Nadhira",
+    "brideParents": "Putri Kedua dari Bpk. H. Hendra Wijaya & Ibu Hj. Ratna Dewi",
+    "brideInstagram": "nadhirakirana",
+    "bridePhoto": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=800&q=80",
+    "weddingDate": "2026-11-20T08:00:00.000Z",
+    "countdownTarget": "2026-11-20T08:00:00.000Z",
+    "heroImage": "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1920&q=80",
+    "quoteText": "Dan di antara tanda-tanda kebesaran-Nya ialah Dia menciptakan pasangan-pasangan untukmu dari jenismu sendiri, agar kamu cenderung dan merasa tenteram kepadanya, dan Dia menjadikan di antaramu rasa kasih dan sayang.",
+    "quoteSource": "QS. Ar-Rum: 21",
+    "musicUrl": "https://cdn.pixabay.com/download/audio/2022/05/27/audio_1808fbf07a.mp3?filename=romantic-wedding-113548.mp3",
+    "musicTitle": "Canon in D (Romantic Piano)",
+    "whatsappNumber": "6281234567890",
+    "whatsappTemplate": "Halo Arya & Nadhira, Saya {nama_tamu} ingin mengonfirmasi bahwa saya {status_kehadiran} pada acara pernikahan kalian ({jumlah_tamu} orang). Pesan/Doa: {ucapan}",
+    "themeColor": "natural",
+    "giftInfo": [
+      {
+        "id": "gift_1",
+        "bankName": "Bank Central Asia (BCA)",
+        "accountNumber": "8830192811",
+        "accountHolder": "Arya Pradipta",
+        "qrCodeUrl": "https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=BCA-8830192811-AryaPradipta"
+      },
+      {
+        "id": "gift_2",
+        "bankName": "Bank Mandiri",
+        "accountNumber": "1370019283741",
+        "accountHolder": "Nadhira Kirana"
+      }
+    ],
+    "loveStories": [
+      {
+        "id": "story_1",
+        "year": "2021",
+        "title": "Pertemuan Pertama di Kampus",
+        "description": "Kami pertama kali bertegur sapa di perpustakaan universitas saat mengerjakan tugas akhir bersama. Berawal dari diskusi kecil hingga obrolan tanpa henti.",
+        "photoUrl": "https://images.unsplash.com/photo-1522673607200-164d1b6ce486?auto=format&fit=crop&w=800&q=80"
+      },
+      {
+        "id": "story_2",
+        "year": "2023",
+        "title": "Komitmen & Hubungan Serius",
+        "description": "Setelah melalui suka dan duka bersama serta saling mengenal keluarga, kami memutuskan untuk melangkah ke jenjang yang lebih serius.",
+        "photoUrl": "https://images.unsplash.com/photo-1515934751635-c81c6bc9a2d8?auto=format&fit=crop&w=800&q=80"
+      },
+      {
+        "id": "story_3",
+        "year": "2025",
+        "title": "Hari Lamaran (Engagement)",
+        "description": "Di hadapan kedua keluarga besar, kami mengikat janji pertunangan untuk menyatukan dua keluarga dalam satu ikatan suci.",
+        "photoUrl": "https://images.unsplash.com/photo-1583939003579-730e3918a45a?auto=format&fit=crop&w=800&q=80"
+      }
+    ]
+  },
+  "events": [
+    {
+      "id": "event_1",
+      "title": "Akad Nikah",
+      "date": "Jumat, 20 November 2026",
+      "startTime": "08:00 WIB",
+      "endTime": "10:00 WIB",
+      "venueName": "Masjid Agung Al-Azhar",
+      "address": "Jl. Sisingamangaraja No.1, Selong, Kebayoran Baru, Jakarta Selatan",
+      "mapsUrl": "https://maps.google.com/?q=Masjid+Agung+Al-Azhar+Jakarta",
+      "mapsEmbedUrl": "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3966.275466847847!2d106.79635777499042!3d-6.227370893760773!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x2e69f14e7a83d6cb%3A0xe54e58a2d1d0ee6e!2sMasjid%20Agung%20Al-Azhar!5e0!3m2!1sid!2sid!4v1700000000000!5m2!1sid!2sid",
+      "dressCode": "Baju Kurung / Kemeja Batik / Putih Bersih",
+      "notes": "Khusus keluarga inti dan saksi akad nikah",
+      "orderIndex": 1
+    },
+    {
+      "id": "event_2",
+      "title": "Resepsi Pernikahan",
+      "date": "Sabtu, 21 November 2026",
+      "startTime": "11:00 WIB",
+      "endTime": "15:00 WIB",
+      "venueName": "Grand Ballroom Hotel Mulia Senayan",
+      "address": "Jl. Asia Afrika, Gelora, Tanah Abang, Jakarta Pusat",
+      "mapsUrl": "https://maps.google.com/?q=Hotel+Mulia+Senayan+Jakarta",
+      "mapsEmbedUrl": "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3966.386001239616!2d106.79720337499033!3d-6.212711893775191!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x2e69f14bb7ea19bf%3A0x6a059dc5b4fefea3!2sHotel%20Mulia%20Senayan%20Jakarta!5e0!3m2!1sid!2sid!4v1700000000001!5m2!1sid!2sid",
+      "dressCode": "Formal Attire / Pastel & Earth Tone",
+      "notes": "Disediakan area photobooth & kids corner",
+      "orderIndex": 2
+    }
+  ],
+  "gallery": [
+    {
+      "id": "gal_1",
+      "title": "Romansa Senja",
+      "url": "https://images.unsplash.com/photo-1511285560929-80b456fea0bc?auto=format&fit=crop&w=1200&q=80",
+      "caption": "Senja terindah saat menatap masa depan bersama",
+      "category": "PREWEDDING",
+      "orderIndex": 1
+    },
+    {
+      "id": "gal_2",
+      "title": "Senyuman Bahagia",
+      "url": "https://images.unsplash.com/photo-1583939003579-730e3918a45a?auto=format&fit=crop&w=1200&q=80",
+      "caption": "Tawa yang senantiasa menyejukkan hati",
+      "category": "PREWEDDING",
+      "orderIndex": 2
+    },
+    {
+      "id": "gal_3",
+      "title": "Hari Pertunangan",
+      "url": "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1200&q=80",
+      "caption": "Momen berharga saat cincin tersemat di jari",
+      "category": "ENGAGEMENT",
+      "orderIndex": 3
+    },
+    {
+      "id": "gal_4",
+      "title": "Langkah Bersama",
+      "url": "https://images.unsplash.com/photo-1606800052052-a08af7148866?auto=format&fit=crop&w=1200&q=80",
+      "caption": "Berjalan beriringan menapaki babak baru kehidupan",
+      "category": "MOMENTS",
+      "orderIndex": 4
+    },
+    {
+      "id": "gal_5",
+      "title": "Kasih Abadi",
+      "url": "https://images.unsplash.com/photo-1529634806980-85c3dd6d34ac?auto=format&fit=crop&w=1200&q=80",
+      "caption": "Dua hati yang dipersatukan oleh ketulusan",
+      "category": "MOMENTS",
+      "orderIndex": 5
+    },
+    {
+      "id": "gal_6",
+      "title": "Dekapan Hangat",
+      "url": "https://images.unsplash.com/photo-1465495976277-4387d4b0b4c6?auto=format&fit=crop&w=1200&q=80",
+      "caption": "Bersama membangun mahligai rumah tangga yang sakinah",
+      "category": "PREWEDDING",
+      "orderIndex": 6
+    }
+  ],
+  "guests": [
+    {
+      "id": "guest_1",
+      "guestName": "Dimas Wicaksono",
+      "relationship": "Sahabat Kuliah",
+      "attendanceStatus": "HADIR",
+      "numberOfGuests": 2,
+      "message": "Selamat untuk Arya dan Nadhira! Semoga menjadi keluarga yang sakinah, mawaddah, warahmah. Lancar sampai hari H ya bro!",
+      "reply": "Terima kasih banyak bro Dimas! Ditunggu kehadirannya bersama pasangan ya.",
+      "isHidden": false,
+      "createdAt": "2026-09-04T05:10:22.851Z"
+    },
+    {
+      "id": "guest_2",
+      "guestName": "Keluarga Besar Bpk. Rahmat",
+      "relationship": "Keluarga Besar",
+      "attendanceStatus": "HADIR",
+      "numberOfGuests": 4,
+      "message": "Barakallahu lakuma wa baraka alaikuma wa jamaa bainakuma fii khair. Turut berbahagia untuk kedua mempelai.",
+      "reply": "Aamiin YRA. Matur suwun Om Rahmat dan keluarga.",
+      "isHidden": false,
+      "createdAt": "2026-09-05T05:10:22.851Z"
+    },
+    {
+      "id": "guest_3",
+      "guestName": "Clarissa Maharani",
+      "relationship": "Rekan Kerja Nadhira",
+      "attendanceStatus": "HADIR",
+      "numberOfGuests": 1,
+      "message": "Nadhira cantik banget! Selamat ya cantikk, semoga langgeng selamanya dan bahagia selalu sama mas Arya.",
+      "reply": null,
+      "isHidden": false,
+      "createdAt": "2026-09-06T00:10:22.851Z"
+    }
+  ],
+  "admins": [
+    {
+      "id": "adm_1",
+      "username": "admin",
+      "email": "admin@wedding.com",
+      "name": "Super Admin Pengantin",
+      "passwordHash": "$2b$10$yBBxNSDBwf9WvASLJTrs0Owr7kK1DIxlCQwvXJA4Rptd4KwVt.tNi",
+      "role": "SUPERADMIN",
+      "createdAt": "2026-09-06T05:10:22.958Z"
+    }
+  ]
+}

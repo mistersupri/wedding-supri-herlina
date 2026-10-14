@@ -1,0 +1,6 @@
+{
+  "name": "Wedding Invitation & Guestbook",
+  "description": "Elegant responsive wedding invitation website with countdown timer, photo gallery, event location maps, auto-play background music, direct WhatsApp RSVP, digital guestbook, and CMS admin dashboard.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
