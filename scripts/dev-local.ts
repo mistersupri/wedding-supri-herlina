@@ -5,6 +5,7 @@
  */
 import 'dotenv/config';
 import { spawn } from 'child_process';
+import { createRequire } from 'module';
 import path from 'path';
 import { PGlite } from '@electric-sql/pglite';
 import { PGLiteSocketServer } from '@electric-sql/pglite-socket';
@@ -12,11 +13,15 @@ import { PGLiteSocketServer } from '@electric-sql/pglite-socket';
 const DATA_DIR = path.resolve(process.env.LOCAL_DB_DIR || '.local-db');
 const PORT = Number(process.env.LOCAL_DB_PORT) || 54329;
 
-function run(cmd: string, args: string[]) {
+// Prisma's JS entry run with this same Node binary: node_modules/.bin/prisma is a shell script that Windows cannot spawn.
+const PRISMA_CLI = createRequire(import.meta.url).resolve('prisma/build/index.js');
+
+function prisma(args: string[]) {
   return new Promise<void>((resolve, reject) => {
     // Async spawn keeps this process free to answer the socket server while prisma talks to it.
-    const child = spawn(cmd, args, { stdio: 'inherit', env: process.env });
-    child.on('exit', (code) => (code === 0 ? resolve() : reject(new Error(`${cmd} ${args.join(' ')} keluar dengan kode ${code}`))));
+    const child = spawn(process.execPath, [PRISMA_CLI, ...args], { stdio: 'inherit', env: process.env });
+    child.on('error', reject);
+    child.on('exit', (code) => (code === 0 ? resolve() : reject(new Error(`prisma ${args.join(' ')} keluar dengan kode ${code}`))));
   });
 }
 
@@ -36,5 +41,5 @@ if (!process.env.DATABASE_URL) {
   process.on('SIGTERM', shutdown);
 }
 
-await run(path.resolve('node_modules/.bin/prisma'), ['migrate', 'deploy']);
+await prisma(['migrate', 'deploy']);
 await import('../server/index.ts');
