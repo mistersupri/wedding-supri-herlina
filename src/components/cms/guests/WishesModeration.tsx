@@ -12,7 +12,7 @@ import { Field, Input, Segmented, Textarea } from '../../ui/Field.js';
 import { ConfirmDialog, Modal } from '../../ui/Modal.js';
 import { Chip, StatusChip } from '../../ui/StatusChip.js';
 import { EmptyState, ErrorState, LoadingState } from '../../ui/StateView.js';
-import type { GuestWish } from '../../../types.js';
+import type { GuestWish } from '@shared/types';
 
 type StatusFilter = 'ALL' | 'HADIR' | 'TIDAK_HADIR' | 'RAGU';
 

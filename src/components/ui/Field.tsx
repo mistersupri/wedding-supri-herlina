@@ -25,7 +25,7 @@ export const Field: React.FC<FieldProps> = ({ label, hint, error, aside, classNa
       </label>
       {children({ id, 'aria-describedby': hintId, 'aria-invalid': error ? true : undefined })}
       {(error || hint) && (
-        <p id={hintId} className={`text-xs ${error ? 'font-medium text-no' : 'text-ink-soft'}`}>
+        <p id={hintId} role={error ? 'alert' : undefined} className={`text-xs ${error ? 'font-medium text-no' : 'text-ink-soft'}`}>
           {error || hint}
         </p>
       )}

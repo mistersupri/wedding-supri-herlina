@@ -1,30 +1,14 @@
-import React, { useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { publicApi } from '../../../lib/api.js';
-import { queryKeys } from '../../../lib/queryKeys.js';
+import React from 'react';
+import { useInvitation } from '../../../features/invitation/InvitationContext.js';
+import { useGuestbook } from '../../../features/invitation/hooks/useGuestbook.js';
 import { Reveal } from '../../ui/Reveal.js';
 import { UnlockPanel } from '../UnlockPanel.js';
 import { RsvpPanel } from './RsvpPanel.js';
 import { WishList } from './WishList.js';
-import type { AttendanceStatus, GuestAccessVerification, InvitationData, PublicGuest } from '../../../types.js';
 
-interface GuestbookSectionProps {
-  invitation: InvitationData;
-  guest: PublicGuest | null;
-  onUnlock: (code: string) => Promise<GuestAccessVerification>;
-  onShowPass: (rsvp: { attendance: AttendanceStatus; pax: number }) => void;
-}
-
-export const GuestbookSection: React.FC<GuestbookSectionProps> = ({ invitation, guest, onUnlock, onShowPass }) => {
-  const { data, isLoading, isError, refetch } = useQuery({ queryKey: queryKeys.guestbook, queryFn: publicApi.guestbook });
-  const wishes = data?.data || [];
-  const stats = data?.stats;
-
-  const existingWish = useMemo(() => {
-    if (!guest) return null;
-    const name = guest.name.trim().toLowerCase();
-    return wishes.find((w) => w.guestName.trim().toLowerCase() === name) || null;
-  }, [wishes, guest]);
+export const GuestbookSection: React.FC = () => {
+  const { guest } = useInvitation();
+  const { wishes, stats, isLoading, isError, refetch } = useGuestbook();
 
   return (
     <section id="guestbook-section" aria-labelledby="guestbook-heading" className="bg-paper-2 px-5 py-20 sm:py-28">
@@ -43,16 +27,16 @@ export const GuestbookSection: React.FC<GuestbookSectionProps> = ({ invitation, 
           <Reveal className="mt-8">
             {guest ? (
               <div className="rounded-md border border-line bg-card p-6">
-                <RsvpPanel invitation={invitation} guest={guest} existingWish={existingWish} onShowPass={onShowPass} />
+                <RsvpPanel />
               </div>
             ) : (
-              <UnlockPanel onUnlock={onUnlock} />
+              <UnlockPanel />
             )}
           </Reveal>
         </div>
 
         <div aria-label="Daftar ucapan" role="region">
-          <WishList wishes={wishes} isLoading={isLoading} isError={isError} onRetry={() => refetch()} />
+          <WishList wishes={wishes} isLoading={isLoading} isError={isError} onRetry={refetch} />
         </div>
       </div>
     </section>

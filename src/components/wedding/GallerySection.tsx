@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
-import { Lightbox } from '../ui/Lightbox.js';
+import { GalleryLightbox } from './GalleryLightbox.js';
 import { Reveal } from '../ui/Reveal.js';
-import type { GalleryCategory, GalleryPhoto } from '../../types.js';
+import type { GalleryCategory, GalleryPhoto } from '@shared/types';
 
 const CATEGORY_LABEL: Record<GalleryCategory, string> = {
   PREWEDDING: 'Pra-nikah',
@@ -20,7 +20,6 @@ export const GallerySection: React.FC<{ gallery: GalleryPhoto[] }> = ({ gallery 
     [gallery],
   );
   const items = category === 'ALL' ? gallery : gallery.filter((p) => p.category === category);
-  const current = openIndex !== null ? items[openIndex] : null;
 
   if (gallery.length === 0) return null;
 
@@ -84,30 +83,7 @@ export const GallerySection: React.FC<{ gallery: GalleryPhoto[] }> = ({ gallery 
         </ul>
       </div>
 
-      <Lightbox
-        open={current !== null}
-        label="Galeri foto"
-        index={openIndex ?? 0}
-        count={items.length}
-        itemKey={current?.id || ''}
-        onClose={() => setOpenIndex(null)}
-        onIndexChange={setOpenIndex}
-        footer={
-          current && (
-            <div className="mx-auto max-w-2xl text-center">
-              <p className="font-display text-xl">{current.title}</p>
-              {current.caption && <p className="mt-1 text-sm text-on-deep-soft">{current.caption}</p>}
-            </div>
-          )
-        }
-      >
-        {current &&
-          (current.mediaType === 'VIDEO' ? (
-            <video src={current.url} controls autoPlay playsInline className="max-h-full max-w-full" />
-          ) : (
-            <img src={current.url} alt={current.title} referrerPolicy="no-referrer" className="max-h-full max-w-full object-contain" />
-          ))}
-      </Lightbox>
+      <GalleryLightbox items={items} index={openIndex} onIndexChange={setOpenIndex} />
     </section>
   );
 };

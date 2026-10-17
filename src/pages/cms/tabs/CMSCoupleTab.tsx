@@ -8,7 +8,7 @@ import { useToast } from '../../../components/cms/Toast.js';
 import { Button } from '../../../components/ui/Button.js';
 import { Field, Input, Segmented, Textarea } from '../../../components/ui/Field.js';
 import { ErrorState, LoadingState } from '../../../components/ui/StateView.js';
-import type { CoupleProfile, MediaType } from '../../../types.js';
+import type { CoupleProfile, MediaType } from '@shared/types';
 
 type Side = 'groom' | 'bride';
 

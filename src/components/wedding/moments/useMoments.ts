@@ -1,79 +1,66 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useInfiniteQuery, useMutation, useQueryClient, type InfiniteData } from '@tanstack/react-query';
 import { publicApi } from '../../../lib/api.js';
+import { queryKeys } from '../../../lib/queryKeys.js';
 import { readLocal, writeLocal } from '../../../lib/guestSession.js';
-import type { PhotoMoment, PublicGuest } from '../../../types.js';
+import type { PhotoMoment, PublicGuest } from '@shared/types';
 
 const PAGE_SIZE = 12;
 const REACTIONS_KEY = 'wedding_photo_moments_reactions';
 
+type Page = Awaited<ReturnType<typeof publicApi.photoMoments>>;
+
 /** Paged guest photos plus this device's own reaction per photo (one emoji each, toggleable). */
 export function useMoments(guest: PublicGuest) {
-  const [moments, setMoments] = useState<PhotoMoment[]>([]);
-  const [userCount, setUserCount] = useState(0);
-  const [hasMore, setHasMore] = useState(true);
-  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
-  const [loadingMore, setLoadingMore] = useState(false);
+  const client = useQueryClient();
+  const key = queryKeys.photoMoments(guest.slug);
   const [myReactions, setMyReactions] = useState<Record<string, string>>(() => readLocal(REACTIONS_KEY, {}));
-  const page = useRef(1);
-  const busy = useRef(false);
-
-  const load = useCallback(
-    async (reset: boolean) => {
-      if (busy.current) return;
-      busy.current = true;
-      const target = reset ? 1 : page.current + 1;
-      if (reset) setStatus('loading');
-      else setLoadingMore(true);
-      try {
-        const res = await publicApi.photoMoments({ guestName: guest.name, guestSlug: guest.slug, page: target, limit: PAGE_SIZE });
-        setMoments((prev) => {
-          if (reset) return res.data;
-          const seen = new Set(prev.map((p) => p.id));
-          return [...prev, ...res.data.filter((p) => !seen.has(p.id))];
-        });
-        setUserCount(res.userCount);
-        setHasMore(res.hasMore);
-        page.current = target;
-        setStatus('ready');
-      } catch {
-        if (reset) setStatus('error');
-      } finally {
-        busy.current = false;
-        setLoadingMore(false);
-      }
-    },
-    [guest.name, guest.slug],
-  );
-
-  useEffect(() => {
-    load(true);
-  }, [load]);
 
   useEffect(() => writeLocal(REACTIONS_KEY, myReactions), [myReactions]);
 
+  const query = useInfiniteQuery({
+    queryKey: key,
+    queryFn: ({ pageParam }) => publicApi.photoMoments({ guestName: guest.name, guestSlug: guest.slug, page: pageParam, limit: PAGE_SIZE }),
+    initialPageParam: 1,
+    getNextPageParam: (last, pages) => (last.hasMore ? pages.length + 1 : undefined),
+  });
+
+  const moments = useMemo(() => {
+    const seen = new Set<string>();
+    return (query.data?.pages || []).flatMap((p) => p.data).filter((p) => !seen.has(p.id) && Boolean(seen.add(p.id)));
+  }, [query.data]);
+
   const applyServerCounts = (id: string, counts: { likesCount: number; reactions: Record<string, number> }) =>
-    setMoments((prev) => prev.map((p) => (p.id === id ? { ...p, ...counts } : p)));
+    client.setQueryData<InfiniteData<Page>>(
+      key,
+      (data) =>
+        data && { ...data, pages: data.pages.map((pg) => ({ ...pg, data: pg.data.map((p) => (p.id === id ? { ...p, ...counts } : p)) })) },
+    );
 
   /** Same emoji again removes it; a different emoji replaces the previous one. */
-  const react = useCallback(
-    async (id: string, emoji: string) => {
-      const previous = myReactions[id];
+  const reaction = useMutation({
+    mutationFn: async ({ id, emoji, previous }: { id: string; emoji: string; previous?: string }) => {
+      if (previous) applyServerCounts(id, await publicApi.reactPhotoMoment(id, previous, 'remove'));
+      if (previous !== emoji) applyServerCounts(id, await publicApi.reactPhotoMoment(id, emoji, 'add'));
+    },
+    onMutate: ({ id, emoji, previous }) =>
       setMyReactions((prev) => {
         const next = { ...prev };
         if (previous === emoji) delete next[id];
         else next[id] = emoji;
         return next;
-      });
-      try {
-        if (previous) applyServerCounts(id, await publicApi.reactPhotoMoment(id, previous, 'remove'));
-        if (previous !== emoji) applyServerCounts(id, await publicApi.reactPhotoMoment(id, emoji, 'add'));
-      } catch {
-        // Roll back the local choice; the server counts were not changed.
-        setMyReactions((prev) => ({ ...prev, ...(previous ? { [id]: previous } : {}) }));
-      }
-    },
-    [myReactions],
-  );
+      }),
+    // Roll back the local choice; the server counts were not changed.
+    onError: (_err, { id, previous }) => setMyReactions((prev) => ({ ...prev, ...(previous ? { [id]: previous } : {}) })),
+  });
+
+  const { mutate } = reaction;
+  const react = useCallback((id: string, emoji: string) => mutate({ id, emoji, previous: myReactions[id] }), [mutate, myReactions]);
+
+  const { fetchNextPage, isFetchingNextPage } = query;
+  const loadMore = useCallback(() => {
+    if (!isFetchingNextPage) fetchNextPage();
+  }, [fetchNextPage, isFetchingNextPage]);
 
   const isMine = useCallback(
     (photo: PhotoMoment) =>
@@ -83,16 +70,17 @@ export function useMoments(guest: PublicGuest) {
     [guest.slug, guest.name],
   );
 
+  const firstPage = query.data?.pages[0];
   return {
     moments,
-    userCount,
-    hasMore,
-    status,
-    loadingMore,
+    userCount: firstPage?.userCount ?? 0,
+    hasMore: Boolean(query.hasNextPage),
+    status: query.isPending ? 'loading' : query.isError && !query.data ? 'error' : 'ready',
+    loadingMore: query.isFetchingNextPage,
     myReactions,
-    reload: () => load(true),
-    loadMore: () => load(false),
+    reload: () => client.resetQueries({ queryKey: key }),
+    loadMore,
     react,
     isMine,
-  };
+  } as const;
 }

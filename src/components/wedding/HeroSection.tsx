@@ -1,14 +1,15 @@
 import React, { useRef, useState } from 'react';
 import { Pause, Play, Volume2, VolumeX } from 'lucide-react';
 import { IconButton } from '../ui/Button.js';
+import { useInvitation } from '../../features/invitation/InvitationContext.js';
 import { dateParts } from '../../lib/format.js';
-import type { InvitationData } from '../../types.js';
 
 /**
  * Full-bleed photo (or looping video) with the names set low and left.
  * The text sits on a deep scrim that is at least 85% opaque behind it, so it stays legible on any photo.
  */
-export const HeroSection: React.FC<{ invitation: InvitationData }> = ({ invitation }) => {
+export const HeroSection: React.FC = () => {
+  const { invitation } = useInvitation();
   const videoRef = useRef<HTMLVideoElement>(null);
   const [muted, setMuted] = useState(true);
   const [playing, setPlaying] = useState(true);

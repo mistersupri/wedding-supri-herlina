@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { Clock, MapPin, Shirt } from 'lucide-react';
 import { Reveal } from '../ui/Reveal.js';
-import type { WeddingEvent } from '../../types.js';
+import type { WeddingEvent } from '@shared/types';
 
 interface EventsSectionProps {
   events: WeddingEvent[];

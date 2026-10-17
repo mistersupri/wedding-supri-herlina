@@ -32,6 +32,11 @@ export function route<Req extends Request = Request>(handler: Handler<Req>, fall
         res.status(err.status).json({ success: false, code: err.code, message: err.message });
         return;
       }
+      // Missing or mistyped fields in a request body reach Prisma's validator; that is the caller's mistake.
+      if ((err as Error)?.name === 'PrismaClientValidationError') {
+        res.status(400).json({ success: false, message: `${fallbackMessage} Periksa kembali isian yang wajib.` });
+        return;
+      }
       console.error(fallbackMessage, err);
       res.status(500).json({ success: false, message: fallbackMessage });
     }

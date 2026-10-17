@@ -7,7 +7,7 @@ import { Button } from '../../../components/ui/Button.js';
 import { Field, Input, Textarea } from '../../../components/ui/Field.js';
 import { ConfirmDialog, Modal } from '../../../components/ui/Modal.js';
 import { EmptyState, ErrorState, LoadingState } from '../../../components/ui/StateView.js';
-import type { WeddingEvent } from '../../../types.js';
+import type { WeddingEvent } from '@shared/types';
 
 const blank = (orderIndex: number): Partial<WeddingEvent> => ({
   title: '',

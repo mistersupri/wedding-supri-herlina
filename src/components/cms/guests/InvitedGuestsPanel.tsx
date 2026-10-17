@@ -14,7 +14,7 @@ import { Field, Input, Select, Textarea } from '../../ui/Field.js';
 import { ConfirmDialog, Modal } from '../../ui/Modal.js';
 import { Chip } from '../../ui/StatusChip.js';
 import { EmptyState, ErrorState, LoadingState } from '../../ui/StateView.js';
-import type { InvitedGuest, InvitedGuestInput } from '../../../types.js';
+import type { InvitedGuest, InvitedGuestInput } from '@shared/types';
 
 const inviteMessage = (g: InvitedGuest) =>
   `Kepada Yth. Bapak/Ibu/Saudara/i *${g.name}*\n\n` +

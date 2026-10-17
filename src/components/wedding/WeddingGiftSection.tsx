@@ -3,10 +3,9 @@ import { Modal } from '../ui/Modal.js';
 import { Reveal } from '../ui/Reveal.js';
 import { KawungMark } from '../ui/Kawung.js';
 import { useCopy } from '../../hooks/useCopy.js';
-import type { GiftAccount } from '../../types.js';
+import type { GiftAccount } from '@shared/types';
 
-/** QR image for a gift entry; older records keep it in qrCodeUrl. */
-const qrOf = (gift: GiftAccount) => gift.qrisImageUrl || gift.qrCodeUrl || '';
+const qrOf = (gift: GiftAccount) => gift.qrisImageUrl || '';
 
 export const WeddingGiftSection: React.FC<{ gifts: GiftAccount[] }> = ({ gifts }) => {
   const { copy, copied, failed } = useCopy();

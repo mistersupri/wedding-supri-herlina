@@ -5,7 +5,7 @@ import { formatDateTime } from '../../../lib/format.js';
 import { Input, Select } from '../../ui/Field.js';
 import { StatusChip } from '../../ui/StatusChip.js';
 import { EmptyState, ErrorState, LoadingState } from '../../ui/StateView.js';
-import type { AttendanceStatus, GuestWish } from '../../../types.js';
+import type { AttendanceStatus, GuestWish } from '@shared/types';
 
 const PAGE = 6;
 

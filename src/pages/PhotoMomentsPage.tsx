@@ -5,7 +5,7 @@ import { publicApi } from '../lib/api.js';
 import { queryKeys } from '../lib/queryKeys.js';
 import { coupleNames } from '../lib/format.js';
 import { useThemePreset } from '../lib/theme.js';
-import { useInvitationGuest } from '../hooks/useInvitationGuest.js';
+import { useGuestAccess } from '../features/invitation/hooks/useGuestAccess.js';
 import { buttonClass } from '../components/ui/Button.js';
 import { KawungDivider } from '../components/ui/Kawung.js';
 import { LoadingState } from '../components/ui/StateView.js';
@@ -16,9 +16,9 @@ import { GuestPassModal } from '../components/wedding/GuestPassModal.js';
 export const PhotoMomentsPage: React.FC = () => {
   const navigate = useNavigate();
   const { data: invitation } = useQuery({ queryKey: queryKeys.invitation, queryFn: publicApi.invitation });
-  const { guest, isChecking } = useInvitationGuest();
+  const { guest, isChecking } = useGuestAccess();
   const [passOpen, setPassOpen] = useState(false);
-  useThemePreset(invitation?.themeColor);
+  useThemePreset(invitation);
 
   const names = invitation ? coupleNames(invitation) : '';
   const backHref = guest ? `/?to=${encodeURIComponent(guest.name)}&c=${guest.slug}` : '/';

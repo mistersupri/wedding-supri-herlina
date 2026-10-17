@@ -18,7 +18,7 @@ const NAV_GROUPS = [
       { to: '/cms/cerita', label: 'Kisah' },
       { to: '/cms/galeri', label: 'Galeri' },
       { to: '/cms/kado', label: 'Rekening & QRIS' },
-      { to: '/cms/tema', label: 'Tema, musik & WhatsApp' },
+      { to: '/cms/tema', label: 'Template & musik' },
     ],
   },
   {

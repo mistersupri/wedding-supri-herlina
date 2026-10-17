@@ -4,16 +4,23 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "dev:local": "tsx scripts/dev-local.ts",
     "dev": "tsx server/index.ts",
-    "build": "vite build && esbuild server/index.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
-    "start": "node dist/server.cjs",
+    "build": "vite build && esbuild server/index.ts --bundle --platform=node --format=esm --packages=external --sourcemap --outfile=dist/server.mjs",
+    "start": "prisma migrate deploy && node dist/server.mjs",
     "preview": "vite preview",
     "clean": "rm -rf dist",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "postinstall": "prisma generate",
+    "db:migrate": "prisma migrate deploy",
+    "db:seed": "tsx server/db/seedCli.ts",
+    "db:import-json": "tsx server/db/importLegacyJson.ts",
+    "db:reset-local": "rm -rf .local-db"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
-    "@prisma/client": "^7.10.0",
+    "@prisma/adapter-pg": "7.10.1",
+    "@prisma/client": "7.10.1",
     "@tailwindcss/vite": "^4.1.14",
     "@tanstack/react-query": "^5.102.8",
     "@vitejs/plugin-react": "^5.0.4",
@@ -26,6 +33,7 @@
     "lucide-react": "^0.546.0",
     "motion": "^12.23.24",
     "multer": "^2.4.0",
+    "pg": "8",
     "qrcode.react": "^4.2.0",
     "react": "^19.0.1",
     "react-dom": "^19.0.1",
@@ -33,20 +41,27 @@
     "vite": "^6.2.3"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "0.5.10",
+    "@electric-sql/pglite-socket": "0.2.13",
     "@types/bcryptjs": "^3.0.0",
     "@types/canvas-confetti": "^1.9.0",
     "@types/express": "^4.17.21",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/multer": "^2.2.0",
     "@types/node": "^22.14.0",
+    "@types/pg": "^8.23.1",
     "@types/react": "19",
     "@types/react-dom": "19",
     "autoprefixer": "^10.4.21",
     "esbuild": "^0.25.0",
-    "prisma": "^8.0.0-rc.13",
+    "prisma": "7.10.1",
     "tailwindcss": "^4.1.14",
     "tsx": "^4.21.0",
     "typescript": "~5.8.2",
     "vite": "^6.2.3"
+  },
+  "resolutions": {
+    "@types/express": "4.17.25",
+    "@types/express-serve-static-core": "4.19.9"
   }
 }

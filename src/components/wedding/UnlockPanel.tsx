@@ -1,32 +1,13 @@
-import React, { useState } from 'react';
+import React from 'react';
+import { useInvitation } from '../../features/invitation/InvitationContext.js';
+import { useUnlockForm } from '../../features/invitation/hooks/useUnlockForm.js';
 import { Button } from '../ui/Button.js';
 import { Field, Input } from '../ui/Field.js';
-import type { GuestAccessVerification } from '../../types.js';
-
-interface UnlockPanelProps {
-  onUnlock: (code: string) => Promise<GuestAccessVerification>;
-  className?: string;
-}
 
 /** For visitors who opened the invitation without a personal link: enter the 4-character code. */
-export const UnlockPanel: React.FC<UnlockPanelProps> = ({ onUnlock, className = '' }) => {
-  const [code, setCode] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const clean = code.trim().toUpperCase();
-    if (clean.length !== 4) {
-      setError('Kode terdiri dari 4 huruf atau angka, contoh: R7K2.');
-      return;
-    }
-    setBusy(true);
-    setError(null);
-    const res = await onUnlock(clean);
-    setBusy(false);
-    if (!res.isValid) setError(res.message || 'Kode ini tidak ada di daftar undangan.');
-  };
+export const UnlockPanel: React.FC<{ className?: string }> = ({ className = '' }) => {
+  const { unlock } = useInvitation();
+  const { code, setCode, error, busy, submit } = useUnlockForm(unlock);
 
   return (
     <div id="buka-undangan" className={`scroll-mt-24 rounded-md border border-line bg-card p-6 ${className}`}>
@@ -46,10 +27,7 @@ export const UnlockPanel: React.FC<UnlockPanelProps> = ({ onUnlock, className = 
               autoCapitalize="characters"
               spellCheck={false}
               placeholder="R7K2"
-              onChange={(e) => {
-                setCode(e.target.value.toUpperCase());
-                setError(null);
-              }}
+              onChange={(e) => setCode(e.target.value)}
               className="display-numeral text-center text-xl tracking-[0.3em]"
             />
           )}

@@ -1,16 +1,10 @@
-import React, { useEffect, useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import confetti from 'canvas-confetti';
+import React from 'react';
 import { Mic, Square, Trash2 } from 'lucide-react';
-import { publicApi } from '../../../lib/api.js';
-import { queryKeys } from '../../../lib/queryKeys.js';
-import { readLocal, writeLocal } from '../../../lib/guestSession.js';
-import { ATTENDANCE_LABEL } from '../../../lib/format.js';
-import { useVoiceRecorder } from '../../../hooks/useVoiceRecorder.js';
+import { useRsvpForm } from '../../../features/invitation/hooks/useRsvpForm.js';
 import { Button, buttonClass } from '../../ui/Button.js';
 import { Field, Segmented, Select, Textarea } from '../../ui/Field.js';
 import { StatusChip } from '../../ui/StatusChip.js';
-import type { AttendanceStatus, GuestWish, InvitationData, PublicGuest } from '../../../types.js';
+import type { AttendanceStatus } from '@shared/types';
 
 const ATTENDANCE_OPTIONS: { value: AttendanceStatus; label: string; activeClass: string }[] = [
   { value: 'HADIR', label: 'Hadir', activeClass: 'border-ok bg-ok text-white' },
@@ -18,96 +12,13 @@ const ATTENDANCE_OPTIONS: { value: AttendanceStatus; label: string; activeClass:
   { value: 'RAGU', label: 'Ragu', activeClass: 'border-maybe bg-maybe text-white' },
 ];
 
-/** wa.me link filled from the couple's template ({nama_tamu}, {status_kehadiran}, {jumlah_tamu}, {ucapan}). */
-function whatsappUrl(inv: InvitationData, wish: GuestWish) {
-  const text = (inv.whatsappTemplate || 'Halo, saya {nama_tamu} mengonfirmasi {status_kehadiran}.')
-    .replace(/{nama_tamu}/g, wish.guestName)
-    .replace(/{status_kehadiran}/g, ATTENDANCE_LABEL[wish.attendanceStatus])
-    .replace(/{jumlah_tamu}/g, String(wish.numberOfGuests))
-    .replace(/{ucapan}/g, wish.message);
-  return `https://wa.me/${inv.whatsappNumber.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(text)}`;
-}
-
-const editedKey = (name: string) => `wedding_rsvp_edited_${name.trim().toLowerCase()}`;
-
-function celebrate() {
-  confetti({
-    particleCount: 70,
-    spread: 70,
-    origin: { y: 0.7 },
-    colors: ['#B4862E', '#D6AD5B', '#F4ECDF', '#6E3B1E'],
-    disableForReducedMotion: true,
-  });
-}
-
-interface RsvpPanelProps {
-  invitation: InvitationData;
-  guest: PublicGuest;
-  existingWish: GuestWish | null;
-  onShowPass: (rsvp: { attendance: AttendanceStatus; pax: number }) => void;
-}
-
-/**
- * One RSVP per invited guest. After sending, the guest may change attendance and seats once;
- * the message itself stays as sent.
- */
-export const RsvpPanel: React.FC<RsvpPanelProps> = ({ invitation, guest, existingWish, onShowPass }) => {
-  const queryClient = useQueryClient();
-  const [editing, setEditing] = useState(false);
-  const [hasEdited, setHasEdited] = useState(() => readLocal(editedKey(guest.name), false));
-  const [attendance, setAttendance] = useState<AttendanceStatus>(existingWish?.attendanceStatus || 'HADIR');
-  const [pax, setPax] = useState(existingWish?.numberOfGuests || guest.pax || 1);
-  const [message, setMessage] = useState('');
-  const [formError, setFormError] = useState<string | null>(null);
-  const voice = useVoiceRecorder(setMessage);
-
-  useEffect(() => {
-    if (!existingWish) return;
-    setAttendance(existingWish.attendanceStatus);
-    setPax(existingWish.numberOfGuests);
-  }, [existingWish]);
-
-  const mutation = useMutation({
-    mutationFn: publicApi.submitWish,
-    onSuccess: (wish) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.guestbook });
-      celebrate();
-      if (editing) {
-        writeLocal(editedKey(guest.name), true);
-        setHasEdited(true);
-        setEditing(false);
-      }
-      setMessage('');
-      voice.clear();
-      onShowPass({ attendance: wish.attendanceStatus, pax: wish.numberOfGuests });
-    },
-    onError: (err: Error) => setFormError(err.message),
-  });
-
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setFormError(null);
-    const base = {
-      guestName: guest.name,
-      relationship: guest.category || 'Tamu Undangan',
-      attendanceStatus: attendance,
-      numberOfGuests: pax,
-    };
-
-    if (editing && existingWish) {
-      mutation.mutate({ ...base, message: existingWish.message, voiceUrl: existingWish.voiceUrl ?? null });
-      return;
-    }
-    const voiceUrl = voice.status === 'idle' ? null : await voice.stop();
-    if (!message.trim() && !voiceUrl) {
-      setFormError('Tuliskan ucapan atau rekam pesan suara terlebih dahulu.');
-      return;
-    }
-    mutation.mutate({ ...base, message: message.trim(), voiceUrl });
-  };
+/** Nusantara layout for the RSVP form; all state lives in useRsvpForm. */
+export const RsvpPanel: React.FC = () => {
+  const f = useRsvpForm();
+  const { guest, existingWish, editing, voice } = f;
 
   // --- Sent: summary ---
-  if (existingWish && !editing) {
+  if (f.isSent && existingWish) {
     return (
       <div aria-live="polite">
         <p className="text-sm font-semibold text-ok">Konfirmasi Anda sudah kami terima</p>
@@ -132,18 +43,16 @@ export const RsvpPanel: React.FC<RsvpPanelProps> = ({ invitation, guest, existin
         </dl>
 
         <div className="mt-6 flex flex-col gap-2">
-          <Button onClick={() => onShowPass({ attendance: existingWish.attendanceStatus, pax: existingWish.numberOfGuests })}>
-            Lihat kartu tamu
-          </Button>
-          {invitation.whatsappNumber && (
-            <a href={whatsappUrl(invitation, existingWish)} target="_blank" rel="noreferrer" className={buttonClass('secondary')}>
+          <Button onClick={f.showSentPass}>Lihat kartu tamu</Button>
+          {f.whatsappHref && (
+            <a href={f.whatsappHref} target="_blank" rel="noreferrer" className={buttonClass('secondary')}>
               Kabari mempelai lewat WhatsApp
             </a>
           )}
-          {hasEdited ? (
+          {!f.canEdit ? (
             <p className="mt-1 text-sm text-ink-soft">Perubahan kehadiran sudah dipakai (hanya satu kali).</p>
           ) : (
-            <Button variant="ghost" onClick={() => setEditing(true)}>
+            <Button variant="ghost" onClick={f.startEditing}>
               Ubah kehadiran
             </Button>
           )}
@@ -155,10 +64,10 @@ export const RsvpPanel: React.FC<RsvpPanelProps> = ({ invitation, guest, existin
   // --- Form ---
   const recording = voice.status === 'recording';
   const hasVoice = voice.status !== 'idle';
-  const paxOptions = Array.from({ length: Math.max(guest.pax, 1) }, (_, i) => i + 1);
+  const paxOptions = Array.from({ length: f.maxPax }, (_, i) => i + 1);
 
   return (
-    <form onSubmit={submit} noValidate>
+    <form onSubmit={f.submit} noValidate>
       <h3 className="font-display text-2xl leading-tight">{editing ? 'Ubah kehadiran' : 'Konfirmasi kehadiran'}</h3>
       <p className="mt-1 text-sm text-ink-soft">
         Atas nama <span className="font-semibold text-ink">{guest.name}</span> · {guest.pax} kursi
@@ -171,13 +80,13 @@ export const RsvpPanel: React.FC<RsvpPanelProps> = ({ invitation, guest, existin
 
       <fieldset className="mt-5">
         <legend className="mb-1.5 text-sm font-semibold">Apakah Anda akan hadir?</legend>
-        <Segmented<AttendanceStatus> name="Kehadiran" value={attendance} options={ATTENDANCE_OPTIONS} onChange={setAttendance} />
+        <Segmented<AttendanceStatus> name="Kehadiran" value={f.attendance} options={ATTENDANCE_OPTIONS} onChange={f.setAttendance} />
       </fieldset>
 
-      {attendance === 'HADIR' && (
+      {f.attendance === 'HADIR' && (
         <Field label="Jumlah tamu yang datang" hint={`Sesuai undangan, maksimal ${guest.pax} orang.`} className="mt-4">
           {(p) => (
-            <Select {...p} value={pax} onChange={(e) => setPax(Number(e.target.value))}>
+            <Select {...p} value={f.pax} onChange={(e) => f.setPax(Number(e.target.value))}>
               {paxOptions.map((n) => (
                 <option key={n} value={n}>
                   {n} orang
@@ -199,12 +108,9 @@ export const RsvpPanel: React.FC<RsvpPanelProps> = ({ invitation, guest, existin
               <Textarea
                 {...p}
                 rows={4}
-                value={message}
+                value={f.message}
                 readOnly={recording}
-                onChange={(e) => {
-                  setMessage(e.target.value);
-                  setFormError(null);
-                }}
+                onChange={(e) => f.setMessage(e.target.value)}
                 placeholder="Tuliskan doa terbaik untuk kedua mempelai"
               />
             )}
@@ -237,18 +143,18 @@ export const RsvpPanel: React.FC<RsvpPanelProps> = ({ invitation, guest, existin
         </>
       )}
 
-      {formError && (
+      {f.error && (
         <p role="alert" className="mt-4 text-sm font-medium text-no">
-          {formError}
+          {f.error}
         </p>
       )}
 
       <div className="mt-6 flex flex-col gap-2 sm:flex-row">
-        <Button type="submit" loading={mutation.isPending} className="flex-1">
+        <Button type="submit" loading={f.isPending} className="flex-1">
           {editing ? 'Simpan perubahan' : 'Kirim konfirmasi'}
         </Button>
         {editing && (
-          <Button variant="ghost" onClick={() => setEditing(false)}>
+          <Button variant="ghost" onClick={f.cancelEditing}>
             Batal
           </Button>
         )}

@@ -79,6 +79,67 @@
   --prada-on-deep: #d9ae5e;
 }
 
+/* Palettes for the illustrated templates, so shared dialogs (guest pass, QR, lightbox) match them. */
+[data-theme='gulungan'] {
+  --paper: #ece6d3;
+  --paper-2: #ddd6bf;
+  --card: #f3ecc9;
+  --ink: #2f2e28;
+  --ink-soft: #5f5b4d;
+  --line: #c9c1a6;
+  --field: #7c7765;
+  --primary: #2a2b26;
+  --primary-hover: #1d1e1a;
+  --on-primary: #f3ecc9;
+  --prada: #c8453a;
+  --prada-ink: #a3372e;
+  --deep: #2a2b26;
+  --deep-2: #34352f;
+  --on-deep: #f3ecc9;
+  --on-deep-soft: #a7a391;
+  --prada-on-deep: #ff9a4a;
+}
+
+[data-theme='bilik'] {
+  --paper: #efe8dc;
+  --paper-2: #e3dacb;
+  --card: #fbf8f1;
+  --ink: #221d1a;
+  --ink-soft: #5d544c;
+  --line: #d3c9b9;
+  --field: #8a8075;
+  --primary: #b42a2f;
+  --primary-hover: #951f24;
+  --on-primary: #ffffff;
+  --prada: #ffcf3a;
+  --prada-ink: #8a6a00;
+  --deep: #221d1a;
+  --deep-2: #2f2926;
+  --on-deep: #efe8dc;
+  --on-deep-soft: #b3aa9d;
+  --prada-on-deep: #ffcf3a;
+}
+
+[data-theme='cozy'] {
+  --paper: #fdf8e4;
+  --paper-2: #fbf1d6;
+  --card: #fffdf0;
+  --ink: #304f48;
+  --ink-soft: #6d5a45;
+  --line: #e2cfa0;
+  --field: #a2895f;
+  --primary: #587957;
+  --primary-hover: #46633f;
+  --on-primary: #fffdf0;
+  --prada: #e3928a;
+  --prada-ink: #a2622f;
+  --deep: #304f48;
+  --deep-2: #3d6158;
+  --on-deep: #fffdf0;
+  --on-deep-soft: #c8dcd6;
+  --prada-on-deep: #ffd85e;
+}
+
 :root {
   /* Status colours, only for RSVP and check-in chips. */
   --ok: #2f6b3f;

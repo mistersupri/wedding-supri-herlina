@@ -1,18 +1,12 @@
 import React from 'react';
 import { motion } from 'motion/react';
 import { KawungDivider } from '../ui/Kawung.js';
+import { useInvitation } from '../../features/invitation/InvitationContext.js';
 import { dateParts } from '../../lib/format.js';
-import type { InvitationData, PublicGuest } from '../../types.js';
-
-interface CoverEnvelopeProps {
-  invitation: InvitationData;
-  recipientName: string;
-  guest: PublicGuest | null;
-  onOpen: () => void;
-}
 
 /** Full-screen cover addressed to the guest. Lifts away like a cloth when opened. */
-export const CoverEnvelope: React.FC<CoverEnvelopeProps> = ({ invitation, recipientName, guest, onOpen }) => {
+export const CoverEnvelope: React.FC = () => {
+  const { invitation, displayName: recipientName, guest, open: onOpen } = useInvitation();
   const date = dateParts(invitation.weddingDate);
 
   return (

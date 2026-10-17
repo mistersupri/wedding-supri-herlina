@@ -6,7 +6,7 @@ import { IconButton } from '../../ui/Button.js';
 import { Spinner } from '../../ui/StateView.js';
 import { PHOTO_FILTERS, captureVideoFrame, composePhoto } from '../../../lib/image.js';
 import { publicApi, uploadFile } from '../../../lib/api.js';
-import type { PhotoFrameConfig, PublicGuest } from '../../../types.js';
+import type { PhotoFrameConfig, PublicGuest } from '@shared/types';
 
 interface CameraSheetProps {
   guest: PublicGuest;

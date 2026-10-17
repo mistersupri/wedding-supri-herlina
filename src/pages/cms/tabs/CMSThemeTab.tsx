@@ -3,12 +3,13 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { cmsApi } from '../../../lib/api.js';
 import { queryKeys } from '../../../lib/queryKeys.js';
 import { THEME_OPTIONS } from '../../../lib/theme.js';
+import { TEMPLATES } from '@shared/templates';
 import { PageHeader, Panel } from '../../../components/cms/CmsPage.js';
 import { useToast } from '../../../components/cms/Toast.js';
 import { Button } from '../../../components/ui/Button.js';
 import { Field, Input, Textarea } from '../../../components/ui/Field.js';
 import { ErrorState, LoadingState } from '../../../components/ui/StateView.js';
-import type { ThemeSettings } from '../../../types.js';
+import type { ThemeSettings } from '@shared/types';
 
 /** ISO string <-> value for <input type="datetime-local"> in the admin's local time. */
 const toLocalInput = (iso: string) => {
@@ -51,8 +52,8 @@ export const CMSThemeTab: React.FC = () => {
       }}
     >
       <PageHeader
-        title="Tema, musik & WhatsApp"
-        description="Warna undangan, lagu latar, tanggal hitung mundur, dan nomor tujuan konfirmasi."
+        title="Template, musik & WhatsApp"
+        description="Desain undangan, lagu latar, tanggal hitung mundur, dan nomor tujuan konfirmasi."
         actions={
           <Button type="submit" loading={save.isPending}>
             Simpan pengaturan
@@ -61,23 +62,27 @@ export const CMSThemeTab: React.FC = () => {
       />
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <Panel title="Warna undangan" description="Setiap pilihan dinamai dari pewarna batik." className="lg:col-span-2">
-          <div role="radiogroup" aria-label="Warna undangan" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {THEME_OPTIONS.map((t) => {
-              const active = form.themeColor === t.id;
+        <Panel
+          title="Template undangan"
+          description="Semua template memakai data yang sama: mempelai, acara, galeri, RSVP, kado, dan kartu tamu."
+          className="lg:col-span-2"
+        >
+          <div role="radiogroup" aria-label="Template undangan" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {TEMPLATES.map((t) => {
+              const active = form.templateId === t.id;
               return (
                 <button
                   key={t.id}
                   type="button"
                   role="radio"
                   aria-checked={active}
-                  onClick={() => set('themeColor', t.id)}
+                  onClick={() => set('templateId', t.id)}
                   className={`rounded-sm border p-4 text-left transition-colors ${active ? 'border-primary ring-2 ring-primary' : 'border-line hover:border-field'}`}
                 >
-                  <span className="flex h-10 overflow-hidden rounded-xs" aria-hidden="true">
-                    {t.swatches.map((c) => (
-                      <span key={c} className="flex-1" style={{ backgroundColor: c }} />
-                    ))}
+                  <span className="flex h-16 overflow-hidden rounded-xs" aria-hidden="true">
+                    <span className="flex-[3]" style={{ backgroundColor: t.swatches[0] }} />
+                    <span className="flex-[2]" style={{ backgroundColor: t.swatches[1] }} />
+                    <span className="flex-1" style={{ backgroundColor: t.swatches[2] }} />
                   </span>
                   <span className="mt-3 block font-semibold">{t.name}</span>
                   <span className="mt-0.5 block text-sm text-ink-soft">{t.description}</span>
@@ -85,7 +90,38 @@ export const CMSThemeTab: React.FC = () => {
               );
             })}
           </div>
+          <p className="mt-4 text-sm text-ink-soft">
+            Simpan, lalu buka Pratinjau untuk melihat hasilnya. Foto yang tampil selalu foto dari menu Mempelai dan Galeri.
+          </p>
         </Panel>
+
+        {form.templateId === 'nusantara' && (
+          <Panel title="Warna Nusantara" description="Setiap pilihan dinamai dari pewarna batik." className="lg:col-span-2">
+            <div role="radiogroup" aria-label="Warna undangan" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {THEME_OPTIONS.map((t) => {
+                const active = form.themeColor === t.id;
+                return (
+                  <button
+                    key={t.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={active}
+                    onClick={() => set('themeColor', t.id)}
+                    className={`rounded-sm border p-4 text-left transition-colors ${active ? 'border-primary ring-2 ring-primary' : 'border-line hover:border-field'}`}
+                  >
+                    <span className="flex h-10 overflow-hidden rounded-xs" aria-hidden="true">
+                      {t.swatches.map((c) => (
+                        <span key={c} className="flex-1" style={{ backgroundColor: c }} />
+                      ))}
+                    </span>
+                    <span className="mt-3 block font-semibold">{t.name}</span>
+                    <span className="mt-0.5 block text-sm text-ink-soft">{t.description}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </Panel>
+        )}
 
         <Panel title="Tanggal">
           <div className="space-y-4">

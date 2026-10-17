@@ -1,6 +1,6 @@
 import React from 'react';
 import { Reveal } from '../ui/Reveal.js';
-import type { LoveStoryItem } from '../../types.js';
+import type { LoveStoryItem } from '@shared/types';
 
 /** Milestones alternate sides on wide screens; the year is the large typographic anchor of each. */
 export const LoveStorySection: React.FC<{ stories: LoveStoryItem[] }> = ({ stories }) => {

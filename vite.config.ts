@@ -8,12 +8,13 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, '.'),
+      '@shared': path.resolve(__dirname, 'shared'),
     },
   },
   server: {
     // AI Studio sets DISABLE_HMR=true so agent edits do not flicker the preview.
     hmr: process.env.DISABLE_HMR !== 'true',
-    // The JSON database and uploads change at runtime; watching them would reload every open page on each RSVP.
-    watch: process.env.DISABLE_HMR === 'true' ? null : { ignored: ['**/data/**', '**/uploads/**'] },
+    // Uploads and the embedded database change at runtime; watching them would reload every open page.
+    watch: process.env.DISABLE_HMR === 'true' ? null : { ignored: ['**/uploads/**', '**/.local-db/**'] },
   },
 });

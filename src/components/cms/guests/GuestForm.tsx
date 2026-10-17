@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Checkbox, Field, Input, Select, Textarea } from '../../ui/Field.js';
-import type { InvitedGuest, InvitedGuestInput } from '../../../types.js';
+import type { InvitedGuest, InvitedGuestInput } from '@shared/types';
 
 export const GUEST_CATEGORIES = ['Keluarga', 'Sahabat', 'VIP', 'Rekan Kerja', 'Umum'];
 

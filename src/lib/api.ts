@@ -21,7 +21,7 @@ import type {
   ThemeSettings,
   UploadCategory,
   WeddingEvent,
-} from '../types.js';
+} from '@shared/types';
 
 const API = '/api';
 const TOKEN_KEY = 'wedding_admin_token';

@@ -1,4 +1,4 @@
-import type { PublicGuest } from '../types.js';
+import type { PublicGuest } from '@shared/types';
 
 const STORAGE_KEY = 'wedding_verified_guest';
 

@@ -4,7 +4,7 @@ import { Search } from 'lucide-react';
 import { cmsApi, publicApi } from '../../../lib/api.js';
 import { queryKeys } from '../../../lib/queryKeys.js';
 import { formatDateTime } from '../../../lib/format.js';
-import { buildFramePresets } from '../../../lib/photoFrames.js';
+import { buildFramePresets } from '@shared/photoFrames';
 import { useDebounce } from '../../../hooks/useDebounce.js';
 import { PageHeader, Pagination, Panel, Stat, usePagination } from '../../../components/cms/CmsPage.js';
 import { MediaField } from '../../../components/cms/MediaField.js';
@@ -13,7 +13,7 @@ import { Button } from '../../../components/ui/Button.js';
 import { Checkbox, Input } from '../../../components/ui/Field.js';
 import { ConfirmDialog } from '../../../components/ui/Modal.js';
 import { EmptyState, ErrorState, LoadingState } from '../../../components/ui/StateView.js';
-import type { PhotoFrameConfig, PhotoMoment } from '../../../types.js';
+import type { PhotoFrameConfig, PhotoMoment } from '@shared/types';
 
 const FramePanel: React.FC = () => {
   const client = useQueryClient();

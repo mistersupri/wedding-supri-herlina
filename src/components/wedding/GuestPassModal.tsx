@@ -5,7 +5,7 @@ import { Button } from '../ui/Button.js';
 import { StatusChip } from '../ui/StatusChip.js';
 import { useCopy } from '../../hooks/useCopy.js';
 import { guestInvitationUrl } from '../../lib/format.js';
-import type { AttendanceStatus, PublicGuest } from '../../types.js';
+import type { AttendanceStatus, PublicGuest } from '@shared/types';
 
 interface GuestPassModalProps {
   open: boolean;

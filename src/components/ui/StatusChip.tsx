@@ -1,6 +1,6 @@
 import React from 'react';
 import { ATTENDANCE_LABEL } from '../../lib/format.js';
-import type { AttendanceStatus } from '../../types.js';
+import type { AttendanceStatus } from '@shared/types';
 
 const TONES: Record<AttendanceStatus, string> = {
   HADIR: 'bg-ok-bg text-ok',

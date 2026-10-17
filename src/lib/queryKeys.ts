@@ -2,6 +2,9 @@
 export const queryKeys = {
   invitation: ['invitation'] as const,
   guestbook: ['guestbook'] as const,
+  guestAccess: (code: string) => ['guest-access', code] as const,
+  photoFrame: ['photo-frame'] as const,
+  photoMoments: (slug: string) => ['photo-moments', slug] as const,
 
   cms: {
     stats: ['cms', 'stats'] as const,

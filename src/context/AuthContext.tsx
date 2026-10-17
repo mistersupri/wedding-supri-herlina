@@ -1,5 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import type { AdminUser } from '../types.js';
+import type { AdminUser } from '@shared/types';
 import { AUTH_TOKEN_STORAGE_KEY, UNAUTHORIZED_EVENT, authApi, getAccessToken, getRefreshToken } from '../lib/api.js';
 
 interface AuthContextValue {

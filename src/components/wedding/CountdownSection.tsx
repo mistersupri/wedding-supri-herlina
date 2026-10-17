@@ -2,24 +2,11 @@ import React from 'react';
 import { CalendarPlus } from 'lucide-react';
 import { useCountdown } from '../../hooks/useCountdown.js';
 import { Reveal } from '../ui/Reveal.js';
-import type { InvitationData } from '../../types.js';
+import { googleCalendarUrl } from '../../lib/calendar.js';
+import { useInvitation } from '../../features/invitation/InvitationContext.js';
 
-function googleCalendarUrl(inv: InvitationData) {
-  const start = new Date(inv.weddingDate);
-  const end = new Date(start.getTime() + 6 * 3_600_000);
-  const stamp = (d: Date) => d.toISOString().replace(/-|:|\.\d{3}/g, '');
-  const first = inv.events[0];
-  const params = new URLSearchParams({
-    action: 'TEMPLATE',
-    text: `Pernikahan ${inv.groomShortName} & ${inv.brideShortName}`,
-    dates: `${stamp(start)}/${stamp(end)}`,
-    details: `Pernikahan ${inv.groomName} dan ${inv.brideName}.`,
-    location: first ? `${first.venueName}, ${first.address}` : '',
-  });
-  return `https://calendar.google.com/calendar/render?${params.toString()}`;
-}
-
-export const CountdownSection: React.FC<{ invitation: InvitationData }> = ({ invitation }) => {
+export const CountdownSection: React.FC = () => {
+  const { invitation } = useInvitation();
   const left = useCountdown(invitation.countdownTarget || invitation.weddingDate);
   const units = [
     { value: left.days, label: 'hari' },

@@ -2,10 +2,10 @@ import fs from 'fs';
 import path from 'path';
 import express, { type NextFunction, type Request, type Response, type Router } from 'express';
 import multer from 'multer';
-import { config } from './config.js';
-import { requireAdminAuth } from './auth.js';
+import { config } from '../config.js';
+import { requireAdmin } from './middleware/requireAdmin.js';
 import { badRequest, route } from './http.js';
-import type { UploadCategory } from '../src/types.js';
+import type { UploadCategory } from '../../shared/types.js';
 
 const CATEGORIES: UploadCategory[] = ['hero', 'gallery', 'couples', 'moments', 'general'];
 const MB = 1024 * 1024;
@@ -42,7 +42,7 @@ const guestUpload = multer({
 /** Photo moments are the one upload a guest makes; every other category needs an admin token. */
 function gate(req: Request, res: Response, next: NextFunction) {
   if (categoryOf(req) === 'moments' && !req.headers.authorization) return next();
-  return requireAdminAuth(req, res, next);
+  return requireAdmin(req, res, next);
 }
 
 const pickUploader = (req: Request) => (req.headers.authorization ? adminUpload : guestUpload);
@@ -70,7 +70,7 @@ export function uploadRoutes(): Router {
 
   router.post(
     '/upload/batch',
-    requireAdminAuth,
+    requireAdmin,
     adminUpload.array('files', 30),
     route((req) => {
       const files = (req.files as Express.Multer.File[]) || [];

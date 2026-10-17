@@ -1,14 +1,44 @@
-datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
-}
+// One database per wedding. The invitation and photo-frame settings are single rows (id "main").
 
 generator client {
-  provider = "prisma-client-js"
+  provider = "prisma-client"
+  output   = "../server/infrastructure/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum AttendanceStatus {
+  HADIR
+  TIDAK_HADIR
+  RAGU
+}
+
+enum GalleryCategory {
+  PREWEDDING
+  ENGAGEMENT
+  MOMENTS
+  CEREMONY
+}
+
+enum MediaType {
+  IMAGE
+  VIDEO
+}
+
+enum CheckInMethod {
+  QR_SCAN
+  MANUAL
+}
+
+enum AdminRole {
+  SUPERADMIN
+  ADMIN
 }
 
 model Invitation {
-  id               String   @id @default(cuid())
+  id               String    @id @default("main")
   groomName        String
   groomShortName   String
   groomParents     String
@@ -19,24 +49,24 @@ model Invitation {
   brideParents     String
   brideInstagram   String?
   bridePhoto       String
-  weddingDate      DateTime
-  countdownTarget  DateTime
   heroImage        String
+  heroVideoUrl     String?
+  heroMediaType    MediaType @default(IMAGE)
   quoteText        String
   quoteSource      String
+  weddingDate      DateTime
+  countdownTarget  DateTime
   musicUrl         String
   musicTitle       String
   whatsappNumber   String
   whatsappTemplate String
-  themeColor       String   @default("rose")
-  giftInfo         String
-  loveStories      String
-  updatedAt        DateTime @updatedAt
-  createdAt        DateTime @default(now())
+  templateId       String    @default("nusantara")
+  themeColor       String    @default("sogan")
+  updatedAt        DateTime  @updatedAt
 }
 
 model Event {
-  id           String   @id @default(cuid())
+  id           String  @id @default(cuid())
   title        String
   date         String
   startTime    String
@@ -47,41 +77,106 @@ model Event {
   mapsEmbedUrl String?
   dressCode    String?
   notes        String?
-  orderIndex   Int      @default(0)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  orderIndex   Int     @default(0)
 }
 
-model Guest {
-  id               String   @id @default(cuid())
+model LoveStory {
+  id          String  @id @default(cuid())
+  year        String
+  title       String
+  description String
+  photoUrl    String?
+  orderIndex  Int     @default(0)
+}
+
+model GiftAccount {
+  id            String  @id @default(cuid())
+  bankName      String
+  accountNumber String
+  accountHolder String
+  isQris        Boolean @default(false)
+  qrisImageUrl  String?
+  orderIndex    Int     @default(0)
+}
+
+model GalleryPhoto {
+  id           String          @id @default(cuid())
+  title        String
+  url          String
+  caption      String?
+  category     GalleryCategory @default(MOMENTS)
+  mediaType    MediaType       @default(IMAGE)
+  thumbnailUrl String?
+  orderIndex   Int             @default(0)
+}
+
+model GuestWish {
+  id               String           @id @default(cuid())
   guestName        String
+  /// Lower-cased, trimmed name: one wish per guest name.
+  guestKey         String           @unique
   relationship     String
-  attendanceStatus String
-  numberOfGuests   Int      @default(1)
+  attendanceStatus AttendanceStatus
+  numberOfGuests   Int              @default(1)
   message          String
+  voiceUrl         String?
   reply            String?
-  isHidden         Boolean  @default(false)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  isHidden         Boolean          @default(false)
+  createdAt        DateTime         @default(now())
+
+  @@index([createdAt])
 }
 
-model GalleryImage {
+model InvitedGuest {
+  id               String         @id @default(cuid())
+  name             String
+  slug             String         @unique
+  phone            String         @default("")
+  instagram        String         @default("")
+  category         String         @default("Umum")
+  pax              Int            @default(2)
+  tableNumber      String         @default("")
+  customNote       String         @default("")
+  invitationSent   Boolean        @default(false)
+  invitationSentAt DateTime?
+  isCheckedIn      Boolean        @default(false)
+  checkInTime      DateTime?
+  checkInMethod    CheckInMethod?
+  actualPax        Int?
+  souvenirGiven    Boolean        @default(false)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+}
+
+model PhotoMoment {
   id         String   @id @default(cuid())
-  title      String
-  url        String
-  caption    String?
-  category   String   @default("MOMENTS")
-  orderIndex Int      @default(0)
+  guestName  String
+  guestSlug  String?
+  photoUrl   String
+  caption    String   @default("")
+  likesCount Int      @default(0)
+  /// Emoji -> count.
+  reactions  Json     @default("{}")
   createdAt  DateTime @default(now())
+
+  @@index([guestSlug])
+  @@index([createdAt])
+}
+
+model PhotoFrameSetting {
+  id               String  @id @default("main")
+  enabled          Boolean @default(true)
+  frameOverlayUrl  String
+  frameName        String?
+  allowGuestToggle Boolean @default(true)
 }
 
 model AdminUser {
-  id           String   @id @default(cuid())
-  username     String   @unique
-  email        String   @unique
+  id           String    @id @default(cuid())
+  username     String    @unique
+  email        String    @unique
   name         String
   passwordHash String
-  role         String   @default("ADMIN")
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  role         AdminRole @default(ADMIN)
+  createdAt    DateTime  @default(now())
 }

@@ -5,6 +5,9 @@ export type GalleryCategory = 'PREWEDDING' | 'MOMENTS' | 'ENGAGEMENT' | 'CEREMON
 /** Colour presets, each named after a batik dye tradition (see DESIGN.md). */
 export type ThemePreset = 'sogan' | 'wedel' | 'gadung' | 'jambon';
 
+/** Whole-page invitation designs. Colour presets apply to the nusantara template only. */
+export type TemplateId = 'nusantara' | 'gulungan' | 'bilik' | 'cozy';
+
 export type MediaType = 'IMAGE' | 'VIDEO';
 
 export type UploadCategory = 'hero' | 'gallery' | 'couples' | 'moments' | 'general';
@@ -14,8 +17,6 @@ export interface GiftAccount {
   bankName: string;
   accountNumber: string;
   accountHolder: string;
-  /** Older records store the QR image here; new ones use qrisImageUrl. */
-  qrCodeUrl?: string;
   isQris?: boolean;
   qrisImageUrl?: string;
 }
@@ -94,6 +95,7 @@ export interface CoupleProfile {
 }
 
 export interface ThemeSettings {
+  templateId: TemplateId;
   themeColor: ThemePreset;
   musicUrl: string;
   musicTitle: string;

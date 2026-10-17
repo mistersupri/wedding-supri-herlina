@@ -1,4 +1,4 @@
-import type { AttendanceStatus } from '../types.js';
+import type { AttendanceStatus } from '@shared/types';
 
 const toDate = (iso: string) => new Date(iso);
 

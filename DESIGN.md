@@ -48,3 +48,15 @@ The invitation has no light/dark toggle on purpose: its colours are the couple's
 - Cover opens like a cloth lifted upward (one exit transition).
 - Sections rise 12px into place once as they enter, to pace reading like turning invitation pages.
 - Everything respects `prefers-reduced-motion`.
+
+## Templates
+
+Nusantara (everything above) is the default. Three more templates each carry their own palette and type, scoped under one root class so nothing leaks into the CMS or into each other. Shared dialogs (guest pass, QR, lightbox) pick up a matching token set through `<html data-theme="gulungan|bilik|cozy">` in `src/index.css`.
+
+| Template | Palette | Type | Signature |
+|---|---|---|---|
+| Gulungan Kenangan (`.gk`) | film grey `#34352F`, cream `#F3ECC9`, stamp red `#C8453A`, amber `#FF9A4A` | EB Garamond, Pinyon Script, VT323 | Love story on a film strip, ticket stubs per event, film-leader countdown, contact sheet with a red circle on the favourite frame. |
+| Bilik Foto (`.bf`) | dotted paper wall `#EFE8DC`, ink `#221D1A`, booth red `#B42A2F`, lamp `#FFCF3A` | Fraunces, Instrument Sans, Courier Prime, DotGothic16, Reenie Beanie | A booth slot prints the couple's strip, letterboard schedule, LCD countdown, receipt for the venue, wishes printed as strips. |
+| Cozy Home (`.ch`) | mint sky `#AFD9D5`, paper `#FFFDF0`, wood grain, pink `#E3928A`, leaf `#587957` | Nunito (rounded) | One screen: a cottage scene, wooden masthead, signposts and a dock that open wood-framed panels, a letter that types itself. |
+
+Rules every template keeps: the film-edge or watermark text is the couple's initials or names, never a product name; photos always come from the couple's own data; addresses and the digital envelope stay behind the guest code; motion respects `prefers-reduced-motion`. The original 3D walking world of Cozy Home is drawn as a still 2D scene without a joystick, because a joystick with nothing to walk around would be a dead control.

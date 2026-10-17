@@ -3,7 +3,7 @@ import { uploadFile } from '../../lib/api.js';
 import { resizeImageFile } from '../../lib/image.js';
 import { Input } from '../ui/Field.js';
 import { Spinner } from '../ui/StateView.js';
-import type { UploadCategory } from '../../types.js';
+import type { UploadCategory } from '@shared/types';
 
 interface MediaFieldProps {
   label: string;

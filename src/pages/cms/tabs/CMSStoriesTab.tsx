@@ -8,7 +8,7 @@ import { Button } from '../../../components/ui/Button.js';
 import { Field, Input, Textarea } from '../../../components/ui/Field.js';
 import { ConfirmDialog, Modal } from '../../../components/ui/Modal.js';
 import { EmptyState, ErrorState, LoadingState } from '../../../components/ui/StateView.js';
-import type { LoveStoryItem } from '../../../types.js';
+import type { LoveStoryItem } from '@shared/types';
 
 const BLANK: Partial<LoveStoryItem> = { year: '', title: '', description: '', photoUrl: '' };
 

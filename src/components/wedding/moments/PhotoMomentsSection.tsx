@@ -1,13 +1,15 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, Camera } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { publicApi } from '../../../lib/api.js';
+import { queryKeys } from '../../../lib/queryKeys.js';
 import { formatTime } from '../../../lib/format.js';
 import { IconButton } from '../../ui/Button.js';
 import { Lightbox } from '../../ui/Lightbox.js';
 import { EmptyState, ErrorState, LoadingState, Spinner } from '../../ui/StateView.js';
 import { CameraSheet } from './CameraSheet.js';
 import { useMoments } from './useMoments.js';
-import type { PhotoFrameConfig, PhotoMoment, PublicGuest } from '../../../types.js';
+import type { PhotoMoment, PublicGuest } from '@shared/types';
 
 const EMOJIS = ['❤️', '😍', '🎉', '👏', '😊', '🙏'];
 const PER_GUEST = 3;
@@ -30,16 +32,9 @@ export const PhotoMomentsSection: React.FC<PhotoMomentsSectionProps> = ({ guest,
   const [tab, setTab] = useState<'all' | 'mine'>('all');
   const [cameraOpen, setCameraOpen] = useState(false);
   const [openIndex, setOpenIndex] = useState<number | null>(null);
-  const [frame, setFrame] = useState<PhotoFrameConfig | null>(null);
+  const frame = useQuery({ queryKey: queryKeys.photoFrame, queryFn: publicApi.frameConfig }).data ?? null;
   const [shareNote, setShareNote] = useState('');
   const sentinel = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    publicApi
-      .frameConfig()
-      .then(setFrame)
-      .catch(() => setFrame(null));
-  }, []);
 
   const items = useMemo(() => (tab === 'mine' ? m.moments.filter(m.isMine) : m.moments), [tab, m.moments, m.isMine]);
   const mineCount = useMemo(() => m.moments.filter(m.isMine).length, [m.moments, m.isMine]);

@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import type { ThemePreset } from '../types.js';
+import type { ThemePreset, ThemeSettings } from '@shared/types';
 
 export interface ThemeOption {
   id: ThemePreset;
@@ -26,13 +26,17 @@ export const THEME_OPTIONS: ThemeOption[] = [
   },
 ];
 
-/** Applies a preset to <html data-theme>. Restores the default on unmount. */
-export function useThemePreset(preset: ThemePreset | undefined) {
+/**
+ * Applies the look to <html data-theme>. Nusantara uses the couple's colour preset; every other
+ * template carries its own palette (see index.css), so shared dialogs match it. Restores the default on unmount.
+ */
+export function useThemePreset(theme: Pick<ThemeSettings, 'templateId' | 'themeColor'> | undefined) {
+  const value = !theme ? 'sogan' : theme.templateId && theme.templateId !== 'nusantara' ? theme.templateId : theme.themeColor || 'sogan';
   useEffect(() => {
     const root = document.documentElement;
-    root.dataset.theme = preset || 'sogan';
+    root.dataset.theme = value;
     return () => {
       root.dataset.theme = 'sogan';
     };
-  }, [preset]);
+  }, [value]);
 }

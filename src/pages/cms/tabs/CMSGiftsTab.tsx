@@ -8,7 +8,7 @@ import { Button } from '../../../components/ui/Button.js';
 import { Checkbox, Field, Input } from '../../../components/ui/Field.js';
 import { ConfirmDialog, Modal } from '../../../components/ui/Modal.js';
 import { EmptyState, ErrorState, LoadingState } from '../../../components/ui/StateView.js';
-import type { GiftAccount } from '../../../types.js';
+import type { GiftAccount } from '@shared/types';
 
 const BLANK: Partial<GiftAccount> = { bankName: '', accountNumber: '', accountHolder: '', isQris: false, qrisImageUrl: '' };
 
@@ -35,7 +35,7 @@ export const CMSGiftsTab: React.FC = () => {
       ) : (
         <ul className="grid gap-4 sm:grid-cols-2">
           {items.map((g) => {
-            const qr = g.qrisImageUrl || g.qrCodeUrl;
+            const qr = g.qrisImageUrl;
             return (
               <li key={g.id} className="flex gap-4 rounded-md border border-line bg-card p-5">
                 <div className="min-w-0 flex-1">
@@ -43,13 +43,7 @@ export const CMSGiftsTab: React.FC = () => {
                   <p className="display-numeral mt-1 text-2xl break-all">{g.accountNumber || 'QRIS'}</p>
                   <p className="text-sm text-ink-soft">a.n. {g.accountHolder}</p>
                   <div className="mt-3 flex gap-2">
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={() =>
-                        setDraft({ ...g, qrisImageUrl: g.qrisImageUrl || g.qrCodeUrl || '', isQris: g.isQris || Boolean(g.qrCodeUrl) })
-                      }
-                    >
+                    <Button variant="secondary" size="sm" onClick={() => setDraft({ ...g, qrisImageUrl: g.qrisImageUrl || '' })}>
                       Ubah
                     </Button>
                     <Button variant="ghost" size="sm" className="text-no" onClick={() => setToDelete(g)}>
@@ -92,11 +86,7 @@ export const CMSGiftsTab: React.FC = () => {
             className="space-y-4"
             onSubmit={(e) => {
               e.preventDefault();
-              // qrCodeUrl is the legacy field: the editor moved its value into qrisImageUrl, so clear it.
-              save.mutate(
-                { ...draft, qrCodeUrl: '', qrisImageUrl: draft.isQris ? draft.qrisImageUrl : '' },
-                { onSuccess: () => setDraft(null) },
-              );
+              save.mutate({ ...draft, qrisImageUrl: draft.isQris ? draft.qrisImageUrl : '' }, { onSuccess: () => setDraft(null) });
             }}
           >
             <Field label="Bank atau dompet digital">

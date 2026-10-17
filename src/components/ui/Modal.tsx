@@ -7,6 +7,9 @@ import { IconButton } from './Button.js';
 const FOCUSABLE =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
+// Open dialogs, innermost last. Only the innermost one answers Escape and traps Tab.
+const dialogStack: object[] = [];
+
 /**
  * Escape closes, Tab stays inside, focus returns to the opener, page scroll is locked.
  * Shared by every dialog, lightbox and full-screen sheet.
@@ -28,8 +31,11 @@ export function useDialogBehaviour(open: boolean, onClose: () => void, panelRef:
 
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
+    const token = {};
+    dialogStack.push(token);
 
     const onKey = (e: KeyboardEvent) => {
+      if (dialogStack[dialogStack.length - 1] !== token) return;
       if (e.key === 'Escape') {
         e.stopPropagation();
         closeRef.current();
@@ -50,6 +56,7 @@ export function useDialogBehaviour(open: boolean, onClose: () => void, panelRef:
     document.addEventListener('keydown', onKey);
     return () => {
       document.removeEventListener('keydown', onKey);
+      dialogStack.splice(dialogStack.indexOf(token), 1);
       document.body.style.overflow = previousOverflow;
       opener?.focus?.();
     };

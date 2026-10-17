@@ -13,7 +13,7 @@ import { Button, IconButton } from '../../../components/ui/Button.js';
 import { Checkbox, Field, Input, Segmented } from '../../../components/ui/Field.js';
 import { Chip } from '../../../components/ui/StatusChip.js';
 import { EmptyState, ErrorState, LoadingState } from '../../../components/ui/StateView.js';
-import type { InvitedGuest } from '../../../types.js';
+import type { InvitedGuest } from '@shared/types';
 
 type ListFilter = 'ALL' | 'IN' | 'OUT';
 

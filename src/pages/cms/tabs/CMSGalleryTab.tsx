@@ -11,7 +11,7 @@ import { Button } from '../../../components/ui/Button.js';
 import { Field, Input, Select, Textarea } from '../../../components/ui/Field.js';
 import { ConfirmDialog, Modal } from '../../../components/ui/Modal.js';
 import { EmptyState, ErrorState, LoadingState } from '../../../components/ui/StateView.js';
-import type { GalleryCategory, GalleryPhoto } from '../../../types.js';
+import type { GalleryCategory, GalleryPhoto } from '@shared/types';
 
 const CATEGORIES: { value: GalleryCategory; label: string }[] = [
   { value: 'PREWEDDING', label: 'Pra-nikah' },

@@ -1,305 +1,147 @@
-import { buildFramePresets } from '../../src/lib/photoFrames.js';
-import type { DatabaseSchema } from './schema.js';
+import type { Db } from '../infrastructure/prisma.js';
+import { createDemoData } from './demoData.js';
+import type { LegacyData } from './legacyData.js';
+import { isTemplateId } from '../../shared/templates.js';
 
-const daysAgo = (days: number) => new Date(Date.now() - 86400000 * days).toISOString();
+const LEGACY_THEMES: Record<string, string> = { natural: 'sogan', gold: 'sogan', ivory: 'sogan', rose: 'jambon', sage: 'gadung' };
+const THEMES = ['sogan', 'wedel', 'gadung', 'jambon'];
 
-/**
- * Demo content shown on first run and after "Reset ke data demo" in the CMS.
- * The owner replaces every name, photo and wish here through the CMS.
- */
-export function createSeedData(): DatabaseSchema {
-  const [defaultFrame] = buildFramePresets('Arya', 'Nadhira');
-  return {
-    invitation: {
-      id: 'inv_main_01',
-      groomName: 'Arya Pradipta, S.T.',
-      groomShortName: 'Arya',
-      groomParents: 'Putra Pertama dari Bpk. Bambang Sutrisno & Ibu Sri Rahayu',
-      groomInstagram: 'aryapradipta',
-      groomPhoto: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=800&q=80',
-      brideName: 'Nadhira Kirana, S.Ds.',
-      brideShortName: 'Nadhira',
-      brideParents: 'Putri Kedua dari Bpk. H. Hendra Wijaya & Ibu Hj. Ratna Dewi',
-      brideInstagram: 'nadhirakirana',
-      bridePhoto: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=800&q=80',
-      weddingDate: '2026-11-20T08:00:00.000Z',
-      countdownTarget: '2026-11-20T08:00:00.000Z',
-      heroImage: 'https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1920&q=80',
-      heroVideoUrl: 'https://cdn.pixabay.com/video/2020/05/25/40131-424930060_large.mp4',
-      heroMediaType: 'IMAGE',
-      quoteText:
-        'Dan di antara tanda-tanda kebesaran-Nya ialah Dia menciptakan pasangan-pasangan untukmu dari jenismu sendiri, agar kamu cenderung dan merasa tenteram kepadanya, dan Dia menjadikan di antaramu rasa kasih dan sayang.',
-      quoteSource: 'QS. Ar-Rum: 21',
-      musicUrl: 'https://cdn.pixabay.com/download/audio/2022/05/27/audio_1808fbf07a.mp3?filename=romantic-wedding-113548.mp3',
-      musicTitle: 'Canon in D (Romantic Piano)',
-      whatsappNumber: '6281234567890',
-      whatsappTemplate:
-        'Halo Arya & Nadhira, Saya {nama_tamu} ingin mengonfirmasi bahwa saya {status_kehadiran} pada acara pernikahan kalian ({jumlah_tamu} orang). Pesan/Doa: {ucapan}',
-      themeColor: 'sogan',
-      giftInfo: [
-        {
-          id: 'gift_1',
-          bankName: 'Bank Central Asia (BCA)',
-          accountNumber: '8830192811',
-          accountHolder: 'Arya Pradipta',
-          qrCodeUrl: 'https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=BCA-8830192811-AryaPradipta',
-        },
-        {
-          id: 'gift_2',
-          bankName: 'Bank Mandiri',
-          accountNumber: '1370019283741',
-          accountHolder: 'Nadhira Kirana',
-        },
-      ],
-      loveStories: [
-        {
-          id: 'story_1',
-          year: '2021',
-          title: 'Pertemuan Pertama di Kampus',
-          description:
-            'Kami pertama kali bertegur sapa di perpustakaan universitas saat mengerjakan tugas akhir bersama. Berawal dari diskusi kecil hingga obrolan tanpa henti.',
-          photoUrl: 'https://images.unsplash.com/photo-1522673607200-164d1b6ce486?auto=format&fit=crop&w=800&q=80',
-        },
-        {
-          id: 'story_2',
-          year: '2023',
-          title: 'Komitmen & Hubungan Serius',
-          description:
-            'Setelah melalui suka dan duka bersama serta saling mengenal keluarga, kami memutuskan untuk melangkah ke jenjang yang lebih serius.',
-          photoUrl: 'https://images.unsplash.com/photo-1515934751635-c81c6bc9a2d8?auto=format&fit=crop&w=800&q=80',
-        },
-        {
-          id: 'story_3',
-          year: '2025',
-          title: 'Hari Lamaran (Engagement)',
-          description:
-            'Di hadapan kedua keluarga besar, kami mengikat janji pertunangan untuk menyatukan dua keluarga dalam satu ikatan suci.',
-          photoUrl: 'https://images.unsplash.com/photo-1583939003579-730e3918a45a?auto=format&fit=crop&w=800&q=80',
-        },
-      ],
-    },
-    events: [
-      {
-        id: 'event_1',
-        title: 'Akad Nikah',
-        date: 'Jumat, 20 November 2026',
-        startTime: '08:00 WIB',
-        endTime: '10:00 WIB',
-        venueName: 'Masjid Agung Al-Azhar',
-        address: 'Jl. Sisingamangaraja No.1, Selong, Kebayoran Baru, Jakarta Selatan',
-        mapsUrl: 'https://maps.google.com/?q=Masjid+Agung+Al-Azhar+Jakarta',
-        mapsEmbedUrl:
-          'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3966.275466847847!2d106.79635777499042!3d-6.227370893760773!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x2e69f14e7a83d6cb%3A0xe54e58a2d1d0ee6e!2sMasjid%20Agung%20Al-Azhar!5e0!3m2!1sid!2sid!4v1700000000000!5m2!1sid!2sid',
-        dressCode: 'Baju Kurung / Kemeja Batik / Putih Bersih',
-        notes: 'Khusus keluarga inti dan saksi akad nikah',
-        orderIndex: 1,
+const str = (v: unknown, fallback = '') => (typeof v === 'string' ? v : fallback);
+const date = (v: unknown) => {
+  const d = new Date(str(v));
+  return Number.isNaN(d.getTime()) ? new Date() : d;
+};
+const key = (name: string) => name.trim().toLowerCase();
+
+/** Replace every table's contents with `data`. Used for the demo seed, "reset to demo" and JSON import. */
+export async function seedDatabase(db: Db, data: LegacyData = createDemoData()) {
+  const inv = data.invitation;
+  const theme = str(inv.themeColor, 'sogan');
+
+  await db.$transaction(async (tx) => {
+    await tx.photoMoment.deleteMany();
+    await tx.guestWish.deleteMany();
+    await tx.invitedGuest.deleteMany();
+    await tx.galleryPhoto.deleteMany();
+    await tx.event.deleteMany();
+    await tx.loveStory.deleteMany();
+    await tx.giftAccount.deleteMany();
+    await tx.photoFrameSetting.deleteMany();
+    await tx.invitation.deleteMany();
+
+    await tx.invitation.create({
+      data: {
+        id: 'main',
+        groomName: str(inv.groomName),
+        groomShortName: str(inv.groomShortName),
+        groomParents: str(inv.groomParents),
+        groomInstagram: str(inv.groomInstagram) || null,
+        groomPhoto: str(inv.groomPhoto),
+        brideName: str(inv.brideName),
+        brideShortName: str(inv.brideShortName),
+        brideParents: str(inv.brideParents),
+        brideInstagram: str(inv.brideInstagram) || null,
+        bridePhoto: str(inv.bridePhoto),
+        heroImage: str(inv.heroImage),
+        heroVideoUrl: str(inv.heroVideoUrl) || null,
+        heroMediaType: inv.heroMediaType === 'VIDEO' ? 'VIDEO' : 'IMAGE',
+        quoteText: str(inv.quoteText),
+        quoteSource: str(inv.quoteSource),
+        weddingDate: date(inv.weddingDate),
+        countdownTarget: date(inv.countdownTarget || inv.weddingDate),
+        musicUrl: str(inv.musicUrl),
+        musicTitle: str(inv.musicTitle),
+        whatsappNumber: str(inv.whatsappNumber),
+        whatsappTemplate: str(inv.whatsappTemplate),
+        templateId: isTemplateId(inv.templateId) ? inv.templateId : 'nusantara',
+        themeColor: THEMES.includes(theme) ? theme : LEGACY_THEMES[theme] || 'sogan',
       },
-      {
-        id: 'event_2',
-        title: 'Resepsi Pernikahan',
-        date: 'Sabtu, 21 November 2026',
-        startTime: '11:00 WIB',
-        endTime: '15:00 WIB',
-        venueName: 'Grand Ballroom Hotel Mulia Senayan',
-        address: 'Jl. Asia Afrika, Gelora, Tanah Abang, Jakarta Pusat',
-        mapsUrl: 'https://maps.google.com/?q=Hotel+Mulia+Senayan+Jakarta',
-        mapsEmbedUrl:
-          'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3966.386001239616!2d106.79720337499033!3d-6.212711893775191!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x2e69f14bb7ea19bf%3A0x6a059dc5b4fefea3!2sHotel%20Mulia%20Senayan%20Jakarta!5e0!3m2!1sid!2sid!4v1700000000001!5m2!1sid!2sid',
-        dressCode: 'Formal Attire / Pastel & Earth Tone',
-        notes: 'Disediakan area photobooth & kids corner',
-        orderIndex: 2,
-      },
-    ],
-    gallery: [
-      {
-        id: 'gal_vid_1',
-        title: 'Cinematic Teaser Prewedding',
-        url: 'https://cdn.pixabay.com/video/2021/08/04/83863-584752250_large.mp4',
-        caption: 'Momen romantis di pantai saat matahari terbenam',
-        category: 'PREWEDDING',
-        mediaType: 'VIDEO',
-        orderIndex: 0,
-      },
-      {
-        id: 'gal_1',
-        title: 'Romansa Senja',
-        url: 'https://images.unsplash.com/photo-1511285560929-80b456fea0bc?auto=format&fit=crop&w=1200&q=80',
-        caption: 'Senja terindah saat menatap masa depan bersama',
-        category: 'PREWEDDING',
-        mediaType: 'IMAGE',
-        orderIndex: 1,
-      },
-      {
-        id: 'gal_2',
-        title: 'Senyuman Bahagia',
-        url: 'https://images.unsplash.com/photo-1583939003579-730e3918a45a?auto=format&fit=crop&w=1200&q=80',
-        caption: 'Tawa yang senantiasa menyejukkan hati',
-        category: 'PREWEDDING',
-        orderIndex: 2,
-      },
-      {
-        id: 'gal_3',
-        title: 'Hari Pertunangan',
-        url: 'https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1200&q=80',
-        caption: 'Momen berharga saat cincin tersemat di jari',
-        category: 'ENGAGEMENT',
-        orderIndex: 3,
-      },
-      {
-        id: 'gal_4',
-        title: 'Langkah Bersama',
-        url: 'https://images.unsplash.com/photo-1606800052052-a08af7148866?auto=format&fit=crop&w=1200&q=80',
-        caption: 'Berjalan beriringan menapaki babak baru kehidupan',
-        category: 'MOMENTS',
-        orderIndex: 4,
-      },
-      {
-        id: 'gal_5',
-        title: 'Kasih Abadi',
-        url: 'https://images.unsplash.com/photo-1529634806980-85c3dd6d34ac?auto=format&fit=crop&w=1200&q=80',
-        caption: 'Dua hati yang dipersatukan oleh ketulusan',
-        category: 'MOMENTS',
-        orderIndex: 5,
-      },
-      {
-        id: 'gal_6',
-        title: 'Dekapan Hangat',
-        url: 'https://images.unsplash.com/photo-1465495976277-4387d4b0b4c6?auto=format&fit=crop&w=1200&q=80',
-        caption: 'Bersama membangun mahligai rumah tangga yang sakinah',
-        category: 'PREWEDDING',
-        orderIndex: 6,
-      },
-    ],
-    guests: [
-      {
-        id: 'guest_1',
-        guestName: 'Dimas Wicaksono',
-        relationship: 'Sahabat Kuliah',
-        attendanceStatus: 'HADIR',
-        numberOfGuests: 2,
-        message: 'Selamat untuk Arya dan Nadhira! Semoga menjadi keluarga yang sakinah, mawaddah, warahmah. Lancar sampai hari H ya bro!',
-        reply: 'Terima kasih banyak bro Dimas! Ditunggu kehadirannya bersama pasangan ya.',
-        isHidden: false,
-        createdAt: daysAgo(2),
-      },
-      {
-        id: 'guest_2',
-        guestName: 'Keluarga Besar Bpk. Rahmat',
-        relationship: 'Keluarga Besar',
-        attendanceStatus: 'HADIR',
-        numberOfGuests: 4,
-        message: 'Barakallahu lakuma wa baraka alaikuma wa jamaa bainakuma fii khair. Turut berbahagia untuk kedua mempelai.',
-        reply: 'Aamiin YRA. Matur suwun Om Rahmat dan keluarga.',
-        isHidden: false,
-        createdAt: daysAgo(1),
-      },
-      {
-        id: 'guest_3',
-        guestName: 'Clarissa Maharani',
-        relationship: 'Rekan Kerja Nadhira',
-        attendanceStatus: 'HADIR',
-        numberOfGuests: 1,
-        message: 'Nadhira cantik banget! Selamat ya cantikk, semoga langgeng selamanya dan bahagia selalu sama mas Arya.',
-        reply: null,
-        isHidden: false,
-        createdAt: daysAgo(5 / 24),
-      },
-    ],
-    invitedGuests: [
-      {
-        id: 'inv_gst_1',
-        name: 'Bpk. H. Rahmat & Ibu Hj. Siti',
-        slug: 'R7K2',
-        phone: '6281234567801',
-        category: 'VIP',
-        pax: 2,
-        tableNumber: 'VIP A-01',
-        customNote: 'Keluarga sesepuh mempelai pria',
-        isCheckedIn: false,
-        checkInTime: null,
-        checkInMethod: null,
-        actualPax: null,
-        souvenirGiven: false,
-        createdAt: daysAgo(5),
-        updatedAt: daysAgo(5),
-      },
-      {
-        id: 'inv_gst_2',
-        name: 'Dr. Budi Santoso & Partner',
-        slug: 'B4S8',
-        phone: '6281234567802',
-        category: 'VIP',
-        pax: 2,
-        tableNumber: 'VIP B-02',
-        customNote: 'Dosen Pembimbing & Rekan Kerja',
-        isCheckedIn: false,
-        checkInTime: null,
-        checkInMethod: null,
-        actualPax: null,
-        souvenirGiven: false,
-        createdAt: daysAgo(4),
-        updatedAt: daysAgo(4),
-      },
-      {
-        id: 'inv_gst_3',
-        name: 'Sarah Amelia, S.Ds.',
-        slug: 'S9A1',
-        phone: '6281234567803',
-        category: 'Sahabat',
-        pax: 2,
-        tableNumber: 'Meja 03',
-        customNote: 'Sahabat SMA Nadhira',
-        isCheckedIn: false,
-        checkInTime: null,
-        checkInMethod: null,
-        actualPax: null,
-        souvenirGiven: false,
-        createdAt: daysAgo(3),
-        updatedAt: daysAgo(3),
-      },
-      {
-        id: 'inv_gst_4',
-        name: 'Dimas Pratama & Istri',
-        slug: 'D2P6',
-        phone: '6281234567804',
-        category: 'Rekan Kerja',
-        pax: 2,
-        tableNumber: 'Meja 05',
-        customNote: 'Tim Engineering',
-        isCheckedIn: false,
-        checkInTime: null,
-        checkInMethod: null,
-        actualPax: null,
-        souvenirGiven: false,
-        createdAt: daysAgo(2),
-        updatedAt: daysAgo(2),
-      },
-      {
-        id: 'inv_gst_5',
-        name: 'Anissa Rahmawati',
-        slug: 'A8R3',
-        phone: '6281234567805',
-        category: 'Sahabat',
-        pax: 1,
-        tableNumber: 'Meja 04',
-        customNote: 'Bridesmaid',
-        isCheckedIn: false,
-        checkInTime: null,
-        checkInMethod: null,
-        actualPax: null,
-        souvenirGiven: false,
-        createdAt: daysAgo(1),
-        updatedAt: daysAgo(1),
-      },
-    ],
-    // The superadmin comes from ADMIN_USERNAME / ADMIN_PASSWORD; stored admins are extra accounts.
-    admins: [],
-    photoMoments: [],
-    photoFrameConfig: {
-      enabled: true,
-      frameOverlayUrl: defaultFrame.dataUrl,
-      frameName: defaultFrame.name,
-      allowGuestToggle: true,
-    },
-  };
+    });
+
+    await tx.giftAccount.createMany({
+      data: (inv.giftInfo || []).map((g, i) => ({
+        bankName: g.bankName,
+        accountNumber: g.accountNumber || '',
+        accountHolder: g.accountHolder,
+        isQris: Boolean(g.isQris || g.qrisImageUrl || g.qrCodeUrl),
+        qrisImageUrl: g.qrisImageUrl || g.qrCodeUrl || null,
+        orderIndex: i,
+      })),
+    });
+    await tx.loveStory.createMany({
+      data: (inv.loveStories || []).map((s, i) => ({ year: s.year, title: s.title, description: s.description, photoUrl: s.photoUrl || null, orderIndex: i })),
+    });
+    await tx.event.createMany({
+      data: (data.events || []).map(({ id: _id, ...e }) => ({ ...e, mapsEmbedUrl: e.mapsEmbedUrl || null, dressCode: e.dressCode || null, notes: e.notes || null })),
+    });
+    await tx.galleryPhoto.createMany({
+      data: (data.gallery || []).map(({ id: _id, ...p }) => ({
+        ...p,
+        caption: p.caption || null,
+        thumbnailUrl: p.thumbnailUrl || null,
+        mediaType: p.mediaType === 'VIDEO' ? 'VIDEO' : 'IMAGE',
+      })),
+    });
+
+    const seenNames = new Set<string>();
+    await tx.guestWish.createMany({
+      data: (data.guests || [])
+        .filter((w) => !seenNames.has(key(w.guestName)) && seenNames.add(key(w.guestName)))
+        .map((w) => ({
+          guestName: w.guestName,
+          guestKey: key(w.guestName),
+          relationship: w.relationship,
+          attendanceStatus: w.attendanceStatus,
+          numberOfGuests: w.numberOfGuests || 1,
+          message: w.message,
+          voiceUrl: w.voiceUrl || null,
+          reply: w.reply || null,
+          isHidden: Boolean(w.isHidden),
+          createdAt: date(w.createdAt),
+        })),
+    });
+    await tx.invitedGuest.createMany({
+      data: (data.invitedGuests || []).map((g) => ({
+        name: g.name,
+        slug: g.slug.toUpperCase(),
+        phone: g.phone || '',
+        instagram: g.instagram || '',
+        category: g.category || 'Umum',
+        pax: g.pax || 2,
+        tableNumber: g.tableNumber || '',
+        customNote: g.customNote || '',
+        invitationSent: Boolean(g.invitationSent),
+        invitationSentAt: g.invitationSentAt ? date(g.invitationSentAt) : null,
+        isCheckedIn: Boolean(g.isCheckedIn),
+        checkInTime: g.checkInTime ? date(g.checkInTime) : null,
+        checkInMethod: g.checkInMethod || null,
+        actualPax: g.actualPax ?? null,
+        souvenirGiven: Boolean(g.souvenirGiven),
+        createdAt: date(g.createdAt),
+      })),
+    });
+    await tx.photoMoment.createMany({
+      data: (data.photoMoments || []).map((m) => ({
+        guestName: m.guestName,
+        guestSlug: m.guestSlug || null,
+        photoUrl: m.photoUrl,
+        caption: m.caption || '',
+        likesCount: m.likesCount || 0,
+        reactions: m.reactions || {},
+        createdAt: date(m.createdAt),
+      })),
+    });
+    if (data.photoFrameConfig) {
+      await tx.photoFrameSetting.create({ data: { id: 'main', ...data.photoFrameConfig, frameName: data.photoFrameConfig.frameName || null } });
+    }
+  });
 }
+
+/** First run: fill an empty database with the demo invitation. */
+export async function seedIfEmpty(db: Db) {
+  if ((await db.invitation.count()) === 0) {
+    await seedDatabase(db);
+    console.log('Database kosong: data demo undangan sudah diisi.');
+  }
+}
+
