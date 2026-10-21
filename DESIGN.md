@@ -55,8 +55,10 @@ Nusantara (everything above) is the default. Three more templates each carry the
 
 | Template | Palette | Type | Signature |
 |---|---|---|---|
-| Gulungan Kenangan (`.gk`) | film grey `#34352F`, cream `#F3ECC9`, stamp red `#C8453A`, amber `#FF9A4A` | EB Garamond, Pinyon Script, VT323 | Love story on a film strip, ticket stubs per event, film-leader countdown, contact sheet with a red circle on the favourite frame. |
+| Gulungan Kenangan (`.gk`) | film grey `#34352F`, cream `#F3ECC9`, stamp red `#C8453A`, amber `#FF9A4A` | EB Garamond, Pinyon Script, VT323 | Scrolling unrolls the love story out of a film roll into a projector window, ticket stubs per event, film-leader countdown, contact sheet, end credits that roll up. |
 | Bilik Foto (`.bf`) | dotted paper wall `#EFE8DC`, ink `#221D1A`, booth red `#B42A2F`, lamp `#FFCF3A` | Fraunces, Instrument Sans, Courier Prime, DotGothic16, Reenie Beanie | A booth slot prints the couple's strip, letterboard schedule, LCD countdown, receipt for the venue, wishes printed as strips. |
 | Cozy Home (`.ch`) | mint sky `#AFD9D5`, paper `#FFFDF0`, wood grain, pink `#E3928A`, leaf `#587957` | Nunito (rounded) | One screen: a cottage scene, wooden masthead, signposts and a dock that open wood-framed panels, a letter that types itself. |
 
 Rules every template keeps: the film-edge or watermark text is the couple's initials or names, never a product name; photos always come from the couple's own data; addresses and the digital envelope stay behind the guest code; motion respects `prefers-reduced-motion`. The original 3D walking world of Cozy Home is drawn as a still 2D scene without a joystick, because a joystick with nothing to walk around would be a dead control.
+
+Gulungan Kenangan motion, in order of scroll: the page waits at 0.88 scale behind the ticket and settles to full size when opened; the reel section is 4.2 screens tall with a sticky stage, and `useReelScroll` writes scroll progress as CSS variables (`--p`, `--o`, `--lift`, `--fade`, `--spin`) so the names lift and fade, the roll thins and turns, and the film slides down through a masked window; every `.gk-rv` element rises 22px into place once; the credits roll up over 26 seconds. Background blobs drift and film grain flickers throughout. All of it is dropped for `prefers-reduced-motion`, which shows the same content laid out still.
