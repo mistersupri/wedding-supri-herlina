@@ -4,7 +4,15 @@ import multer from 'multer';
 import { config } from './config.js';
 import type { Db } from './infrastructure/prisma.js';
 import { eventRepository, galleryRepository, giftRepository, storyRepository } from './repositories/contentRepositories.js';
-import { adminRepository, frameRepository, invitedGuestRepository, photoMomentRepository, wishRepository } from './repositories/guestRepositories.js';
+import {
+  adminRepository,
+  cameraSettingRepository,
+  frameRepository,
+  invitedGuestRepository,
+  photoCommentRepository,
+  photoMomentRepository,
+  wishRepository,
+} from './repositories/guestRepositories.js';
 import { invitationRepository } from './repositories/invitationRepository.js';
 import { authService } from './services/authService.js';
 import { guestService } from './services/guestService.js';
@@ -27,15 +35,26 @@ export function createServices(db: Db) {
   };
   const wishes = wishRepository(db);
   const invitedGuests = invitedGuestRepository(db);
+  const cameraSettings = cameraSettingRepository(db);
 
   return {
     content,
-    invitation: invitationService({ invitation: invitationRepository(db), wishes, ...content }),
+    invitation: invitationService({ invitation: invitationRepository(db), wishes, cameraSettings, ...content }),
     guestbook: guestbookService(wishes),
     guests: guestService(invitedGuests),
-    moments: photoMomentService({ moments: photoMomentRepository(db), frames: frameRepository(db), guests: invitedGuests }),
+    moments: photoMomentService({
+      moments: photoMomentRepository(db),
+      comments: photoCommentRepository(db),
+      frames: frameRepository(db),
+      settings: cameraSettings,
+      guests: invitedGuests,
+    }),
     auth: authService(adminRepository(db)),
     resetDemo: () => seedDatabase(db),
+    /** Readiness: the database answers. */
+    ping: async () => {
+      await db.$queryRaw`SELECT 1`;
+    },
   };
 }
 
@@ -43,6 +62,17 @@ export type Services = ReturnType<typeof createServices>;
 
 export async function createApp(services: Services) {
   const app = express();
+  app.disable('x-powered-by');
+  if (config.trustProxy) app.set('trust proxy', config.trustProxy);
+
+  app.get('/api/health', async (_req, res) => {
+    try {
+      await services.ping();
+      res.json({ status: 'ok' });
+    } catch {
+      res.status(503).json({ status: 'database unavailable' });
+    }
+  });
 
   app.use(express.json({ limit: config.jsonBodyLimit }));
   app.use('/uploads', express.static(config.uploadDir));
@@ -53,8 +83,13 @@ export async function createApp(services: Services) {
   });
 
   if (config.isProduction) {
-    app.use(express.static(config.distDir));
-    app.get('*', (_req, res) => res.sendFile(path.join(config.distDir, 'index.html')));
+    // Vite fingerprints everything under /assets, so it can be cached for good; index.html must always be revalidated.
+    app.use('/assets', express.static(path.join(config.distDir, 'assets'), { immutable: true, maxAge: '1y' }));
+    app.use(express.static(config.distDir, { index: false }));
+    app.get('*', (_req, res) => {
+      res.setHeader('Cache-Control', 'no-cache');
+      res.sendFile(path.join(config.distDir, 'index.html'));
+    });
   } else {
     const { createServer } = await import('vite');
     const vite = await createServer({ server: { middlewareMode: true }, appType: 'spa' });

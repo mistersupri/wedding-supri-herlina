@@ -8,12 +8,21 @@ export function authRoutes(s: Services): Router {
 
   router.post(
     '/auth/login',
-    route(async (req) => ({ data: await s.auth.login(String(req.body?.username || ''), String(req.body?.password || '')) }), 'Gagal masuk.'),
+    route(
+      async (req) => ({ data: await s.auth.login(String(req.body?.username || ''), String(req.body?.password || '')) }),
+      'Gagal masuk.',
+    ),
   );
 
-  router.post('/auth/refresh', route(async (req) => ({ data: await s.auth.refresh(req.body?.refreshToken) }), 'Gagal memperbarui sesi.'));
+  router.post(
+    '/auth/refresh',
+    route(async (req) => ({ data: await s.auth.refresh(req.body?.refreshToken) }), 'Gagal memperbarui sesi.'),
+  );
 
-  router.post('/auth/logout', route(() => ({ message: 'Berhasil keluar.' }), 'Gagal keluar.'));
+  router.post(
+    '/auth/logout',
+    route(() => ({ message: 'Berhasil keluar.' }), 'Gagal keluar.'),
+  );
 
   router.get(
     '/auth/me',

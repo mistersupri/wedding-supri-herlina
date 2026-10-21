@@ -1,0 +1,22 @@
+# Dependencies and build output are produced inside the image.
+node_modules
+dist
+server/infrastructure/generated
+
+# Local data and secrets never go into the image.
+.env
+.env.*
+!.env.example
+.local-db
+uploads
+data
+
+# Tooling
+.git
+.github
+.vscode
+.idea
+*.log
+Dockerfile
+docker-compose*.yml
+.dockerignore

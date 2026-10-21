@@ -1,5 +1,14 @@
-import type { Db } from '../infrastructure/prisma.js';
-import type { AdminUser, AttendanceStatus, GuestWish, InvitedGuest, PhotoFrameConfig, PhotoMoment } from '../../shared/types.js';
+import type { Db, Prisma } from '../infrastructure/prisma.js';
+import type {
+  AdminUser,
+  AttendanceStatus,
+  CameraSettings,
+  GuestWish,
+  InvitedGuest,
+  PhotoComment,
+  PhotoFrameConfig,
+  PhotoMoment,
+} from '../../shared/types.js';
 
 const iso = (d: Date | null) => (d ? d.toISOString() : null);
 const isNotFound = (err: unknown) => (err as { code?: string })?.code === 'P2025';
@@ -164,15 +173,50 @@ type MomentRow = Awaited<ReturnType<Db['photoMoment']['create']>>;
 const toMoment = (r: MomentRow): PhotoMoment => ({
   ...r,
   guestSlug: r.guestSlug ?? undefined,
+  originalUrl: r.originalUrl ?? undefined,
+  look: r.look ?? undefined,
   reactions: (r.reactions ?? {}) as Record<string, number>,
   createdAt: r.createdAt.toISOString(),
 });
 
+/** Whose photos a feed request may return. `own` matches the viewer by code, else by name. */
+export interface MomentScope {
+  /** Only approved photos, plus the viewer's own pending ones. */
+  approvedOrOwn: boolean;
+  /** Only the viewer's photos. */
+  ownOnly: boolean;
+  own?: { slug?: string; name?: string };
+}
+
+function ownWhere(own: MomentScope['own']): Prisma.PhotoMomentWhereInput | null {
+  if (own?.slug) return { guestSlug: own.slug };
+  if (own?.name) return { guestName: { equals: own.name.trim(), mode: 'insensitive' } };
+  return null;
+}
+
+function scopeWhere(scope: MomentScope): Prisma.PhotoMomentWhereInput {
+  const own = ownWhere(scope.own);
+  if (scope.ownOnly) return own ?? { id: '__none__' };
+  if (scope.approvedOrOwn) return own ? { OR: [{ approved: true }, own] } : { approved: true };
+  return {};
+}
+
 export function photoMomentRepository(db: Db) {
   return {
-    async page(skip: number, take: number) {
-      const [rows, total] = await db.$transaction([db.photoMoment.findMany({ orderBy: { createdAt: 'desc' }, skip, take }), db.photoMoment.count()]);
+    async page(skip: number, take: number, scope: MomentScope) {
+      const where = scopeWhere(scope);
+      const [rows, total] = await db.$transaction([
+        db.photoMoment.findMany({ where, orderBy: { createdAt: 'desc' }, skip, take }),
+        db.photoMoment.count({ where }),
+      ]);
       return { data: rows.map(toMoment), total };
+    },
+    /** Newest approved photos, for the big screen. */
+    async latestApproved(take: number) {
+      return (await db.photoMoment.findMany({ where: { approved: true }, orderBy: { createdAt: 'desc' }, take })).map(toMoment);
+    },
+    async countApproved() {
+      return db.photoMoment.count({ where: { approved: true } });
     },
     async all() {
       return (await db.photoMoment.findMany({ orderBy: { createdAt: 'desc' } })).map(toMoment);
@@ -183,7 +227,15 @@ export function photoMomentRepository(db: Db) {
     async countByName(name: string) {
       return db.photoMoment.count({ where: { guestName: { equals: name.trim(), mode: 'insensitive' } } });
     },
-    async create(data: { guestName: string; guestSlug?: string; photoUrl: string; caption: string }) {
+    async create(data: {
+      guestName: string;
+      guestSlug?: string;
+      photoUrl: string;
+      originalUrl?: string;
+      caption: string;
+      look?: string;
+      approved: boolean;
+    }) {
       return toMoment(await db.photoMoment.create({ data }));
     },
     async findById(id: string) {
@@ -193,8 +245,64 @@ export function photoMomentRepository(db: Db) {
     async saveReactions(id: string, reactions: Record<string, number>, likesCount: number) {
       return toMoment(await db.photoMoment.update({ where: { id }, data: { reactions, likesCount } }));
     },
+    async setApproved(id: string, approved: boolean) {
+      return orNull(db.photoMoment.update({ where: { id }, data: { approved } }).then(toMoment));
+    },
     async remove(id: string) {
       return (await orNull(db.photoMoment.delete({ where: { id } }))) !== null;
+    },
+  };
+}
+
+type CommentRow = Awaited<ReturnType<Db['photoComment']['create']>>;
+const toComment = (r: CommentRow): PhotoComment => ({ ...r, guestSlug: r.guestSlug ?? undefined, createdAt: r.createdAt.toISOString() });
+
+export function photoCommentRepository(db: Db) {
+  return {
+    async list(momentId: string) {
+      return (await db.photoComment.findMany({ where: { momentId }, orderBy: { createdAt: 'asc' }, take: 200 })).map(toComment);
+    },
+    /** Adds the comment and bumps the photo's counter in one transaction. */
+    async create(data: { momentId: string; guestName: string; guestSlug?: string; text: string }) {
+      const [row] = await db.$transaction([
+        db.photoComment.create({ data }),
+        db.photoMoment.update({ where: { id: data.momentId }, data: { commentsCount: { increment: 1 } } }),
+      ]);
+      return toComment(row);
+    },
+    async remove(id: string) {
+      const row = await db.photoComment.findUnique({ where: { id } });
+      if (!row) return false;
+      await db.$transaction([
+        db.photoComment.delete({ where: { id } }),
+        db.photoMoment.update({ where: { id: row.momentId }, data: { commentsCount: { decrement: 1 } } }),
+      ]);
+      return true;
+    },
+  };
+}
+
+export const DEFAULT_CAMERA_SETTINGS: CameraSettings = {
+  access: 'CHECKED_IN',
+  framesPerGuest: 15,
+  cameraOpen: true,
+  moderation: false,
+  visibility: 'ALL',
+  download: 'OWN',
+  enabledLooks: [],
+  defaultLook: 'none',
+  screenEnabled: true,
+};
+
+export function cameraSettingRepository(db: Db) {
+  const map = ({ id: _id, ...r }: Awaited<ReturnType<Db['cameraSetting']['create']>>): CameraSettings => r;
+  return {
+    async get(): Promise<CameraSettings> {
+      const r = await db.cameraSetting.findUnique({ where: { id: 'main' } });
+      return r ? map(r) : DEFAULT_CAMERA_SETTINGS;
+    },
+    async save(settings: CameraSettings) {
+      return map(await db.cameraSetting.upsert({ where: { id: 'main' }, create: { id: 'main', ...settings }, update: settings }));
     },
   };
 }

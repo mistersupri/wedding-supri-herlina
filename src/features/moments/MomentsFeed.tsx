@@ -1,47 +1,54 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, Camera } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
-import { publicApi } from '../../../lib/api.js';
-import { queryKeys } from '../../../lib/queryKeys.js';
-import { formatTime } from '../../../lib/format.js';
-import { IconButton } from '../../ui/Button.js';
-import { Lightbox } from '../../ui/Lightbox.js';
-import { EmptyState, ErrorState, LoadingState, Spinner } from '../../ui/StateView.js';
-import { CameraSheet } from './CameraSheet.js';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ArrowLeft, Camera, MessageCircle } from 'lucide-react';
+import { formatTime } from '../../lib/format.js';
+import { IconButton } from '../../components/ui/Button.js';
+import { Lightbox } from '../../components/ui/Lightbox.js';
+import { EmptyState, ErrorState, LoadingState, Spinner } from '../../components/ui/StateView.js';
+import { lookById } from './film/looks.js';
+import { CameraSheet } from './camera/CameraSheet.js';
+import { CommentThread } from './CommentThread.js';
+import { UploadTray } from './UploadTray.js';
 import { useMoments } from './useMoments.js';
-import type { PhotoMoment, PublicGuest } from '@shared/types';
+import { useUploadQueue } from './upload/useUploadQueue.js';
+import type { CameraConfig, MomentIdentity, PhotoMoment } from '@shared/types';
 
 const EMOJIS = ['❤️', '😍', '🎉', '👏', '😊', '🙏'];
-const PER_GUEST = 3;
 
 const totalReactions = (p: PhotoMoment) =>
   p.reactions ? Object.values(p.reactions).reduce((a, b) => a + (Number(b) || 0), 0) : p.likesCount || 0;
 
-interface PhotoMomentsSectionProps {
-  guest: PublicGuest;
+interface MomentsFeedProps {
+  identity: MomentIdentity;
+  config: CameraConfig;
   coupleNames: string;
   onBack: () => void;
 }
 
 /**
- * The in-venue guest gallery. It is dark on purpose: it is used inside a dim reception hall,
- * and photos read best against the deep wedel tone.
+ * The in-venue guest gallery and the door to the camera. Dark on purpose: it is used inside a dim
+ * reception hall, and photos read best on the template's deep tone.
  */
-export const PhotoMomentsSection: React.FC<PhotoMomentsSectionProps> = ({ guest, coupleNames, onBack }) => {
-  const m = useMoments(guest);
-  const [tab, setTab] = useState<'all' | 'mine'>('all');
+export const MomentsFeed: React.FC<MomentsFeedProps> = ({ identity, config, coupleNames, onBack }) => {
+  const { settings } = config;
+  const m = useMoments(identity);
+  const { refresh } = m;
+  const onUploaded = useCallback(() => {
+    refresh();
+  }, [refresh]);
+  const queue = useUploadQueue(onUploaded);
+  const ownOnly = settings.visibility === 'OWN';
+  const [tab, setTab] = useState<'all' | 'mine'>(ownOnly ? 'mine' : 'all');
   const [cameraOpen, setCameraOpen] = useState(false);
   const [openIndex, setOpenIndex] = useState<number | null>(null);
-  const frame = useQuery({ queryKey: queryKeys.photoFrame, queryFn: publicApi.frameConfig }).data ?? null;
   const [shareNote, setShareNote] = useState('');
   const sentinel = useRef<HTMLDivElement>(null);
 
   const items = useMemo(() => (tab === 'mine' ? m.moments.filter(m.isMine) : m.moments), [tab, m.moments, m.isMine]);
   const mineCount = useMemo(() => m.moments.filter(m.isMine).length, [m.moments, m.isMine]);
-  const remaining = Math.max(0, PER_GUEST - m.userCount);
+  const remaining = Math.max(0, settings.framesPerGuest - m.userCount - queue.pending);
   const current = openIndex !== null ? items[openIndex] : null;
+  const canDownload = (p: PhotoMoment) => settings.download === 'ALL' || (settings.download === 'OWN' && m.isMine(p));
 
-  // Load the next page as the end of the grid scrolls into view.
   useEffect(() => {
     const el = sentinel.current;
     if (!el || !m.hasMore) return;
@@ -62,39 +69,54 @@ export const PhotoMomentsSection: React.FC<PhotoMomentsSectionProps> = ({ guest,
     } catch (err) {
       if ((err as Error).name === 'AbortError') return;
     }
-    setShareNote('Peramban ini tidak bisa membagikan file. Unduh fotonya, lalu kirim dari galeri ponsel.');
+    setShareNote('Peramban ini tidak bisa membagikan file langsung. Simpan fotonya dulu, lalu kirim dari galeri HP.');
   };
+
+  const cameraLabel = !settings.cameraOpen
+    ? 'Kamera sudah ditutup'
+    : remaining > 0
+      ? `Buka kamera · ${remaining} frame lagi`
+      : `Jatah ${settings.framesPerGuest} frame sudah terpakai`;
 
   return (
     <div className="mx-auto max-w-2xl px-4 pt-3 pb-32">
+      <UploadTray jobs={queue.jobs} onRetry={queue.retry} onDiscard={queue.discard} />
+
       <header className="flex items-center gap-2">
         <IconButton tone="deep" label="Kembali ke undangan" onClick={onBack}>
           <ArrowLeft className="h-5 w-5" />
         </IconButton>
         <div>
-          <h1 className="font-display text-2xl italic">Photo Moments</h1>
-          <p className="text-sm text-on-deep-soft">{coupleNames}</p>
+          <h1 className="font-display text-2xl italic">Kamera tamu</h1>
+          <p className="text-sm text-on-deep-soft">
+            {coupleNames} · {identity.name}
+          </p>
         </div>
       </header>
 
-      <div role="group" aria-label="Tampilkan foto" className="mt-5 grid grid-cols-2 gap-1 rounded-sm bg-deep-2 p-1">
-        {(
-          [
-            ['all', `Semua (${m.moments.length}${m.hasMore ? '+' : ''})`],
-            ['mine', `Foto saya (${mineCount})`],
-          ] as const
-        ).map(([id, label]) => (
-          <button
-            key={id}
-            type="button"
-            aria-pressed={tab === id}
-            onClick={() => setTab(id)}
-            className={`min-h-11 rounded-xs text-sm font-semibold ${tab === id ? 'bg-on-deep text-deep' : 'text-on-deep-soft hover:text-on-deep'}`}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+      {!ownOnly && (
+        <div role="group" aria-label="Tampilkan foto" className="mt-5 grid grid-cols-2 gap-1 rounded-sm bg-deep-2 p-1">
+          {(
+            [
+              ['all', `Semua (${m.moments.length}${m.hasMore ? '+' : ''})`],
+              ['mine', `Foto saya (${mineCount})`],
+            ] as const
+          ).map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              aria-pressed={tab === id}
+              onClick={() => setTab(id)}
+              className={`min-h-11 rounded-xs text-sm font-semibold ${tab === id ? 'bg-on-deep text-deep' : 'text-on-deep-soft hover:text-on-deep'}`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+      {settings.moderation && (
+        <p className="mt-3 text-sm text-on-deep-soft">Foto baru dicek mempelai dulu sebelum tampil untuk tamu lain.</p>
+      )}
 
       <div className="mt-6">
         {m.status === 'loading' ? (
@@ -103,8 +125,8 @@ export const PhotoMomentsSection: React.FC<PhotoMomentsSectionProps> = ({ guest,
           <ErrorState title="Foto belum bisa dimuat." onRetry={m.reload} />
         ) : items.length === 0 ? (
           <EmptyState
-            title={tab === 'mine' ? 'Anda belum mengambil foto' : 'Belum ada foto'}
-            detail={`Setiap tamu bisa mengirim hingga ${PER_GUEST} foto dari lokasi acara.`}
+            title={tab === 'mine' ? 'Belum ada foto dari Anda' : 'Belum ada foto'}
+            detail={`Setiap tamu punya ${settings.framesPerGuest} frame. Jepret suasana acara dan kirim ke galeri.`}
           />
         ) : (
           <ul className="grid grid-cols-2 gap-2 sm:gap-3">
@@ -121,8 +143,17 @@ export const PhotoMomentsSection: React.FC<PhotoMomentsSectionProps> = ({ guest,
                   >
                     <img src={photo.photoUrl} alt="" loading="lazy" className="h-full w-full object-cover" />
                   </button>
+                  {photo.approved === false && (
+                    <span className="absolute top-1.5 left-1.5 rounded-xs bg-deep/85 px-2 py-1 text-xs font-semibold">Menunggu dicek</span>
+                  )}
                   <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-between gap-1 bg-gradient-to-t from-deep/90 to-transparent p-2 pt-8">
                     <span className="truncate text-sm font-semibold">{photo.guestName}</span>
+                    {Boolean(photo.commentsCount) && (
+                      <span className="flex shrink-0 items-center gap-1 text-xs text-on-deep-soft">
+                        <MessageCircle className="h-3.5 w-3.5" aria-hidden="true" />
+                        {photo.commentsCount}
+                      </span>
+                    )}
                   </div>
                   <button
                     type="button"
@@ -164,25 +195,21 @@ export const PhotoMomentsSection: React.FC<PhotoMomentsSectionProps> = ({ guest,
         <button
           type="button"
           onClick={() => setCameraOpen(true)}
-          disabled={remaining <= 0}
-          className="inline-flex min-h-12 w-full max-w-sm items-center justify-center gap-2 rounded-sm bg-on-deep px-6 font-semibold text-deep hover:bg-white disabled:opacity-60"
+          disabled={!settings.cameraOpen || remaining <= 0}
+          className="inline-flex min-h-12 w-full max-w-sm items-center justify-center gap-2 rounded-full bg-on-deep px-6 font-semibold text-deep hover:bg-white disabled:opacity-60"
         >
           <Camera className="h-5 w-5" aria-hidden="true" />
-          {remaining > 0 ? `Ambil foto (sisa ${remaining})` : `Batas ${PER_GUEST} foto sudah terpakai`}
+          {cameraLabel}
         </button>
       </div>
 
       {cameraOpen && (
         <CameraSheet
-          guest={guest}
+          identity={identity}
+          config={config}
           remaining={remaining}
-          frame={frame}
           onClose={() => setCameraOpen(false)}
-          onSaved={() => {
-            setCameraOpen(false);
-            setTab('mine');
-            m.reload();
-          }}
+          onQueued={() => setTab(ownOnly ? 'mine' : tab)}
         />
       )}
 
@@ -205,7 +232,10 @@ export const PhotoMomentsSection: React.FC<PhotoMomentsSectionProps> = ({ guest,
                   {current.guestName}
                   {m.isMine(current) && <span className="ml-2 text-sm font-normal text-prada-on-deep">foto Anda</span>}
                 </p>
-                <p className="text-sm text-on-deep-soft">{formatTime(current.createdAt)}</p>
+                <p className="text-sm text-on-deep-soft">
+                  {current.look && current.look !== 'none' ? `${lookById(current.look).code} ${lookById(current.look).name} · ` : ''}
+                  {formatTime(current.createdAt)}
+                </p>
               </div>
               {current.caption && <p className="text-[15px] text-on-deep-soft">{current.caption}</p>}
               <div role="group" aria-label="Reaksi" className="no-scrollbar flex gap-1.5 overflow-x-auto">
@@ -229,6 +259,7 @@ export const PhotoMomentsSection: React.FC<PhotoMomentsSectionProps> = ({ guest,
                   );
                 })}
               </div>
+              <CommentThread momentId={current.id} identity={identity} onCount={m.refresh} />
               <div className="flex gap-2">
                 <button
                   type="button"
@@ -237,13 +268,15 @@ export const PhotoMomentsSection: React.FC<PhotoMomentsSectionProps> = ({ guest,
                 >
                   Bagikan
                 </button>
-                <a
-                  href={current.photoUrl}
-                  download={`momen-${current.id}.jpg`}
-                  className="inline-flex min-h-11 flex-1 items-center justify-center rounded-sm border border-on-deep/30 px-4 text-sm font-semibold hover:bg-white/10"
-                >
-                  Unduh foto
-                </a>
+                {canDownload(current) && (
+                  <a
+                    href={current.originalUrl || current.photoUrl}
+                    download={`momen-${current.id}.jpg`}
+                    className="inline-flex min-h-11 flex-1 items-center justify-center rounded-sm border border-on-deep/30 px-4 text-sm font-semibold hover:bg-white/10"
+                  >
+                    Simpan ukuran asli
+                  </a>
+                )}
               </div>
               {shareNote && (
                 <p role="status" className="text-sm text-on-deep-soft">

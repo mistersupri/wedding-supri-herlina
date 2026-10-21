@@ -1,46 +1,44 @@
-import React, { useState } from 'react';
-import { AnimatePresence, motion } from 'motion/react';
+import React, { useRef, useState } from 'react';
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { useInvitation } from '../../InvitationContext.js';
 import { useGuestbook } from '../../hooks/useGuestbook.js';
 import { useCountdown } from '../../../../hooks/useCountdown.js';
 import { useCopy } from '../../../../hooks/useCopy.js';
 import { dateParts, formatLongDate } from '../../../../lib/format.js';
 import { googleCalendarUrl } from '../../../../lib/calendar.js';
-import { Reveal } from '../../../../components/ui/Reveal.js';
 import { GalleryLightbox } from '../../../../components/wedding/GalleryLightbox.js';
 import { GiftQrDialog, Glyph, romanNumeral, timeRange, useTemplateFonts, usePhotoPool, venuesOf } from '../shared/kit.js';
 import { TemplateRsvp } from '../shared/TemplateRsvp.js';
+import { Reel } from './Reel.js';
+import { Screen } from './Screen.js';
+import { useRevealOnScroll } from './useRevealOnScroll.js';
 import type { GiftAccount } from '@shared/types';
 import './gulungan.css';
 
 const FONTS = 'family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=Pinyon+Script&family=VT323';
 
-/** Film-edge print: the couple's initials where a film stock name would be. */
-const useEdgeMark = () => {
-  const { invitation } = useInvitation();
-  return `${invitation.groomShortName.charAt(0)}&${invitation.brideShortName.charAt(0)} 400`.toUpperCase();
-};
-
-const Section: React.FC<{ id?: string; kicker: string; title: React.ReactNode; lead?: string; children?: React.ReactNode }> = ({
-  id,
-  kicker,
-  title,
-  lead,
-  children,
-}) => (
-  <section id={id} className="gk-sec" aria-labelledby={id ? `${id}-title` : undefined}>
-    <Reveal className="gk-wrap">
+/** Section opener: small caps kicker, script title, optional lead. Fades up as it scrolls in. */
+const Section: React.FC<{
+  id?: string;
+  kicker: string;
+  title: React.ReactNode;
+  lead?: string;
+  className?: string;
+  children?: React.ReactNode;
+}> = ({ id, kicker, title, lead, className = '', children }) => (
+  <section id={id} className={`gk-sec ${className}`} aria-labelledby={id ? `${id}-title` : undefined}>
+    <div className="gk-wrap">
       <p className="gk-caps gk-muted gk-kicker">{kicker}</p>
-      <h2 id={id ? `${id}-title` : undefined} className="gk-title gk-h2">
+      <h2 id={id ? `${id}-title` : undefined} className="gk-script gk-title gk-rv">
         {title}
       </h2>
-      {lead && <p className="gk-lead">{lead}</p>}
-    </Reveal>
+      {lead && <p className="gk-lead gk-rv">{lead}</p>}
+    </div>
     {children}
   </section>
 );
 
-/** Ticket-shaped cover. Opening it starts the music. */
+/** Ticket-shaped cover. The page waits behind it, held slightly smaller; opening starts the music. */
 const Opener: React.FC = () => {
   const { invitation, displayName, open } = useInvitation();
   const d = dateParts(invitation.weddingDate);
@@ -50,7 +48,7 @@ const Opener: React.FC = () => {
       aria-modal="true"
       aria-label="Sampul undangan"
       className="gk-opener"
-      exit={{ opacity: 0, transition: { duration: 0.8 } }}
+      exit={{ opacity: 0, transition: { duration: 0.5 } }}
     >
       <div className="gk-opener-inner">
         <p className="gk-caps gk-muted">pemutaran perdana</p>
@@ -78,95 +76,22 @@ const Opener: React.FC = () => {
   );
 };
 
-/** Names, a roller, and the love story printed on a strip of film. */
-const Reel: React.FC = () => {
-  const { invitation } = useInvitation();
-  const photo = usePhotoPool(invitation);
-  const mark = useEdgeMark();
-  const d = dateParts(invitation.weddingDate);
-  const frames = invitation.loveStories.flatMap((s, i) => [
-    { key: `${s.id}-t`, text: s.title, note: s.year },
-    { key: `${s.id}-p`, img: s.photoUrl || photo(i), stamp: `'${s.year.slice(-2)}` },
-  ]);
-
-  return (
-    <header className="gk-reel">
-      <div className="gk-head">
-        <p className="gk-caps gk-muted">dengan cinta, dari</p>
-        <h1 className="gk-head-names">
-          <span className="gk-head-name">{invitation.groomShortName}</span>
-          <span className="gk-head-name">{invitation.brideShortName}</span>
-        </h1>
-      </div>
-      <div className="gk-rig">
-        <div className="gk-roller" aria-hidden="true">
-          <span className="gk-rod" />
-          <span className="gk-roll" />
-        </div>
-        <div className="gk-film">
-          <div className="gk-edge gk-edge-l" aria-hidden="true">
-            <span>{mark}</span>
-            <span>▸ 12</span>
-            <span>{mark}</span>
-          </div>
-          <div className="gk-edge gk-edge-r" aria-hidden="true">
-            <span>12A</span>
-            <span>SAFETY FILM</span>
-            <span>13A</span>
-          </div>
-          <ol className="gk-frames">
-            {frames.map((f) => (
-              <Reveal as="li" key={f.key} className="gk-frame">
-                {'img' in f ? (
-                  <>
-                    <img className="gk-frame-img" src={f.img} alt="" loading="lazy" referrerPolicy="no-referrer" />
-                    <span className="gk-stamp">{f.stamp}</span>
-                  </>
-                ) : (
-                  <div className="gk-frame-txt">
-                    <div>
-                      <p className="gk-frame-serif">{f.text}</p>
-                      <p className="gk-frame-note">{f.note}</p>
-                    </div>
-                  </div>
-                )}
-              </Reveal>
-            ))}
-            <li className="gk-frame">
-              <div className="gk-frame-txt">
-                <div>
-                  <p className="gk-frame-serif">
-                    {d.day} · {d.month} · {d.year}
-                  </p>
-                  <p className="gk-caps gk-frame-note">sampai jumpa</p>
-                </div>
-              </div>
-            </li>
-          </ol>
-        </div>
-      </div>
-    </header>
-  );
-};
-
 const Invite: React.FC = () => {
   const { invitation, displayName } = useInvitation();
   return (
-    <section className="gk-sec gk-invite">
-      <Reveal className="gk-wrap">
-        <p className="gk-quote">“{invitation.quoteText}”</p>
-        <p className="gk-src">{invitation.quoteSource}</p>
-        <div className="gk-rule" />
-        <p className="gk-to">
-          Untuk kamu,
-          <span className="gk-to-name">{displayName}</span>
-        </p>
-        <p className="gk-caps gk-muted">dengan penuh syukur kami mengundang kamu</p>
-        <p className="gk-h2 gk-invite-names">
-          {invitation.groomShortName} &amp; {invitation.brideShortName}
-        </p>
-        <p className="gk-lead">untuk menyaksikan adegan paling penting dalam film kami: hari kami resmi menjadi satu keluarga.</p>
-      </Reveal>
+    <section className="gk-wrap gk-invite">
+      <p className="gk-quote gk-rv">“{invitation.quoteText}”</p>
+      <p className="gk-src gk-rv">{invitation.quoteSource}</p>
+      <div className="gk-rule" aria-hidden="true" />
+      <p className="gk-to gk-rv">
+        Untuk kamu,
+        <strong className="gk-to-name">{displayName}</strong>
+      </p>
+      <p className="gk-caps gk-muted gk-rv">dengan penuh syukur kami mengundang kamu</p>
+      <h2 className="gk-script gk-invite-names gk-rv">
+        {invitation.groomShortName} &amp; {invitation.brideShortName}
+      </h2>
+      <p className="gk-lead gk-rv">untuk menyaksikan adegan paling penting dalam film kami: hari kami resmi menjadi satu keluarga.</p>
     </section>
   );
 };
@@ -175,47 +100,35 @@ const Cast: React.FC = () => {
   const { invitation: inv } = useInvitation();
   const year = new Date(inv.weddingDate).getFullYear().toString().slice(-2);
   const people = [
-    {
-      short: inv.groomShortName,
-      full: inv.groomName,
-      parents: inv.groomParents,
-      photo: inv.groomPhoto,
-      ig: inv.groomInstagram,
-      tilt: '-2deg',
-    },
-    {
-      short: inv.brideShortName,
-      full: inv.brideName,
-      parents: inv.brideParents,
-      photo: inv.bridePhoto,
-      ig: inv.brideInstagram,
-      tilt: '1.8deg',
-    },
+    { short: inv.groomShortName, full: inv.groomName, parents: inv.groomParents, photo: inv.groomPhoto, ig: inv.groomInstagram },
+    { short: inv.brideShortName, full: inv.brideName, parents: inv.brideParents, photo: inv.bridePhoto, ig: inv.brideInstagram },
   ];
   return (
     <Section id="gk-cast" kicker="pemeran utama" title="Dua bintang">
       <div className="gk-wrap">
         <div className="gk-slides">
           {people.map((p, i) => (
-            <Reveal key={p.full} className="gk-slide" delay={i * 0.1}>
-              <div style={{ rotate: p.tilt }}>
-                <div className="gk-slide-win">
-                  <img className="gk-slide-img" src={p.photo} alt={p.full} loading="lazy" referrerPolicy="no-referrer" />
-                </div>
-                <p className="gk-slide-lbl">
-                  <span>No. 0{i + 1}</span>
-                  <span>'{year}</span>
-                </p>
-                <p className="gk-slide-name">{p.short}</p>
-                <p className="gk-slide-full">{p.full}</p>
-                <p className="gk-slide-par">{p.parents}</p>
-                {p.ig && (
-                  <a className="gk-slide-ig" href={`https://instagram.com/${p.ig.replace('@', '')}`} target="_blank" rel="noreferrer">
-                    @{p.ig.replace('@', '')}
-                  </a>
-                )}
+            <article
+              key={p.full}
+              className="gk-slide gk-rv"
+              style={{ '--t': i ? '2deg' : '-2deg', transitionDelay: `${i * 0.15}s` } as React.CSSProperties}
+            >
+              <div className="gk-slide-win">
+                <img className="gk-slide-img" src={p.photo} alt={p.full} loading="lazy" referrerPolicy="no-referrer" />
               </div>
-            </Reveal>
+              <p className="gk-slide-lbl">
+                <span>No. 0{i + 1}</span>
+                <span>'{year}</span>
+              </p>
+              <h3 className="gk-slide-name">{p.short}</h3>
+              <p className="gk-slide-full">{p.full}</p>
+              <p className="gk-slide-par">{p.parents}</p>
+              {p.ig && (
+                <a className="gk-slide-ig" href={`https://instagram.com/${p.ig.replace('@', '')}`} target="_blank" rel="noreferrer">
+                  @{p.ig.replace('@', '')}
+                </a>
+              )}
+            </article>
           ))}
         </div>
       </div>
@@ -230,7 +143,7 @@ const Schedule: React.FC = () => {
       <div className="gk-wrap">
         <ol className="gk-tickets">
           {invitation.events.map((e, i) => (
-            <Reveal as="li" key={e.id} className="gk-ticket">
+            <li key={e.id} className="gk-ticket gk-rv" style={{ transitionDelay: `${i * 0.12}s` }}>
               <div className="gk-ticket-main">
                 <p className="gk-ticket-caps">adegan {romanNumeral(i)}</p>
                 <h3 className="gk-ticket-title">{e.title}</h3>
@@ -247,10 +160,10 @@ const Schedule: React.FC = () => {
                 <span className="gk-stub-small">studio</span>
                 <span className="gk-stub-num">{String(i + 1).padStart(2, '0')}</span>
               </div>
-            </Reveal>
+            </li>
           ))}
         </ol>
-        <div className="gk-btns">
+        <div className="gk-btns gk-rv">
           <a className="gk-btn" href={googleCalendarUrl(invitation)} target="_blank" rel="noreferrer">
             Simpan tanggal
           </a>
@@ -260,6 +173,7 @@ const Schedule: React.FC = () => {
   );
 };
 
+/** A film-leader countdown: the sweep turns once a minute, the big number is days. */
 const Countdown: React.FC = () => {
   const { invitation } = useInvitation();
   const left = useCountdown(invitation.countdownTarget || invitation.weddingDate);
@@ -267,11 +181,11 @@ const Countdown: React.FC = () => {
   return (
     <Section kicker="hitung mundur" title={left.isPast ? 'Sedang tayang' : 'Segera tayang'}>
       <div className="gk-wrap" role="timer" aria-label={`${left.days} hari ${left.hours} jam ${left.minutes} menit lagi`}>
-        <div className="gk-cdial" style={{ '--sec': `${left.seconds * 6}deg` } as React.CSSProperties} aria-hidden="true">
+        <div className="gk-cdial gk-rv" style={{ '--sec': `${left.seconds * 6}deg` } as React.CSSProperties} aria-hidden="true">
           <strong>{left.days}</strong>
           <span className="gk-cdial-label">hari lagi</span>
         </div>
-        <div className="gk-units" aria-hidden="true">
+        <div className="gk-units gk-rv" aria-hidden="true">
           {[
             [left.hours, 'jam'],
             [left.minutes, 'menit'],
@@ -297,24 +211,24 @@ const Location: React.FC = () => {
       <div className="gk-wrap">
         {guest ? (
           venues.map((v, i) => (
-            <Reveal key={v.id} className="gk-loc">
-              <figure className="gk-polaroid" style={{ rotate: i % 2 ? '1.4deg' : '-1.5deg' }}>
+            <div key={v.id} className="gk-loc">
+              <figure className="gk-polaroid gk-rv" style={{ rotate: i % 2 ? '1.4deg' : '-1.5deg' }}>
                 <div className="gk-polaroid-img">
                   <img className="gk-loc-img" src={photo(i + 2)} alt="" loading="lazy" referrerPolicy="no-referrer" />
                 </div>
                 <figcaption>{v.venueName}</figcaption>
               </figure>
-              <p className="gk-loc-name">{v.venueName}</p>
-              <p className="gk-loc-address">{v.address}</p>
-              <div className="gk-btns">
+              <p className="gk-loc-name gk-rv">{v.venueName}</p>
+              <p className="gk-loc-address gk-rv">{v.address}</p>
+              <div className="gk-btns gk-rv">
                 <a className="gk-btn" href={v.mapsUrl} target="_blank" rel="noreferrer">
                   Buka Google Maps
                 </a>
               </div>
-            </Reveal>
+            </div>
           ))
         ) : (
-          <p className="gk-lead">
+          <p className="gk-lead gk-rv">
             Alamat lengkap kami bagikan ke tamu terdaftar. <a href="#gk-rsvp">Masukkan kode undanganmu</a> untuk membukanya.
           </p>
         )}
@@ -330,7 +244,7 @@ const ContactSheet: React.FC = () => {
   if (!items.length) return null;
   return (
     <Section id="gk-gallery" kicker="contact sheet" title="Potongan adegan">
-      <Reveal className="gk-contact">
+      <div className="gk-contact gk-rv">
         <ul className="gk-sheet">
           {items.map((p, i) => (
             <li key={p.id} className="gk-cell">
@@ -352,8 +266,8 @@ const ContactSheet: React.FC = () => {
             </li>
           ))}
         </ul>
-        {items.length > 1 && <p className="gk-circled-note">yang dilingkari favorit kami ♡</p>}
-      </Reveal>
+        {items.length > 1 && <p className="gk-contact-note">yang dilingkari favorit kami ♡</p>}
+      </div>
       <GalleryLightbox items={items} index={open} onIndexChange={setOpen} />
     </Section>
   );
@@ -363,8 +277,8 @@ const Moments: React.FC = () => {
   const { photoMomentsHref } = useInvitation();
   if (!photoMomentsHref) return null;
   return (
-    <Section kicker="di balik layar" title="Kamu sudah di lokasi" lead="Rekam suasananya dan kirim ke galeri tamu, hingga tiga foto.">
-      <div className="gk-wrap gk-btns">
+    <Section kicker="di balik layar" title="Kamera sekali pakai" lead="Pilih look film, jepret suasananya, dan kirim ke galeri tamu.">
+      <div className="gk-wrap gk-btns gk-rv">
         <a className="gk-btn gk-btn-solid" href={photoMomentsHref}>
           Buka kamera tamu
         </a>
@@ -386,7 +300,7 @@ const Gifts: React.FC = () => {
       lead="Doa dan kehadiranmu sudah jadi hadiah terbaik. Kalau ingin mengirim tanda kasih, bisa lewat sini."
     >
       <div className="gk-wrap">
-        <Reveal className="gk-gift">
+        <div className="gk-gift gk-rv">
           <div className="gk-gift-head">
             <span className="gk-caps">tanda kasih</span>
             <span className="gk-gift-iso">ISO 400</span>
@@ -400,7 +314,11 @@ const Gifts: React.FC = () => {
               </div>
               <div className="gk-gift-actions">
                 {g.accountNumber && (
-                  <button type="button" className="gk-chip" onClick={() => copy(g.accountNumber.replace(/\s/g, ''), g.id)}>
+                  <button
+                    type="button"
+                    className={`gk-chip ${copied === g.id ? 'is-done' : ''}`}
+                    onClick={() => copy(g.accountNumber.replace(/\s/g, ''), g.id)}
+                  >
                     {copied === g.id ? 'Tersalin' : 'Salin'}
                   </button>
                 )}
@@ -412,7 +330,7 @@ const Gifts: React.FC = () => {
               </div>
             </div>
           ))}
-        </Reveal>
+        </div>
         <p role="status" className="gk-status">
           {failed ? 'Peramban menolak menyalin otomatis. Salin nomornya secara manual, ya.' : ''}
         </p>
@@ -422,25 +340,25 @@ const Gifts: React.FC = () => {
   );
 };
 
+/** Wishes pinned up as small paper cards, each rising in as it arrives. */
 const Wishes: React.FC = () => {
   const { wishes, isLoading } = useGuestbook();
   const [limit, setLimit] = useState(6);
   return (
-    <div className="gk-wrap gk-wishes">
-      <h3 className="gk-wishes-title">Ucapan dari yang lain</h3>
+    <div className="gk-wrap gk-wish-block">
+      <h3 className="gk-wishes-title gk-rv">Ucapan dari yang lain</h3>
       {isLoading ? (
         <p className="gk-muted">Memuat ucapan...</p>
       ) : wishes.length === 0 ? (
-        <p>Belum ada ucapan. Jadi yang pertama menulis, yuk!</p>
+        <p className="gk-rv">Belum ada ucapan. Jadi yang pertama menulis, yuk!</p>
       ) : (
         <>
-          <ul>
+          <ul className="gk-wishes">
             {wishes.slice(0, limit).map((w) => (
-              <li key={w.id} className="gk-wish">
-                <p className="gk-wish-name">
-                  {w.guestName} <span className="gk-ticket-caps">{w.relationship}</span>
-                </p>
-                <p className="gk-wish-msg">{w.message}</p>
+              <li key={w.id}>
+                <b>{w.guestName}</b>
+                <em>{w.relationship}</em>
+                <p>{w.message}</p>
                 {w.voiceUrl && (
                   <audio src={w.voiceUrl} controls preload="none" className="gk-audio" aria-label={`Pesan suara dari ${w.guestName}`} />
                 )}
@@ -461,45 +379,34 @@ const Wishes: React.FC = () => {
   );
 };
 
+/** End credits. With motion they roll up the screen once, like the end of a film. */
 const Credits: React.FC = () => {
   const { invitation: inv, isAdmin } = useInvitation();
   const venues = venuesOf(inv.events);
-  const rows: [string, React.ReactNode][] = [
-    [
-      'pemeran utama',
-      <>
-        {inv.brideName}
-        <br />
-        {inv.groomName}
-      </>,
-    ],
+  const rows: [string, string][] = [
+    ['pemeran utama', `${inv.brideName}\n${inv.groomName}`],
     ['sutradara', 'Takdir'],
-    [
-      'produser',
-      <>
-        {inv.brideParents}
-        <br />
-        {inv.groomParents}
-      </>,
-    ],
-    ...(venues[0] ? ([['lokasi', venues.map((v) => v.venueName).join(' & ')]] as [string, React.ReactNode][]) : []),
+    ['produser', `${inv.brideParents}\n${inv.groomParents}`],
+    ...(venues.length ? ([['lokasi', venues.map((v) => v.venueName).join('\n')]] as [string, string][]) : []),
     ['pemeran pendukung', 'Kamu, dan semua yang kami sayangi'],
   ];
   return (
-    <footer className="gk-credits gk-wrap">
-      {rows.map(([k, v]) => (
-        <div key={k} className="gk-credit">
-          <p className="gk-caps gk-muted">{k}</p>
-          <p className="gk-credit-v">{v}</p>
-        </div>
-      ))}
-      <p className="gk-end">tamat.</p>
-      <p className="gk-italic gk-muted">…atau justru baru dimulai.</p>
-      {isAdmin && (
-        <a className="gk-admin" href="/cms/overview">
-          Kelola undangan di CMS
-        </a>
-      )}
+    <footer className="gk-credits">
+      <div className="gk-roll-up gk-wrap">
+        {rows.map(([role, names]) => (
+          <div key={role} className="gk-credit-row">
+            <p className="gk-credit-role">{role}</p>
+            <p className="gk-credit-names">{names}</p>
+          </div>
+        ))}
+        <p className="gk-end">tamat.</p>
+        <p className="gk-end-line">…atau justru baru dimulai.</p>
+        {isAdmin && (
+          <a className="gk-admin" href="/cms/overview">
+            Kelola undangan di CMS
+          </a>
+        )}
+      </div>
     </footer>
   );
 };
@@ -531,17 +438,32 @@ const Dock: React.FC = () => {
   );
 };
 
-/** "Gulungan Kenangan": the story told as a film reel, in a dim screening room. */
+/**
+ * "Gulungan Kenangan": the story told as a film reel in a dim screening room. Scrolling unrolls the
+ * film, sections fade up as they enter, and the page closes on rolling end credits.
+ * With prefers-reduced-motion everything is laid out still.
+ */
 const GulunganTemplate: React.FC = () => {
   const { isOpen } = useInvitation();
+  const reduced = useReducedMotion();
+  const animate = !reduced;
+  const root = useRef<HTMLDivElement>(null);
   useTemplateFonts(FONTS);
+  useRevealOnScroll(root, animate && isOpen);
+
   return (
-    <div className="gk">
+    <div ref={root} className={`gk ${animate ? 'is-motion' : ''}`}>
       <AnimatePresence>{!isOpen && <Opener />}</AnimatePresence>
-      <div inert={!isOpen ? true : undefined}>
+      <div className={`gk-stage-host ${isOpen ? '' : 'is-held'}`} inert={!isOpen ? true : undefined}>
+        <div className="gk-bgfx" aria-hidden="true">
+          <i />
+          <i />
+          <i />
+        </div>
         <div className="gk-grain" aria-hidden="true" />
         <main className="gk-main">
-          <Reel />
+          <Screen motion={animate} />
+          <Reel motion={animate} />
           <Invite />
           <Cast />
           <Schedule />
@@ -550,16 +472,17 @@ const GulunganTemplate: React.FC = () => {
           <ContactSheet />
           <Moments />
           <Gifts />
-          <Section id="gk-rsvp" kicker="rsvp & ucapan" title="Kamu datang, kan?">
-            <div className="gk-wrap">
+          <Section id="gk-rsvp" kicker="rsvp & ucapan" title="Kamu datang, kan?" className="gk-rsvp">
+            <div className="gk-wrap gk-rv">
               <TemplateRsvp prefix="gk" submitLabel="Kirim" confettiColors={['#F3ECC9', '#C8453A', '#FF9A4A']} />
             </div>
             <Wishes />
           </Section>
         </main>
         <Credits />
-        <Dock />
       </div>
+      {/* Outside the held stage: a transformed ancestor would pin it to the page instead of the screen. */}
+      {isOpen && <Dock />}
     </div>
   );
 };

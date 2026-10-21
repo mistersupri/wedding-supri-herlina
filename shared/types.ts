@@ -116,6 +116,8 @@ export interface InvitationData extends InvitationRecord {
   events: WeddingEvent[];
   gallery: GalleryPhoto[];
   stats?: RSVPStats;
+  /** Enough of the camera rules for templates to decide whether to show the camera link. */
+  photoMoments?: { access: MomentAccess; cameraOpen: boolean };
 }
 
 export type CMSCoupleData = CoupleProfile;
@@ -166,11 +168,57 @@ export interface PhotoMoment {
   id: string;
   guestName: string;
   guestSlug?: string;
+  /** Feed-sized copy. */
   photoUrl: string;
+  /** Full-resolution copy for download; falls back to photoUrl. */
+  originalUrl?: string;
   caption?: string;
+  look?: string;
+  /** False while waiting for the couple's review. */
+  approved?: boolean;
   createdAt: string;
   likesCount?: number;
   reactions?: Record<string, number>;
+  commentsCount?: number;
+}
+
+export interface PhotoComment {
+  id: string;
+  momentId: string;
+  guestName: string;
+  guestSlug?: string;
+  text: string;
+  createdAt: string;
+}
+
+export type MomentAccess = 'CHECKED_IN' | 'INVITED' | 'ANYONE';
+export type MomentVisibility = 'ALL' | 'OWN';
+export type MomentDownload = 'NONE' | 'OWN' | 'ALL';
+
+/** The couple's rules for the guest camera (CMS > Photo Moments). */
+export interface CameraSettings {
+  access: MomentAccess;
+  framesPerGuest: number;
+  cameraOpen: boolean;
+  moderation: boolean;
+  visibility: MomentVisibility;
+  download: MomentDownload;
+  /** Film look ids guests may use; empty means all. */
+  enabledLooks: string[];
+  defaultLook: string;
+  screenEnabled: boolean;
+}
+
+/** Everything the guest camera needs before it opens. */
+export interface CameraConfig {
+  settings: CameraSettings;
+  frame: PhotoFrameConfig;
+}
+
+/** Who is taking or commenting on a photo: an invited guest (slug) or, when allowed, just a name. */
+export interface MomentIdentity {
+  name: string;
+  slug?: string;
 }
 
 export interface PhotoFrameConfig {

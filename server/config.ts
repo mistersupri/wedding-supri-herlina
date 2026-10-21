@@ -13,24 +13,35 @@ function requireDatabaseUrl(): string {
   return url;
 }
 
+const isProduction = process.env.NODE_ENV === 'production';
+
+/** In production a missing secret is a startup error, never a silent fallback to a value published in this repo. */
+function secret(name: string, devFallback: string): string {
+  const value = process.env[name];
+  if (value) return value;
+  if (isProduction) throw new Error(`${name} wajib diisi di produksi. Lihat .env.example.`);
+  return devFallback;
+}
+
 export const config = {
   port: Number(process.env.PORT) || 3000,
-  isProduction: process.env.NODE_ENV === 'production',
+  isProduction,
   get databaseUrl() {
     return requireDatabaseUrl();
   },
   distDir: path.join(cwd, 'dist'),
   uploadDir: process.env.UPLOAD_DIR || path.join(cwd, 'uploads'),
   jsonBodyLimit: '25mb',
+  /** Hops of reverse proxy in front of the app (Nginx, Caddy, a load balancer), for correct client IPs. */
+  trustProxy: Number(process.env.TRUST_PROXY) || 0,
   admin: {
     username: process.env.ADMIN_USERNAME || 'admin',
-    password: process.env.ADMIN_PASSWORD || 'admin123',
+    password: secret('ADMIN_PASSWORD', 'admin123'),
   },
   jwt: {
-    accessSecret: process.env.JWT_SECRET || 'wedding_invitation_secret_jwt_key_2026',
-    refreshSecret: process.env.JWT_REFRESH_SECRET || 'wedding_invitation_refresh_jwt_key_2026_refresh_secret',
+    accessSecret: secret('JWT_SECRET', 'wedding_invitation_secret_jwt_key_2026'),
+    refreshSecret: secret('JWT_REFRESH_SECRET', 'wedding_invitation_refresh_jwt_key_2026_refresh_secret'),
   },
-  photoMomentsPerGuest: 3,
 };
 
 /** The env-configured superadmin is never stored in the database; it is matched by this id. */

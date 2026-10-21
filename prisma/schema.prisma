@@ -149,18 +149,75 @@ model InvitedGuest {
 }
 
 model PhotoMoment {
-  id         String   @id @default(cuid())
-  guestName  String
-  guestSlug  String?
-  photoUrl   String
-  caption    String   @default("")
-  likesCount Int      @default(0)
+  id            String         @id @default(cuid())
+  guestName     String
+  guestSlug     String?
+  /// Feed-sized copy (about 1080 px wide).
+  photoUrl      String
+  /// Full-resolution copy for download. Older photos only have photoUrl.
+  originalUrl   String?
+  caption       String         @default("")
+  /// Film look the guest used, for the CMS ("none" when unedited).
+  look          String?
+  /// False while the couple has not reviewed it (moderation on).
+  approved      Boolean        @default(true)
+  likesCount    Int            @default(0)
   /// Emoji -> count.
-  reactions  Json     @default("{}")
-  createdAt  DateTime @default(now())
+  reactions     Json           @default("{}")
+  commentsCount Int            @default(0)
+  createdAt     DateTime       @default(now())
+  comments      PhotoComment[]
 
   @@index([guestSlug])
   @@index([createdAt])
+  @@index([approved, createdAt])
+}
+
+model PhotoComment {
+  id        String      @id @default(cuid())
+  momentId  String
+  moment    PhotoMoment @relation(fields: [momentId], references: [id], onDelete: Cascade)
+  guestName String
+  guestSlug String?
+  text      String
+  createdAt DateTime    @default(now())
+
+  @@index([momentId, createdAt])
+}
+
+enum MomentAccess {
+  /// Invited guests whose arrival was recorded at reception.
+  CHECKED_IN
+  /// Any guest with a valid invitation code.
+  INVITED
+  /// Anyone who types a name (for a table QR without codes).
+  ANYONE
+}
+
+enum MomentVisibility {
+  ALL
+  OWN
+}
+
+enum MomentDownload {
+  NONE
+  OWN
+  ALL
+}
+
+/// The couple's rules for the guest camera.
+model CameraSetting {
+  id             String           @id @default("main")
+  access         MomentAccess     @default(CHECKED_IN)
+  framesPerGuest Int              @default(15)
+  cameraOpen     Boolean          @default(true)
+  moderation     Boolean          @default(false)
+  visibility     MomentVisibility @default(ALL)
+  download       MomentDownload   @default(OWN)
+  /// Film look ids guests may use; empty means all of them.
+  enabledLooks   String[]         @default([])
+  defaultLook    String           @default("none")
+  screenEnabled  Boolean          @default(true)
 }
 
 model PhotoFrameSetting {

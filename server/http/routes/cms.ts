@@ -9,7 +9,10 @@ function crud<T extends { id: string }>(router: Router, path: string, repo: Orde
   const missing = () => notFound(`${noun} tidak ditemukan.`);
   const lower = noun.toLowerCase();
 
-  router.get(path, route(async () => ({ data: await repo.list() }), `Gagal memuat ${lower}.`));
+  router.get(
+    path,
+    route(async () => ({ data: await repo.list() }), `Gagal memuat ${lower}.`),
+  );
   router.post(
     path,
     route(async (req, res) => {
@@ -42,21 +45,39 @@ export function cmsRoutes(s: Services): Router {
   router.use(['/cms', '/admin'], requireAdmin);
   const noop = () => undefined;
 
-  router.get('/cms/stats', route(async () => ({ data: await s.invitation.cmsStats() }), 'Gagal memuat ringkasan.'));
+  router.get(
+    '/cms/stats',
+    route(async () => ({ data: await s.invitation.cmsStats() }), 'Gagal memuat ringkasan.'),
+  );
   router.get(
     '/cms/general',
-    route<AuthenticatedRequest>(async (req) => ({ data: { ...(await s.invitation.general()), adminProfile: req.user } }), 'Gagal memuat pengaturan.'),
+    route<AuthenticatedRequest>(
+      async (req) => ({ data: { ...(await s.invitation.general()), adminProfile: req.user } }),
+      'Gagal memuat pengaturan.',
+    ),
   );
 
-  router.get('/cms/couple', route(async () => ({ data: await s.invitation.couple() }), 'Gagal memuat data mempelai.'));
+  router.get(
+    '/cms/couple',
+    route(async () => ({ data: await s.invitation.couple() }), 'Gagal memuat data mempelai.'),
+  );
   router.put(
     '/cms/couple',
-    route(async (req) => ({ message: 'Data mempelai tersimpan.', data: await s.invitation.saveCouple(req.body || {}) }), 'Gagal menyimpan data mempelai.'),
+    route(
+      async (req) => ({ message: 'Data mempelai tersimpan.', data: await s.invitation.saveCouple(req.body || {}) }),
+      'Gagal menyimpan data mempelai.',
+    ),
   );
-  router.get('/cms/theme', route(async () => ({ data: await s.invitation.theme() }), 'Gagal memuat pengaturan tampilan.'));
+  router.get(
+    '/cms/theme',
+    route(async () => ({ data: await s.invitation.theme() }), 'Gagal memuat pengaturan tampilan.'),
+  );
   router.put(
     '/cms/theme',
-    route(async (req) => ({ message: 'Pengaturan tersimpan.', data: await s.invitation.saveTheme(req.body || {}) }), 'Gagal menyimpan pengaturan.'),
+    route(
+      async (req) => ({ message: 'Pengaturan tersimpan.', data: await s.invitation.saveTheme(req.body || {}) }),
+      'Gagal menyimpan pengaturan.',
+    ),
   );
 
   // Registered before the generic gallery routes so "/batch" is not read as an :id.
@@ -76,10 +97,16 @@ export function cmsRoutes(s: Services): Router {
   crud(router, '/cms/gallery', s.content.gallery, 'Foto', noop);
 
   // --- Guestbook moderation ---
-  router.get('/cms/guests', route((req) => s.guestbook.cmsList(String(req.query.status || 'ALL'), String(req.query.search || '')), 'Gagal memuat buku tamu.'));
+  router.get(
+    '/cms/guests',
+    route((req) => s.guestbook.cmsList(String(req.query.status || 'ALL'), String(req.query.search || '')), 'Gagal memuat buku tamu.'),
+  );
   router.put(
     '/cms/guests/:id/reply',
-    route(async (req) => ({ message: 'Balasan tersimpan.', data: await s.guestbook.reply(req.params.id, String(req.body?.reply || '')) }), 'Gagal menyimpan balasan.'),
+    route(
+      async (req) => ({ message: 'Balasan tersimpan.', data: await s.guestbook.reply(req.params.id, String(req.body?.reply || '')) }),
+      'Gagal menyimpan balasan.',
+    ),
   );
   router.put(
     '/cms/guests/:id/visibility',
@@ -97,7 +124,10 @@ export function cmsRoutes(s: Services): Router {
   );
 
   // --- Invited guests & check-in ---
-  router.get('/cms/invited-guests', route((req) => s.guests.list(String(req.query.filter || 'ALL'), String(req.query.search || '')), 'Gagal memuat daftar tamu.'));
+  router.get(
+    '/cms/invited-guests',
+    route((req) => s.guests.list(String(req.query.filter || 'ALL'), String(req.query.search || '')), 'Gagal memuat daftar tamu.'),
+  );
   router.post(
     '/cms/invited-guests/batch',
     route(async (req, res) => {
@@ -121,7 +151,10 @@ export function cmsRoutes(s: Services): Router {
   );
   router.put(
     '/cms/invited-guests/:id',
-    route(async (req) => ({ message: 'Data tamu diperbarui.', data: await s.guests.update(req.params.id, req.body || {}) }), 'Gagal memperbarui tamu.'),
+    route(
+      async (req) => ({ message: 'Data tamu diperbarui.', data: await s.guests.update(req.params.id, req.body || {}) }),
+      'Gagal memperbarui tamu.',
+    ),
   );
   router.delete(
     '/cms/invited-guests/:id',
@@ -144,13 +177,47 @@ export function cmsRoutes(s: Services): Router {
       return s.guests.undoCheckIn(req.body.guestId);
     }, 'Gagal membatalkan kehadiran.'),
   );
-  router.get('/cms/presensi/stats', route(async () => ({ data: await s.guests.stats() }), 'Gagal memuat statistik.'));
+  router.get(
+    '/cms/presensi/stats',
+    route(async () => ({ data: await s.guests.stats() }), 'Gagal memuat statistik.'),
+  );
 
   // --- Photo moments moderation ---
-  router.get('/cms/photo-moments/frame-config', route(async () => ({ data: await s.moments.frame() }), 'Gagal memuat bingkai foto.'));
+  router.get(
+    '/cms/photo-moments/frame-config',
+    route(async () => ({ data: await s.moments.frame() }), 'Gagal memuat bingkai foto.'),
+  );
   router.put(
     '/cms/photo-moments/frame-config',
-    route(async (req) => ({ message: 'Bingkai foto tersimpan.', data: await s.moments.saveFrame(req.body || {}) }), 'Gagal menyimpan bingkai foto.'),
+    route(
+      async (req) => ({ message: 'Bingkai foto tersimpan.', data: await s.moments.saveFrame(req.body || {}) }),
+      'Gagal menyimpan bingkai foto.',
+    ),
+  );
+  router.get(
+    '/cms/photo-moments/settings',
+    route(async () => ({ data: await s.moments.settings() }), 'Gagal memuat aturan kamera.'),
+  );
+  router.put(
+    '/cms/photo-moments/settings',
+    route(
+      async (req) => ({ message: 'Aturan kamera tersimpan.', data: await s.moments.saveSettings(req.body || {}) }),
+      'Gagal menyimpan aturan kamera.',
+    ),
+  );
+  router.put(
+    '/cms/photo-moments/:id/approval',
+    route(async (req) => {
+      const data = await s.moments.approve(req.params.id, req.body?.approved !== false);
+      return { message: data.approved ? 'Foto tampil di galeri tamu.' : 'Foto disembunyikan.', data };
+    }, 'Gagal memperbarui foto.'),
+  );
+  router.delete(
+    '/cms/photo-moments/comments/:id',
+    route(async (req) => {
+      await s.moments.removeComment(req.params.id);
+      return { message: 'Komentar dihapus.' };
+    }, 'Gagal menghapus komentar.'),
   );
   router.get(
     '/cms/photo-moments',

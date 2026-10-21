@@ -34,16 +34,61 @@ Pilih di CMS, menu **Template & musik**. Semua template membaca data yang sama (
 
 Foto yang tampil di template selalu foto pasangan dari menu Mempelai, Kisah, dan Galeri. Alamat lengkap dan amplop digital tetap hanya terbuka untuk tamu yang memasukkan kode undangan.
 
-## Produksi
+## Kamera tamu (Photo Moments)
 
-Siapkan PostgreSQL dan isi `DATABASE_URL`, lalu:
+Kamera sekali pakai yang jalan di peramban HP tamu, tanpa aplikasi. Diatur di CMS, menu **Photo Moments**.
+
+- **Masuk:** dari tautan undangan, atau dari kartu QR di meja (CMS > Photo Moments > Kartu QR untuk meja > Cetak kartu). Siapa yang boleh memotret: tamu yang sudah check-in, semua tamu berkode undangan, atau siapa saja yang menulis nama. Aturan ini juga diperiksa di server.
+- **Jepret:** kamera depan atau belakang, atau ambil dari galeri HP (juga jalan keluar bila kamera diblokir). Hasil otomatis 4:5 dan masih bisa digeser, di-zoom, dan diputar.
+- **Kamar gelap:** 20 look film (Terang, Kalem, Hangat, Nyeleneh) dengan slider kekuatan, lalu bisa ditumpuk: debu (5 taburan, ketuk lagi untuk ganti), light bleed (16 variasi), grain, 9 setelan manual, cap tanggal oranye, dan bingkai (putih, hitam, dua dengan teks keterangan, atau bingkai acara).
+- **Kirim:** foto masuk antrean di HP dan terkirim di belakang layar dengan bar progres; tamu langsung bisa jepret lagi. Tanpa sinyal, foto tersimpan di HP dan terkirim sendiri saat sinyal kembali. Ukuran asli disimpan untuk diunduh, salinan kecil untuk galeri.
+- **Galeri:** reaksi, komentar, simpan ukuran asli. Penghitung frame seperti kamera sekali pakai (bawaan 15 per tamu).
+- **Layar besar:** `/photo-moments/layar` untuk proyektor di lokasi: slideshow foto terbaru dengan QR untuk ikut memotret.
+- **Aturan di CMS:** frame per tamu, tutup kamera, cek dulu sebelum tayang, siapa melihat apa, boleh unduh apa, look mana yang nyala, dan look awal. Foto yang menunggu dicek bisa ditayangkan atau disembunyikan, dan komentar bisa dihapus.
+
+## Deploy produksi (Docker)
+
+Satu server dengan Docker Compose: aplikasi dan PostgreSQL 17.
 
 ```bash
+cp .env.example .env
+# isi ADMIN_PASSWORD, JWT_SECRET, JWT_REFRESH_SECRET, POSTGRES_PASSWORD
+# nilai acak: openssl rand -hex 32
+docker compose up -d --build
+docker compose ps        # app dan db harus "healthy"
+```
+
+Yang terjadi saat container `app` menyala: migrasi Prisma dijalankan (`prisma migrate deploy`), database kosong diisi data demo sekali, lalu server berjalan di port 3000 sebagai user non-root.
+
+- **Port:** aplikasi hanya dibuka di `127.0.0.1:3000` di host. Pasang reverse proxy dengan HTTPS di depannya (Caddy, Nginx, Traefik). Contoh Caddy: `undangan.example.com { reverse_proxy 127.0.0.1:3000 }`. Untuk membuka langsung tanpa proxy, set `APP_BIND=0.0.0.0`.
+- **Data:** volume `pgdata` (database) dan `uploads` (foto, video, pesan suara, foto tamu). Keduanya tetap ada saat `docker compose down`, dan baru terhapus dengan `down -v`.
+- **Health check:** `GET /api/health` mengembalikan `{"status":"ok"}` bila database terjangkau. Docker memakainya untuk status `healthy`.
+- **Keamanan:** di produksi aplikasi menolak menyala bila `ADMIN_PASSWORD`, `JWT_SECRET`, atau `JWT_REFRESH_SECRET` kosong, jadi nilai bawaan dari repo tidak pernah terpakai. PostgreSQL tidak dibuka ke host.
+- **Cache:** file di `/assets` diberi cache 1 tahun (namanya sudah ber-hash), sedangkan `index.html` selalu divalidasi ulang, sehingga deploy baru langsung terlihat.
+- **Berhenti:** `docker stop` mengirim SIGTERM; server menyelesaikan request yang sedang berjalan lalu menutup koneksi database.
+
+Perintah harian:
+
+```bash
+docker compose logs -f app                                   # log aplikasi
+git pull && docker compose up -d --build                     # update; migrasi baru jalan otomatis
+docker compose exec db pg_dump -U undangan undangan > backup.sql   # backup database
+docker run --rm -v undangan_uploads:/u -v "$PWD":/b busybox tar czf /b/uploads.tgz -C /u .   # backup unggahan
+```
+
+Menjalankan lebih dari satu replika: set `SKIP_MIGRATIONS=1` pada container aplikasi dan jalankan migrasi sekali sebagai langkah rilis (`docker compose run --rm -e SKIP_MIGRATIONS=0 app true`). Unggahan disimpan di disk, jadi replika perlu berbagi volume `uploads`.
+
+### Tanpa Docker
+
+Siapkan PostgreSQL dan isi `DATABASE_URL` serta rahasia di `.env`, lalu:
+
+```bash
+yarn install --frozen-lockfile
 yarn build
 NODE_ENV=production yarn start   # menjalankan migrasi, lalu server
 ```
 
-Database kosong otomatis diisi data demo saat server pertama kali menyala. Perintah lain:
+Perintah lain:
 
 | Perintah | Fungsi |
 |---|---|
@@ -59,9 +104,13 @@ Mengubah `prisma/schema.prisma`: buat migrasi baru terhadap PostgreSQL biasa den
 
 | Nama | Fungsi |
 |---|---|
-| `DATABASE_URL` | Koneksi PostgreSQL. Wajib untuk `yarn dev` dan produksi; tidak perlu untuk `yarn dev:local`. |
-| `ADMIN_USERNAME`, `ADMIN_PASSWORD` | Akun admin utama. Kata sandinya hanya bisa diubah di sini. |
-| `JWT_SECRET`, `JWT_REFRESH_SECRET` | Kunci tanda tangan sesi admin. Wajib diganti di produksi. |
+| `DATABASE_URL` | Koneksi PostgreSQL. Wajib untuk `yarn dev` dan produksi tanpa Docker; Docker Compose menyusunnya sendiri; tidak perlu untuk `yarn dev:local`. |
+| `ADMIN_USERNAME`, `ADMIN_PASSWORD` | Akun admin utama. Kata sandinya hanya bisa diubah di sini. `ADMIN_PASSWORD` wajib di produksi. |
+| `JWT_SECRET`, `JWT_REFRESH_SECRET` | Kunci tanda tangan sesi admin. Wajib di produksi. |
+| `POSTGRES_PASSWORD` | Docker Compose: kata sandi PostgreSQL (huruf dan angka saja). |
+| `APP_PORT`, `APP_BIND` | Docker Compose: port dan alamat di host, bawaan `3000` dan `127.0.0.1`. |
+| `TRUST_PROXY` | Jumlah reverse proxy di depan aplikasi (Compose: bawaan `1`). |
+| `SKIP_MIGRATIONS` | `1` agar container tidak menjalankan migrasi saat menyala. |
 | `GEMINI_API_KEY` | Opsional. Menyalin pesan suara tamu menjadi teks. |
 | `PORT` | Port server, bawaan 3000. |
 | `UPLOAD_DIR` | Folder file unggahan, bawaan `./uploads`. |

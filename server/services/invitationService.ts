@@ -2,7 +2,7 @@ import { HttpError } from '../http/http.js';
 import { isTemplateId } from '../../shared/templates.js';
 import type { InvitationRepository } from '../repositories/invitationRepository.js';
 import type { OrderedRepository } from '../repositories/contentRepositories.js';
-import type { wishRepository } from '../repositories/guestRepositories.js';
+import type { cameraSettingRepository, wishRepository } from '../repositories/guestRepositories.js';
 import type {
   CMSStatsData,
   CoupleProfile,
@@ -36,6 +36,7 @@ interface Deps {
   gifts: OrderedRepository<GiftAccount>;
   gallery: OrderedRepository<GalleryPhoto>;
   wishes: ReturnType<typeof wishRepository>;
+  cameraSettings: ReturnType<typeof cameraSettingRepository>;
 }
 
 export function invitationService(d: Deps) {
@@ -48,10 +49,10 @@ export function invitationService(d: Deps) {
   return {
     /** Everything the public page renders in one request. */
     async publicInvitation(): Promise<InvitationData> {
-      const [inv, events, gallery, loveStories, giftInfo, stats] = await Promise.all([
-        core(), d.events.list(), d.gallery.list(), d.stories.list(), d.gifts.list(), d.wishes.stats(),
+      const [inv, events, gallery, loveStories, giftInfo, stats, camera] = await Promise.all([
+        core(), d.events.list(), d.gallery.list(), d.stories.list(), d.gifts.list(), d.wishes.stats(), d.cameraSettings.get(),
       ]);
-      return { ...inv, events, gallery, loveStories, giftInfo, stats };
+      return { ...inv, events, gallery, loveStories, giftInfo, stats, photoMoments: { access: camera.access, cameraOpen: camera.cameraOpen } };
     },
 
     async couple(): Promise<CoupleProfile> {

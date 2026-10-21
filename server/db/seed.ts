@@ -19,7 +19,9 @@ export async function seedDatabase(db: Db, data: LegacyData = createDemoData()) 
   const theme = str(inv.themeColor, 'sogan');
 
   await db.$transaction(async (tx) => {
+    await tx.photoComment.deleteMany();
     await tx.photoMoment.deleteMany();
+    await tx.cameraSetting.deleteMany();
     await tx.guestWish.deleteMany();
     await tx.invitedGuest.deleteMany();
     await tx.galleryPhoto.deleteMany();

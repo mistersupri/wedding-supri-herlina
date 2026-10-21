@@ -19,10 +19,19 @@ interface InvitationContextValue {
   isOpen: boolean;
   open: () => void;
   showPass: (rsvp?: RsvpSummary | null) => void;
-  /** Set only for a checked-in guest: the in-venue camera page. */
+  /** The guest camera page, when the couple's rule lets this visitor in. */
   photoMomentsHref?: string;
   isAdmin: boolean;
   music: { available: boolean; playing: boolean; title: string; toggle: () => void };
+}
+
+/** The camera link, shown only to guests the couple's rule lets in (checked in, invited, or anyone). */
+function cameraHref(invitation: InvitationData, guest: PublicGuest | null) {
+  const rule = invitation.photoMoments;
+  if (rule && !rule.cameraOpen) return undefined;
+  const access = rule?.access ?? 'CHECKED_IN';
+  if (guest && (access !== 'CHECKED_IN' || guest.isCheckedIn)) return `/photo-moments?c=${guest.slug}&to=${encodeURIComponent(guest.name)}`;
+  return access === 'ANYONE' ? '/photo-moments' : undefined;
 }
 
 const InvitationContext = createContext<InvitationContextValue | null>(null);
@@ -82,7 +91,7 @@ export const InvitationProvider: React.FC<{ invitation: InvitationData; children
       isOpen,
       open,
       showPass: (rsvp = null) => setPass({ open: true, rsvp }),
-      photoMomentsHref: guest?.isCheckedIn ? `/photo-moments?c=${guest.slug}&to=${encodeURIComponent(guest.name)}` : undefined,
+      photoMomentsHref: cameraHref(invitation, guest),
       isAdmin: isAuthenticated,
       music: { available: Boolean(invitation.musicUrl), playing, title: invitation.musicTitle, toggle },
     }),

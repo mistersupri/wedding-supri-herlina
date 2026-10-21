@@ -2,6 +2,8 @@ import type {
   AdminUser,
   AttendanceStatus,
   AuthResponse,
+  CameraConfig,
+  CameraSettings,
   CMSGeneralData,
   CMSStatsData,
   CoupleProfile,
@@ -13,6 +15,7 @@ import type {
   InvitedGuest,
   InvitedGuestInput,
   LoveStoryItem,
+  PhotoComment,
   PhotoFrameConfig,
   PhotoMoment,
   PresensiCheckInPayload,
@@ -186,15 +189,24 @@ export const publicApi = {
     };
   },
 
-  submitPhotoMoment: async (input: { guestName: string; guestSlug?: string; photoUrl: string; caption?: string }) =>
-    (await publicRequest('/public/photo-moments', jsonInit('POST', input))).photo as PhotoMoment,
-
   reactPhotoMoment: async (id: string, emoji: string, action: 'add' | 'remove') => {
     const json = await publicRequest(`/public/photo-moments/${id}/react`, jsonInit('POST', { emoji, action }));
     return { likesCount: Number(json.likesCount) || 0, reactions: (json.reactions || {}) as Record<string, number> };
   },
 
   frameConfig: async () => (await publicRequest('/public/photo-moments/frame-config')).data as PhotoFrameConfig,
+
+  cameraConfig: async () => (await publicRequest('/public/photo-moments/config')).data as CameraConfig,
+
+  photoComments: async (id: string) => (await publicRequest(`/public/photo-moments/${id}/comments`)).data as PhotoComment[],
+
+  addPhotoComment: async (id: string, input: { guestName: string; guestSlug?: string; text: string }) =>
+    (await publicRequest(`/public/photo-moments/${id}/comments`, jsonInit('POST', input))).data as PhotoComment,
+
+  screen: async () => {
+    const json = await publicRequest('/public/photo-moments/screen');
+    return { data: (json.data || []) as PhotoMoment[], total: Number(json.total) || 0 };
+  },
 };
 
 // --- Auth ---
@@ -280,6 +292,12 @@ export const cmsApi = {
     },
     frame: () => adminData<PhotoFrameConfig>('/cms/photo-moments/frame-config'),
     saveFrame: (input: Partial<PhotoFrameConfig>) => adminData<PhotoFrameConfig>('/cms/photo-moments/frame-config', jsonInit('PUT', input)),
+    settings: () => adminData<CameraSettings>('/cms/photo-moments/settings'),
+    saveSettings: (input: Partial<CameraSettings>) => adminData<CameraSettings>('/cms/photo-moments/settings', jsonInit('PUT', input)),
+    approve: (id: string, approved: boolean) => adminData<PhotoMoment>(`/cms/photo-moments/${id}/approval`, jsonInit('PUT', { approved })),
+    removeComment: async (id: string) => {
+      await adminRequest(`/cms/photo-moments/comments/${id}`, { method: 'DELETE' });
+    },
   },
 };
 
