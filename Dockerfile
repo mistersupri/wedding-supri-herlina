@@ -51,7 +51,7 @@ COPY --chown=node:node prisma ./prisma
 COPY --chown=node:node --chmod=755 docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 
 RUN mkdir -p /app/uploads && chown node:node /app/uploads
-USER node
+
 VOLUME ["/app/uploads"]
 EXPOSE 3000
 
