@@ -46,17 +46,17 @@ const NusantaraTemplate: React.FC = () => {
               <Reveal className="mx-auto flex max-w-4xl flex-col items-start gap-5 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <h2 id="moments-heading" className="font-display text-3xl italic">
-                    Anda sudah tercatat hadir
+                    Kamera tamu sudah terbuka
                   </h2>
                   <p className="mt-2 max-w-lg text-on-deep-soft">
-                    Abadikan suasana di lokasi dan bagikan ke galeri tamu, hingga tiga foto.
+                    Pilih look film, jepret suasana acara, dan kirim langsung ke galeri tamu.
                   </p>
                 </div>
                 <a
                   href={photoMomentsHref}
                   className="inline-flex min-h-11 shrink-0 items-center rounded-sm bg-on-deep px-5 font-semibold text-deep hover:bg-white"
                 >
-                  Buka kamera Photo Moments
+                  Buka kamera tamu
                 </a>
               </Reveal>
             </section>

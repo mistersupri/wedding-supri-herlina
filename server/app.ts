@@ -6,8 +6,10 @@ import type { Db } from './infrastructure/prisma.js';
 import { eventRepository, galleryRepository, giftRepository, storyRepository } from './repositories/contentRepositories.js';
 import {
   adminRepository,
+  cameraSettingRepository,
   frameRepository,
   invitedGuestRepository,
+  photoCommentRepository,
   photoMomentRepository,
   wishRepository,
 } from './repositories/guestRepositories.js';
@@ -33,13 +35,20 @@ export function createServices(db: Db) {
   };
   const wishes = wishRepository(db);
   const invitedGuests = invitedGuestRepository(db);
+  const cameraSettings = cameraSettingRepository(db);
 
   return {
     content,
-    invitation: invitationService({ invitation: invitationRepository(db), wishes, ...content }),
+    invitation: invitationService({ invitation: invitationRepository(db), wishes, cameraSettings, ...content }),
     guestbook: guestbookService(wishes),
     guests: guestService(invitedGuests),
-    moments: photoMomentService({ moments: photoMomentRepository(db), frames: frameRepository(db), guests: invitedGuests }),
+    moments: photoMomentService({
+      moments: photoMomentRepository(db),
+      comments: photoCommentRepository(db),
+      frames: frameRepository(db),
+      settings: cameraSettings,
+      guests: invitedGuests,
+    }),
     auth: authService(adminRepository(db)),
     resetDemo: () => seedDatabase(db),
     /** Readiness: the database answers. */

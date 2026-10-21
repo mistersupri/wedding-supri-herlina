@@ -34,6 +34,18 @@ Pilih di CMS, menu **Template & musik**. Semua template membaca data yang sama (
 
 Foto yang tampil di template selalu foto pasangan dari menu Mempelai, Kisah, dan Galeri. Alamat lengkap dan amplop digital tetap hanya terbuka untuk tamu yang memasukkan kode undangan.
 
+## Kamera tamu (Photo Moments)
+
+Kamera sekali pakai yang jalan di peramban HP tamu, tanpa aplikasi. Diatur di CMS, menu **Photo Moments**.
+
+- **Masuk:** dari tautan undangan, atau dari kartu QR di meja (CMS > Photo Moments > Kartu QR untuk meja > Cetak kartu). Siapa yang boleh memotret: tamu yang sudah check-in, semua tamu berkode undangan, atau siapa saja yang menulis nama. Aturan ini juga diperiksa di server.
+- **Jepret:** kamera depan atau belakang, atau ambil dari galeri HP (juga jalan keluar bila kamera diblokir). Hasil otomatis 4:5 dan masih bisa digeser, di-zoom, dan diputar.
+- **Kamar gelap:** 20 look film (Terang, Kalem, Hangat, Nyeleneh) dengan slider kekuatan, lalu bisa ditumpuk: debu (5 taburan, ketuk lagi untuk ganti), light bleed (16 variasi), grain, 9 setelan manual, cap tanggal oranye, dan bingkai (putih, hitam, dua dengan teks keterangan, atau bingkai acara).
+- **Kirim:** foto masuk antrean di HP dan terkirim di belakang layar dengan bar progres; tamu langsung bisa jepret lagi. Tanpa sinyal, foto tersimpan di HP dan terkirim sendiri saat sinyal kembali. Ukuran asli disimpan untuk diunduh, salinan kecil untuk galeri.
+- **Galeri:** reaksi, komentar, simpan ukuran asli. Penghitung frame seperti kamera sekali pakai (bawaan 15 per tamu).
+- **Layar besar:** `/photo-moments/layar` untuk proyektor di lokasi: slideshow foto terbaru dengan QR untuk ikut memotret.
+- **Aturan di CMS:** frame per tamu, tutup kamera, cek dulu sebelum tayang, siapa melihat apa, boleh unduh apa, look mana yang nyala, dan look awal. Foto yang menunggu dicek bisa ditayangkan atau disembunyikan, dan komentar bisa dihapus.
+
 ## Deploy produksi (Docker)
 
 Satu server dengan Docker Compose: aplikasi dan PostgreSQL 17.

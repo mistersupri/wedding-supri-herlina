@@ -13,6 +13,10 @@ import { Button } from '../../../components/ui/Button.js';
 import { Checkbox, Input } from '../../../components/ui/Field.js';
 import { ConfirmDialog } from '../../../components/ui/Modal.js';
 import { EmptyState, ErrorState, LoadingState } from '../../../components/ui/StateView.js';
+import { CameraRulesPanel } from '../../../components/cms/moments/CameraRulesPanel.js';
+import { QrCardPanel } from '../../../components/cms/moments/QrCardPanel.js';
+import { CommentsDialog } from '../../../components/cms/moments/CommentsDialog.js';
+import { lookById } from '../../../features/moments/film/looks.js';
 import type { PhotoFrameConfig, PhotoMoment } from '@shared/types';
 
 const FramePanel: React.FC = () => {
@@ -44,8 +48,8 @@ const FramePanel: React.FC = () => {
 
   return (
     <Panel
-      title="Bingkai foto tamu"
-      description="Ditempel di atas setiap foto sebelum dikirim. Tamu boleh mematikannya di kamera."
+      title="Bingkai acara"
+      description="Pilihan bingkai khusus acara Anda di kamera tamu, di samping bingkai putih dan hitam bawaan."
       actions={
         <Button onClick={() => save.mutate(form)} loading={save.isPending}>
           Simpan bingkai
@@ -53,7 +57,7 @@ const FramePanel: React.FC = () => {
       }
       className="mb-6"
     >
-      <Checkbox label="Pakai bingkai" checked={form.enabled} onChange={(e) => setForm({ ...form, enabled: e.target.checked })} />
+      <Checkbox label="Tawarkan bingkai acara" checked={form.enabled} onChange={(e) => setForm({ ...form, enabled: e.target.checked })} />
       <div role="radiogroup" aria-label="Pilihan bingkai" className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
         {presets.map((p) => {
           const active = form.frameOverlayUrl === p.dataUrl;
@@ -95,19 +99,22 @@ export const CMSPhotoMomentsTab: React.FC = () => {
   const notify = useToast();
   const query = useQuery({ queryKey: queryKeys.cms.photoMoments, queryFn: cmsApi.photoMoments.list });
   const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState<'ALL' | 'PENDING'>('ALL');
   const [toDelete, setToDelete] = useState<PhotoMoment | null>(null);
+  const [commentsOf, setCommentsOf] = useState<PhotoMoment | null>(null);
   const q = useDebounce(search, 250).trim().toLowerCase();
   const moments = query.data || [];
   const filtered = useMemo(
     () =>
       moments.filter(
         (m) =>
-          !q ||
-          m.guestName.toLowerCase().includes(q) ||
-          (m.guestSlug || '').toLowerCase().includes(q) ||
-          (m.caption || '').toLowerCase().includes(q),
+          (filter === 'ALL' || m.approved === false) &&
+          (!q ||
+            m.guestName.toLowerCase().includes(q) ||
+            (m.guestSlug || '').toLowerCase().includes(q) ||
+            (m.caption || '').toLowerCase().includes(q)),
       ),
-    [moments, q],
+    [moments, q, filter],
   );
   const pager = usePagination(filtered, 24);
 
@@ -121,11 +128,21 @@ export const CMSPhotoMomentsTab: React.FC = () => {
     onError: (err: Error) => notify(err.message, 'error'),
   });
 
+  const approve = useMutation({
+    mutationFn: ({ id, approved }: { id: string; approved: boolean }) => cmsApi.photoMoments.approve(id, approved),
+    onSuccess: (saved) => {
+      client.invalidateQueries({ queryKey: queryKeys.cms.photoMoments });
+      notify(saved.approved ? 'Foto tampil di galeri tamu.' : 'Foto disembunyikan dari tamu.');
+    },
+    onError: (err: Error) => notify(err.message, 'error'),
+  });
+  const pendingCount = moments.filter((m) => m.approved === false).length;
+
   return (
     <>
       <PageHeader
         title="Photo Moments"
-        description="Foto yang diambil tamu di lokasi setelah tercatat hadir. Hapus yang tidak pantas tampil."
+        description="Kamera sekali pakai di HP tamu: look film, efek, bingkai, galeri bersama, dan layar besar."
         actions={
           <Button variant="secondary" onClick={() => query.refetch()} loading={query.isRefetching}>
             Muat ulang
@@ -133,13 +150,35 @@ export const CMSPhotoMomentsTab: React.FC = () => {
         }
       />
 
-      <div className="mb-6 grid grid-cols-3 gap-3">
+      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Stat label="Foto" value={moments.length} />
+        <Stat label="Menunggu dicek" value={pendingCount} />
         <Stat label="Tamu memotret" value={new Set(moments.map((m) => m.guestSlug || m.guestName)).size} />
-        <Stat label="Reaksi" value={moments.reduce((a, m) => a + (m.likesCount || 0), 0)} />
+        <Stat label="Komentar" value={moments.reduce((a, m) => a + (m.commentsCount || 0), 0)} />
       </div>
 
+      <CameraRulesPanel />
+      <QrCardPanel />
       <FramePanel />
+
+      <div role="group" aria-label="Saring foto" className="mb-3 flex gap-1">
+        {(
+          [
+            ['ALL', `Semua (${moments.length})`],
+            ['PENDING', `Menunggu dicek (${pendingCount})`],
+          ] as const
+        ).map(([id, label]) => (
+          <button
+            key={id}
+            type="button"
+            aria-pressed={filter === id}
+            onClick={() => setFilter(id)}
+            className={`min-h-11 rounded-sm px-4 text-sm font-semibold ${filter === id ? 'bg-primary text-on-primary' : 'text-ink-soft hover:bg-paper-2'}`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
 
       <label className="relative block">
         <span className="sr-only">Cari foto</span>
@@ -178,12 +217,29 @@ export const CMSPhotoMomentsTab: React.FC = () => {
                 <p className="truncate text-sm font-semibold">{m.guestName}</p>
                 <p className="text-xs text-ink-soft">
                   {formatDateTime(m.createdAt)}
+                  {m.look && m.look !== 'none' ? ` · ${lookById(m.look).code}` : ''}
                   {m.likesCount ? ` · ${m.likesCount} reaksi` : ''}
                 </p>
+                {m.approved === false && (
+                  <p className="mt-1 inline-block rounded-xs bg-maybe-bg px-2 py-0.5 text-xs font-semibold text-maybe">Menunggu dicek</p>
+                )}
                 {m.caption && <p className="mt-1 line-clamp-2 text-sm">{m.caption}</p>}
-                <div className="mt-2 flex gap-1">
+                <div className="mt-2 flex flex-wrap gap-1">
+                  <Button
+                    variant={m.approved === false ? 'primary' : 'ghost'}
+                    size="sm"
+                    onClick={() => approve.mutate({ id: m.id, approved: m.approved === false })}
+                    loading={approve.isPending && approve.variables?.id === m.id}
+                  >
+                    {m.approved === false ? 'Tayangkan' : 'Sembunyikan'}
+                  </Button>
+                  {Boolean(m.commentsCount) && (
+                    <Button variant="ghost" size="sm" onClick={() => setCommentsOf(m)}>
+                      {m.commentsCount} komentar
+                    </Button>
+                  )}
                   <a
-                    href={m.photoUrl}
+                    href={m.originalUrl || m.photoUrl}
                     download
                     className="inline-flex min-h-11 items-center rounded-sm px-3 text-[13px] font-semibold hover:bg-paper-2"
                   >
@@ -199,6 +255,8 @@ export const CMSPhotoMomentsTab: React.FC = () => {
         </ul>
       )}
       <Pagination {...pager} onPage={pager.setPage} noun="foto" />
+
+      <CommentsDialog photo={commentsOf} onClose={() => setCommentsOf(null)} />
 
       <ConfirmDialog
         open={toDelete !== null}

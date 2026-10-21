@@ -42,7 +42,6 @@ export const config = {
     accessSecret: secret('JWT_SECRET', 'wedding_invitation_secret_jwt_key_2026'),
     refreshSecret: secret('JWT_REFRESH_SECRET', 'wedding_invitation_refresh_jwt_key_2026_refresh_secret'),
   },
-  photoMomentsPerGuest: 3,
 };
 
 /** The env-configured superadmin is never stored in the database; it is matched by this id. */

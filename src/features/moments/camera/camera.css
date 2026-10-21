@@ -1,0 +1,381 @@
+/*
+ * Guest camera. A dark camera body whatever the template, so photos read true; the accent comes from
+ * the active template's tokens (--prada-on-deep), so it still belongs to the invitation.
+ */
+.cam-root {
+  --cam-bg: #0e0d0b;
+  --cam-2: #1b1a17;
+  --cam-line: #ffffff26;
+  --cam-text: #f4efe2;
+  --cam-soft: #b9b2a2;
+  --cam-accent: var(--prada-on-deep, #ff9a4a);
+  background: var(--cam-bg);
+  color: var(--cam-text);
+  inset: 0;
+  outline: none;
+  position: fixed;
+  z-index: 60;
+  -webkit-tap-highlight-color: transparent;
+}
+.cam-icon {
+  align-items: center;
+  background: none;
+  border: 0;
+  border-radius: 50%;
+  color: var(--cam-text);
+  cursor: pointer;
+  display: inline-flex;
+  height: 44px;
+  justify-content: center;
+  width: 44px;
+}
+.cam-icon:hover {
+  background: #ffffff14;
+}
+.cam-icon:disabled {
+  opacity: 0.35;
+}
+
+/* Disposable-camera counter window */
+.cam-counter {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  margin: 0;
+}
+.cam-counter-dial {
+  background: #000;
+  border: 2px solid #3a3833;
+  border-radius: 6px;
+  box-shadow: inset 0 2px 6px #000;
+  color: var(--cam-accent);
+  font:
+    22px/1 VT323,
+    ui-monospace,
+    monospace;
+  letter-spacing: 1px;
+  padding: 4px 8px 2px;
+  text-shadow: 0 0 6px color-mix(in srgb, var(--cam-accent) 70%, transparent);
+}
+.cam-counter-label {
+  color: var(--cam-soft);
+  font-size: 12px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+
+/* Viewfinder */
+.cam-window {
+  aspect-ratio: 4 / 5;
+  background: #000;
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+  touch-action: none;
+}
+.cam-darkroom {
+  cursor: grab;
+}
+.cam-darkroom:active {
+  cursor: grabbing;
+}
+.cam-thirds {
+  inset: 0;
+  pointer-events: none;
+  position: absolute;
+  background: linear-gradient(
+      90deg,
+      transparent calc(33.33% - 0.5px),
+      #ffffff55 calc(33.33% - 0.5px) calc(33.33% + 0.5px),
+      transparent calc(33.33% + 0.5px) calc(66.66% - 0.5px),
+      #ffffff55 calc(66.66% - 0.5px) calc(66.66% + 0.5px),
+      transparent calc(66.66% + 0.5px)
+    ),
+    linear-gradient(
+      transparent calc(33.33% - 0.5px),
+      #ffffff55 calc(33.33% - 0.5px) calc(33.33% + 0.5px),
+      transparent calc(33.33% + 0.5px) calc(66.66% - 0.5px),
+      #ffffff55 calc(66.66% - 0.5px) calc(66.66% + 0.5px),
+      transparent calc(66.66% + 0.5px)
+    );
+}
+.cam-ratio {
+  background: #000000a0;
+  border-radius: 99px;
+  bottom: 10px;
+  font:
+    600 11px/1 system-ui,
+    sans-serif;
+  padding: 5px 9px;
+  position: absolute;
+  right: 10px;
+}
+.cam-flash {
+  animation: cam-flash 0.18s ease-out forwards;
+  background: #fff;
+  inset: 0;
+  position: absolute;
+}
+@keyframes cam-flash {
+  to {
+    opacity: 0;
+  }
+}
+.cam-blocked {
+  align-items: center;
+  background: #0e0d0bf0;
+  display: flex;
+  flex-direction: column;
+  inset: 0;
+  justify-content: center;
+  padding: 24px;
+  position: absolute;
+  text-align: center;
+}
+.cam-shutter {
+  align-items: center;
+  background: none;
+  border: 4px solid var(--cam-text);
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  height: 78px;
+  justify-content: center;
+  transition: transform 0.12s;
+  width: 78px;
+}
+.cam-shutter span {
+  background: var(--cam-text);
+  border-radius: 50%;
+  display: block;
+  height: 60px;
+  width: 60px;
+}
+.cam-shutter:active {
+  transform: scale(0.94);
+}
+.cam-shutter:disabled {
+  opacity: 0.35;
+}
+.cam-pill,
+.cam-send {
+  background: var(--cam-accent);
+  border: 0;
+  border-radius: 99px;
+  color: #120f0a;
+  cursor: pointer;
+  font-weight: 700;
+  min-height: 44px;
+  padding: 0 20px;
+}
+.cam-send {
+  flex: none;
+  min-width: 96px;
+}
+.cam-send:disabled {
+  opacity: 0.6;
+}
+.cam-link {
+  background: none;
+  border: 0;
+  color: var(--cam-soft);
+  cursor: pointer;
+  font-size: 14px;
+  min-height: 40px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.cam-hint {
+  color: var(--cam-soft);
+  font-size: 13px;
+  margin: 0;
+}
+.cam-input {
+  background: var(--cam-2);
+  border: 1px solid var(--cam-line);
+  border-radius: 99px;
+  color: var(--cam-text);
+  font-size: 15px;
+  height: 44px;
+  padding: 0 16px;
+  width: 100%;
+}
+.cam-input::placeholder {
+  color: #8f887a;
+}
+
+/* Darkroom */
+.cam-panel {
+  background: var(--cam-2);
+  border: 1px solid var(--cam-line);
+  border-radius: 16px;
+  margin-bottom: 10px;
+  padding: 10px;
+}
+.cam-looks {
+  align-items: flex-start;
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+.cam-look-group {
+  align-self: center;
+  color: var(--cam-soft);
+  flex: none;
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  writing-mode: vertical-rl;
+  rotate: 180deg;
+}
+.cam-look {
+  background: none;
+  border: 0;
+  color: var(--cam-text);
+  cursor: pointer;
+  flex: none;
+  padding: 0;
+  text-align: left;
+  width: 64px;
+}
+.cam-look canvas {
+  aspect-ratio: 4 / 5;
+  border-radius: 8px;
+  display: block;
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+  width: 64px;
+}
+.cam-look[aria-checked='true'] canvas {
+  outline-color: var(--cam-accent);
+}
+.cam-look-code {
+  color: var(--cam-accent);
+  display: block;
+  font:
+    15px/1 VT323,
+    ui-monospace,
+    monospace;
+  margin-top: 6px;
+  min-height: 14px;
+}
+.cam-look-name {
+  color: var(--cam-soft);
+  display: block;
+  font-size: 11px;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cam-slider {
+  align-items: center;
+  display: grid;
+  font-size: 12px;
+  gap: 10px;
+  grid-template-columns: 70px 1fr 36px;
+  letter-spacing: 1.5px;
+  margin-top: 10px;
+  text-transform: uppercase;
+}
+.cam-slider span {
+  color: var(--cam-soft);
+}
+.cam-slider input {
+  accent-color: var(--cam-accent);
+  width: 100%;
+}
+.cam-slider output {
+  font:
+    18px VT323,
+    ui-monospace,
+    monospace;
+  text-align: right;
+}
+.cam-chips {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 6px;
+  overflow-x: auto;
+}
+.cam-chip {
+  background: transparent;
+  border: 1px solid var(--cam-line);
+  border-radius: 99px;
+  color: var(--cam-text);
+  cursor: pointer;
+  flex: none;
+  font-size: 13px;
+  min-height: 36px;
+  padding: 0 14px;
+}
+.cam-chip[aria-checked='true'],
+.cam-chip[aria-selected='true'] {
+  background: var(--cam-text);
+  color: var(--cam-bg);
+}
+.cam-tools {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+}
+.cam-tool {
+  align-items: center;
+  background: none;
+  border: 0;
+  border-radius: 12px;
+  color: var(--cam-soft);
+  cursor: pointer;
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  font-size: 11px;
+  gap: 4px;
+  min-width: 58px;
+  padding: 6px 4px;
+}
+.cam-tool[aria-pressed='true'] {
+  background: var(--cam-2);
+  color: var(--cam-text);
+}
+.cam-tool-icon {
+  display: grid;
+  place-items: center;
+  position: relative;
+}
+.cam-tool-icon svg {
+  height: 22px;
+  width: 22px;
+}
+.cam-tool-icon b {
+  background: var(--cam-accent);
+  border-radius: 99px;
+  color: #120f0a;
+  font:
+    700 9px/1 system-ui,
+    sans-serif;
+  padding: 2px 4px;
+  position: absolute;
+  right: -14px;
+  top: -6px;
+}
+.cam-toast {
+  background: #000000d9;
+  border: 1px solid var(--cam-line);
+  border-radius: 99px;
+  font-size: 14px;
+  left: 50%;
+  padding: 10px 16px;
+  position: absolute;
+  top: 64px;
+  translate: -50% 0;
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cam-flash {
+    animation: none;
+    opacity: 0;
+  }
+}

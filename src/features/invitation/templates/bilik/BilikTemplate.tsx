@@ -338,7 +338,9 @@ const MomentsNote: React.FC = () => {
       </span>
       <div>
         <p className="bf-moments-title">Di hari H, bilik fotonya beneran ada.</p>
-        <p>Setelah kamu tercatat hadir, kamera tamu terbuka. Fotomu langsung masuk ke galeri bersama. Jangan malu-malu.</p>
+        <p>
+          Kamera sekali pakai ada di HP-mu, lengkap dengan look film dan bingkai. Fotomu langsung masuk ke galeri bersama. Jangan malu-malu.
+        </p>
         {photoMomentsHref && (
           <a className="bf-btn bf-mt-sm" href={photoMomentsHref}>
             Buka kamera tamu

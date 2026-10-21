@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useInfiniteQuery, useMutation, useQueryClient, type InfiniteData } from '@tanstack/react-query';
-import { publicApi } from '../../../lib/api.js';
-import { queryKeys } from '../../../lib/queryKeys.js';
-import { readLocal, writeLocal } from '../../../lib/guestSession.js';
-import type { PhotoMoment, PublicGuest } from '@shared/types';
+import { publicApi } from '../../lib/api.js';
+import { queryKeys } from '../../lib/queryKeys.js';
+import { readLocal, writeLocal } from '../../lib/guestSession.js';
+import type { MomentIdentity, PhotoMoment } from '@shared/types';
 
 const PAGE_SIZE = 12;
 const REACTIONS_KEY = 'wedding_photo_moments_reactions';
@@ -11,9 +11,9 @@ const REACTIONS_KEY = 'wedding_photo_moments_reactions';
 type Page = Awaited<ReturnType<typeof publicApi.photoMoments>>;
 
 /** Paged guest photos plus this device's own reaction per photo (one emoji each, toggleable). */
-export function useMoments(guest: PublicGuest) {
+export function useMoments(guest: MomentIdentity) {
   const client = useQueryClient();
-  const key = queryKeys.photoMoments(guest.slug);
+  const key = queryKeys.photoMoments(guest.slug || `name:${guest.name.toLowerCase()}`);
   const [myReactions, setMyReactions] = useState<Record<string, string>>(() => readLocal(REACTIONS_KEY, {}));
 
   useEffect(() => writeLocal(REACTIONS_KEY, myReactions), [myReactions]);
@@ -64,7 +64,7 @@ export function useMoments(guest: PublicGuest) {
 
   const isMine = useCallback(
     (photo: PhotoMoment) =>
-      photo.guestSlug
+      photo.guestSlug && guest.slug
         ? photo.guestSlug.toUpperCase() === guest.slug.toUpperCase()
         : photo.guestName.trim().toLowerCase() === guest.name.trim().toLowerCase(),
     [guest.slug, guest.name],
@@ -79,6 +79,8 @@ export function useMoments(guest: PublicGuest) {
     loadingMore: query.isFetchingNextPage,
     myReactions,
     reload: () => client.resetQueries({ queryKey: key }),
+    /** Refetch in place, keeping what is on screen (after an upload or a comment). */
+    refresh: () => client.invalidateQueries({ queryKey: key }),
     loadMore,
     react,
     isMine,

@@ -8,6 +8,7 @@ const named = <K extends string>(loader: () => Promise<Record<K, React.Component
   lazy(() => loader().then((m) => ({ default: m[name] })));
 
 const PhotoMomentsPage = named(() => import('./pages/PhotoMomentsPage.js'), 'PhotoMomentsPage');
+const MomentsScreenPage = named(() => import('./pages/MomentsScreenPage.js'), 'MomentsScreenPage');
 const CMSLoginPage = named(() => import('./pages/cms/CMSLoginPage.js'), 'CMSLoginPage');
 const CMSLayout = named(() => import('./pages/cms/CMSLayout.js'), 'CMSLayout');
 const CMSOverviewTab = named(() => import('./pages/cms/tabs/CMSOverviewTab.js'), 'CMSOverviewTab');
@@ -29,6 +30,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<PublicInvitationPage />} />
           <Route path="/photo-moments" element={<PhotoMomentsPage />} />
+          <Route path="/photo-moments/layar" element={<MomentsScreenPage />} />
           <Route path="/cms/login" element={<CMSLoginPage />} />
           <Route path="/cms" element={<CMSLayout />}>
             <Route index element={<Navigate to="/cms/overview" replace />} />

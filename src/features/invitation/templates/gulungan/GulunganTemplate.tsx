@@ -277,7 +277,7 @@ const Moments: React.FC = () => {
   const { photoMomentsHref } = useInvitation();
   if (!photoMomentsHref) return null;
   return (
-    <Section kicker="di balik layar" title="Kamu sudah di lokasi" lead="Rekam suasananya dan kirim ke galeri tamu, hingga tiga foto.">
+    <Section kicker="di balik layar" title="Kamera sekali pakai" lead="Pilih look film, jepret suasananya, dan kirim ke galeri tamu.">
       <div className="gk-wrap gk-btns gk-rv">
         <a className="gk-btn gk-btn-solid" href={photoMomentsHref}>
           Buka kamera tamu
