@@ -34,16 +34,49 @@ Pilih di CMS, menu **Template & musik**. Semua template membaca data yang sama (
 
 Foto yang tampil di template selalu foto pasangan dari menu Mempelai, Kisah, dan Galeri. Alamat lengkap dan amplop digital tetap hanya terbuka untuk tamu yang memasukkan kode undangan.
 
-## Produksi
+## Deploy produksi (Docker)
 
-Siapkan PostgreSQL dan isi `DATABASE_URL`, lalu:
+Satu server dengan Docker Compose: aplikasi dan PostgreSQL 17.
 
 ```bash
+cp .env.example .env
+# isi ADMIN_PASSWORD, JWT_SECRET, JWT_REFRESH_SECRET, POSTGRES_PASSWORD
+# nilai acak: openssl rand -hex 32
+docker compose up -d --build
+docker compose ps        # app dan db harus "healthy"
+```
+
+Yang terjadi saat container `app` menyala: migrasi Prisma dijalankan (`prisma migrate deploy`), database kosong diisi data demo sekali, lalu server berjalan di port 3000 sebagai user non-root.
+
+- **Port:** aplikasi hanya dibuka di `127.0.0.1:3000` di host. Pasang reverse proxy dengan HTTPS di depannya (Caddy, Nginx, Traefik). Contoh Caddy: `undangan.example.com { reverse_proxy 127.0.0.1:3000 }`. Untuk membuka langsung tanpa proxy, set `APP_BIND=0.0.0.0`.
+- **Data:** volume `pgdata` (database) dan `uploads` (foto, video, pesan suara, foto tamu). Keduanya tetap ada saat `docker compose down`, dan baru terhapus dengan `down -v`.
+- **Health check:** `GET /api/health` mengembalikan `{"status":"ok"}` bila database terjangkau. Docker memakainya untuk status `healthy`.
+- **Keamanan:** di produksi aplikasi menolak menyala bila `ADMIN_PASSWORD`, `JWT_SECRET`, atau `JWT_REFRESH_SECRET` kosong, jadi nilai bawaan dari repo tidak pernah terpakai. PostgreSQL tidak dibuka ke host.
+- **Cache:** file di `/assets` diberi cache 1 tahun (namanya sudah ber-hash), sedangkan `index.html` selalu divalidasi ulang, sehingga deploy baru langsung terlihat.
+- **Berhenti:** `docker stop` mengirim SIGTERM; server menyelesaikan request yang sedang berjalan lalu menutup koneksi database.
+
+Perintah harian:
+
+```bash
+docker compose logs -f app                                   # log aplikasi
+git pull && docker compose up -d --build                     # update; migrasi baru jalan otomatis
+docker compose exec db pg_dump -U undangan undangan > backup.sql   # backup database
+docker run --rm -v undangan_uploads:/u -v "$PWD":/b busybox tar czf /b/uploads.tgz -C /u .   # backup unggahan
+```
+
+Menjalankan lebih dari satu replika: set `SKIP_MIGRATIONS=1` pada container aplikasi dan jalankan migrasi sekali sebagai langkah rilis (`docker compose run --rm -e SKIP_MIGRATIONS=0 app true`). Unggahan disimpan di disk, jadi replika perlu berbagi volume `uploads`.
+
+### Tanpa Docker
+
+Siapkan PostgreSQL dan isi `DATABASE_URL` serta rahasia di `.env`, lalu:
+
+```bash
+yarn install --frozen-lockfile
 yarn build
 NODE_ENV=production yarn start   # menjalankan migrasi, lalu server
 ```
 
-Database kosong otomatis diisi data demo saat server pertama kali menyala. Perintah lain:
+Perintah lain:
 
 | Perintah | Fungsi |
 |---|---|
@@ -59,9 +92,13 @@ Mengubah `prisma/schema.prisma`: buat migrasi baru terhadap PostgreSQL biasa den
 
 | Nama | Fungsi |
 |---|---|
-| `DATABASE_URL` | Koneksi PostgreSQL. Wajib untuk `yarn dev` dan produksi; tidak perlu untuk `yarn dev:local`. |
-| `ADMIN_USERNAME`, `ADMIN_PASSWORD` | Akun admin utama. Kata sandinya hanya bisa diubah di sini. |
-| `JWT_SECRET`, `JWT_REFRESH_SECRET` | Kunci tanda tangan sesi admin. Wajib diganti di produksi. |
+| `DATABASE_URL` | Koneksi PostgreSQL. Wajib untuk `yarn dev` dan produksi tanpa Docker; Docker Compose menyusunnya sendiri; tidak perlu untuk `yarn dev:local`. |
+| `ADMIN_USERNAME`, `ADMIN_PASSWORD` | Akun admin utama. Kata sandinya hanya bisa diubah di sini. `ADMIN_PASSWORD` wajib di produksi. |
+| `JWT_SECRET`, `JWT_REFRESH_SECRET` | Kunci tanda tangan sesi admin. Wajib di produksi. |
+| `POSTGRES_PASSWORD` | Docker Compose: kata sandi PostgreSQL (huruf dan angka saja). |
+| `APP_PORT`, `APP_BIND` | Docker Compose: port dan alamat di host, bawaan `3000` dan `127.0.0.1`. |
+| `TRUST_PROXY` | Jumlah reverse proxy di depan aplikasi (Compose: bawaan `1`). |
+| `SKIP_MIGRATIONS` | `1` agar container tidak menjalankan migrasi saat menyala. |
 | `GEMINI_API_KEY` | Opsional. Menyalin pesan suara tamu menjadi teks. |
 | `PORT` | Port server, bawaan 3000. |
 | `UPLOAD_DIR` | Folder file unggahan, bawaan `./uploads`. |

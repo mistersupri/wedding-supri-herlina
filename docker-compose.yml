@@ -1,0 +1,54 @@
+# Production stack: the app and PostgreSQL.
+#   cp .env.example .env   # fill in the secrets
+#   docker compose up -d --build
+# Put a TLS-terminating reverse proxy (Caddy, Nginx, Traefik) in front of port APP_PORT.
+
+name: undangan
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-undangan}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Isi POSTGRES_PASSWORD di .env}
+      POSTGRES_DB: ${POSTGRES_DB:-undangan}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    # Not published to the host: only the app reaches it, over the compose network.
+
+  app:
+    build: .
+    image: undangan-app:latest
+    restart: unless-stopped
+    init: true
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-undangan}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-undangan}?schema=public
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Isi ADMIN_PASSWORD di .env}
+      JWT_SECRET: ${JWT_SECRET:?Isi JWT_SECRET di .env}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?Isi JWT_REFRESH_SECRET di .env}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      TRUST_PROXY: ${TRUST_PROXY:-1}
+    ports:
+      - '${APP_BIND:-127.0.0.1}:${APP_PORT:-3000}:3000'
+    volumes:
+      - uploads:/app/uploads
+    stop_grace_period: 15s
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'
+
+volumes:
+  pgdata:
+  uploads:
