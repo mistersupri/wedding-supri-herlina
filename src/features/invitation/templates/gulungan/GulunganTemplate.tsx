@@ -10,6 +10,7 @@ import { GalleryLightbox } from '../../../../components/wedding/GalleryLightbox.
 import { GiftQrDialog, Glyph, romanNumeral, timeRange, useTemplateFonts, usePhotoPool, venuesOf } from '../shared/kit.js';
 import { TemplateRsvp } from '../shared/TemplateRsvp.js';
 import { Reel } from './Reel.js';
+import { Screen } from './Screen.js';
 import { useRevealOnScroll } from './useRevealOnScroll.js';
 import type { GiftAccount } from '@shared/types';
 import './gulungan.css';
@@ -461,6 +462,7 @@ const GulunganTemplate: React.FC = () => {
         </div>
         <div className="gk-grain" aria-hidden="true" />
         <main className="gk-main">
+          <Screen motion={animate} />
           <Reel motion={animate} />
           <Invite />
           <Cast />

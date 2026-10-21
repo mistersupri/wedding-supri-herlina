@@ -114,7 +114,7 @@ export const CMSCoupleTab: React.FC = () => {
                 allowVideo
                 value={form.heroVideoUrl || ''}
                 onChange={(url) => set('heroVideoUrl', url)}
-                hint="MP4 atau WEBM, maksimal 100 MB. Diputar berulang tanpa suara."
+                hint="MP4 atau WEBM, maksimal 100 MB. Diputar tanpa suara. Di template Gulungan Kenangan, video ini tampil layar penuh sebagai film pembuka, disusul video dan foto dari Galeri (maksimal 3)."
               />
             )}
             <MediaField
