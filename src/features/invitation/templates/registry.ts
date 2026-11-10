@@ -10,4 +10,5 @@ export const TEMPLATE_COMPONENTS: Record<TemplateId, LazyExoticComponent<Compone
   gulungan: lazy(() => import('./gulungan/GulunganTemplate.js')),
   bilik: lazy(() => import('./bilik/BilikTemplate.js')),
   cozy: lazy(() => import('./cozy/CozyTemplate.js')),
+  layar: lazy(() => import('./layar/LayarTemplate.js')),
 };

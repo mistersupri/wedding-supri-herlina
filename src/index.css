@@ -140,6 +140,26 @@
   --prada-on-deep: #ffd85e;
 }
 
+[data-theme='layar'] {
+  --paper: #f2ebdf;
+  --paper-2: #e9dfcd;
+  --card: #faf6ef;
+  --ink: #1f1b16;
+  --ink-soft: #6b6357;
+  --line: #e2d8c6;
+  --field: #8a8172;
+  --primary: #1f1b16;
+  --primary-hover: #000000;
+  --on-primary: #faf6ef;
+  --prada: #a8844c;
+  --prada-ink: #7e6133;
+  --deep: #2b251f;
+  --deep-2: #3a322a;
+  --on-deep: #faf6ef;
+  --on-deep-soft: #cfc6b6;
+  --prada-on-deep: #c9a66b;
+}
+
 :root {
   /* Status colours, only for RSVP and check-in chips. */
   --ok: #2f6b3f;

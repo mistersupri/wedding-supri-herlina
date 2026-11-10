@@ -6,7 +6,7 @@ export type GalleryCategory = 'PREWEDDING' | 'MOMENTS' | 'ENGAGEMENT' | 'CEREMON
 export type ThemePreset = 'sogan' | 'wedel' | 'gadung' | 'jambon';
 
 /** Whole-page invitation designs. Colour presets apply to the nusantara template only. */
-export type TemplateId = 'nusantara' | 'gulungan' | 'bilik' | 'cozy';
+export type TemplateId = 'nusantara' | 'gulungan' | 'bilik' | 'cozy' | 'layar';
 
 export type MediaType = 'IMAGE' | 'VIDEO';
 

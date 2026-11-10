@@ -39,6 +39,13 @@ export const TEMPLATES: TemplateInfo[] = [
     swatches: ['#AFD9D5', '#FFFDF0', '#9C5C2D'],
     usesColorPreset: false,
   },
+  {
+    id: 'layar',
+    name: 'Layar Perak',
+    description: 'Bioskop klasik ivory dan emas: judul pembuka layar lebar, tiket tayang, lembar kontak, dan credit roll.',
+    swatches: ['#FAF6EF', '#2B251F', '#A8844C'],
+    usesColorPreset: false,
+  },
 ];
 
 export const isTemplateId = (value: unknown): value is TemplateId => TEMPLATES.some((t) => t.id === value);
