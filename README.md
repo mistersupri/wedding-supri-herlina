@@ -34,6 +34,12 @@ Pilih di CMS, menu **Template & musik**. Semua template membaca data yang sama (
 
 Foto yang tampil di template selalu foto pasangan dari menu Mempelai, Kisah, dan Galeri. Alamat lengkap dan amplop digital tetap hanya terbuka untuk tamu yang memasukkan kode undangan.
 
+## Daftar tamu di CMS
+
+- **Kirim undangan:** tombol *Kirim WA* per tamu, atau *Kirim berurutan* yang menyiapkan tamu satu per satu (hanya yang punya nomor dan belum terkirim), menandainya terkirim, lalu lanjut ke tamu berikutnya. Isi pesan bisa diubah lewat tombol *Pesan* dengan penanda `{nama}`, `{kode}`, `{link}`, `{mempelai}`; tersimpan di perangkat yang dipakai.
+- **Ekspor CSV:** daftar tamu (lengkap dengan status kirim dan check-in) serta ucapan & RSVP, siap dibuka di Excel atau Google Sheets.
+- **Ucapan:** satu ucapan per kode undangan; tamu hanya bisa mengirim dengan kode yang valid, dan jumlah kursi dibatasi sesuai daftar.
+
 ## Kamera tamu (Photo Moments)
 
 Kamera sekali pakai yang jalan di peramban HP tamu, tanpa aplikasi. Diatur di CMS, menu **Photo Moments**.
@@ -44,7 +50,17 @@ Kamera sekali pakai yang jalan di peramban HP tamu, tanpa aplikasi. Diatur di CM
 - **Kirim:** foto masuk antrean di HP dan terkirim di belakang layar dengan bar progres; tamu langsung bisa jepret lagi. Tanpa sinyal, foto tersimpan di HP dan terkirim sendiri saat sinyal kembali. Ukuran asli disimpan untuk diunduh, salinan kecil untuk galeri.
 - **Galeri:** reaksi, komentar, simpan ukuran asli. Penghitung frame seperti kamera sekali pakai (bawaan 15 per tamu).
 - **Layar besar:** `/photo-moments/layar` untuk proyektor di lokasi: slideshow foto terbaru dengan QR untuk ikut memotret.
+- **Setelah acara:** *Unduh semua foto (ZIP)* di CMS: satu folder per tamu, ukuran asli, plus daftar foto (CSV). Foto yang menunggu dicek muncul sebagai angka di menu, dan bisa ditayangkan sekaligus.
 - **Aturan di CMS:** frame per tamu, tutup kamera, cek dulu sebelum tayang, siapa melihat apa, boleh unduh apa, look mana yang nyala, dan look awal. Foto yang menunggu dicek bisa ditayangkan atau disembunyikan, dan komentar bisa dihapus.
+
+## Tes
+
+```bash
+yarn lint    # type check
+yarn test    # tes unit dan tes database (PostgreSQL bawaan PGlite, tanpa konfigurasi)
+```
+
+Tes database memakai migrasi asli, jadi perubahan skema ikut teruji. CI (GitHub Actions) menjalankan lint, tes, dan build pada setiap push.
 
 ## Deploy produksi (Docker)
 
@@ -66,6 +82,7 @@ Yang terjadi saat container `app` menyala: migrasi Prisma dijalankan (`prisma mi
 - **Keamanan:** di produksi aplikasi menolak menyala bila `ADMIN_PASSWORD`, `JWT_SECRET`, atau `JWT_REFRESH_SECRET` kosong, jadi nilai bawaan dari repo tidak pernah terpakai. PostgreSQL tidak dibuka ke host.
 - **Pembatasan & unggahan:** login, pengecekan kode undangan, ucapan, komentar, dan unggahan tamu dibatasi per alamat IP (atur `TRUST_PROXY` di belakang reverse proxy, kalau tidak semua pengunjung dianggap satu alamat). Jenis file unggahan dibaca dari isinya (gambar, video, audio saja), nama file diacak, dan file tamu yang tidak pernah dipakai dihapus otomatis setelah 24 jam. Alamat acara, tautan peta, dan rekening amplop hanya dikirim server setelah kode undangan valid. Tombol reset data demo mati di produksi kecuali `ALLOW_DEMO_RESET=true`.
 - **Cache:** file di `/assets` diberi cache 1 tahun (namanya sudah ber-hash), sedangkan `index.html` selalu divalidasi ulang, sehingga deploy baru langsung terlihat.
+- **Backup:** `./scripts/backup.sh` mencadangkan database dan folder unggahan, `./scripts/restore.sh` memulihkannya. Panduan lengkap, jadwal untuk hari H, dan cara menyimpan di luar server ada di [`docs/BACKUP.md`](docs/BACKUP.md).
 - **Berhenti:** `docker stop` mengirim SIGTERM; server menyelesaikan request yang sedang berjalan lalu menutup koneksi database.
 
 Perintah harian:
