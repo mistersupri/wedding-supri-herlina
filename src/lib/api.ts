@@ -305,6 +305,8 @@ export const cmsApi = {
     saveFrame: (input: Partial<PhotoFrameConfig>) => adminData<PhotoFrameConfig>('/cms/photo-moments/frame-config', jsonInit('PUT', input)),
     settings: () => adminData<CameraSettings>('/cms/photo-moments/settings'),
     saveSettings: (input: Partial<CameraSettings>) => adminData<CameraSettings>('/cms/photo-moments/settings', jsonInit('PUT', input)),
+    approveAll: () => adminData<{ count: number }>('/cms/photo-moments/approve-all', { method: 'POST' }),
+    downloadZip: downloadPhotosZip,
     approve: (id: string, approved: boolean) => adminData<PhotoMoment>(`/cms/photo-moments/${id}/approval`, jsonInit('PUT', { approved })),
     removeComment: async (id: string) => {
       await adminRequest(`/cms/photo-moments/comments/${id}`, { method: 'DELETE' });
@@ -328,6 +330,18 @@ export async function downloadAdminFile(path: string, fallbackName: string) {
   link.click();
   link.remove();
   setTimeout(() => URL.revokeObjectURL(url), 10_000);
+}
+
+/** Asks for a short-lived ticket, then lets the browser stream the ZIP straight to disk (no memory spike for big albums). */
+export async function downloadPhotosZip(includeHidden: boolean) {
+  const { ticket } = (await adminRequest('/cms/export/photos-ticket', { method: 'POST' })) as { ticket: string };
+  const link = Object.assign(document.createElement('a'), {
+    href: `${API}/export/photos.zip${query({ t: ticket, include: includeHidden ? 'all' : '' })}`,
+    download: 'foto-tamu.zip',
+  });
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
 }
 
 // --- File uploads ---

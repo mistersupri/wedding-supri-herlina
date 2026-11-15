@@ -1,12 +1,20 @@
+import fs from 'fs/promises';
+import path from 'path';
+import { safeSegment, type ZipEntry } from '../http/zip.js';
 import { toCsv, phoneCell } from './csv.js';
-import type { invitedGuestRepository, wishRepository } from '../repositories/guestRepositories.js';
+import type { invitedGuestRepository, photoMomentRepository, wishRepository } from '../repositories/guestRepositories.js';
 import type { AttendanceStatus } from '../../shared/types.js';
 
 const STATUS_LABEL: Record<AttendanceStatus, string> = { HADIR: 'Hadir', TIDAK_HADIR: 'Tidak hadir', RAGU: 'Masih ragu' };
 const stamp = (iso: string | null | undefined) => (iso ? iso.replace('T', ' ').slice(0, 19) : '');
 
 /** Spreadsheet exports for the couple: the guest list with check-in, and the RSVP wishes. */
-export function exportService(deps: { guests: ReturnType<typeof invitedGuestRepository>; wishes: ReturnType<typeof wishRepository> }) {
+export function exportService(deps: {
+  guests: ReturnType<typeof invitedGuestRepository>;
+  wishes: ReturnType<typeof wishRepository>;
+  moments: ReturnType<typeof photoMomentRepository>;
+  uploadDir: string;
+}) {
   return {
     async guestsCsv(origin: string) {
       const guests = await deps.guests.list();
@@ -33,6 +41,35 @@ export function exportService(deps: { guests: ReturnType<typeof invitedGuestRepo
             `${origin}/?to=${encodeURIComponent(g.name)}&c=${g.slug}`,
           ]),
       );
+    },
+
+    /**
+     * Every guest photo (full size when the original was kept) in one folder per guest, plus a list of
+     * who took what. Hidden photos are left out unless `include` is "all".
+     */
+    async photoEntries(include: 'approved' | 'all'): Promise<ZipEntry[]> {
+      const moments = (await deps.moments.all()).filter((m) => include === 'all' || m.approved !== false).reverse();
+      const perFolder = new Map<string, number>();
+      const entries: ZipEntry[] = [];
+      const manifest: (string | number | boolean)[][] = [];
+
+      for (const m of moments) {
+        const url = m.originalUrl || m.photoUrl;
+        const file = path.join(deps.uploadDir, 'moments', path.basename(url));
+        if (!(await fs.access(file).then(() => true, () => false))) continue;
+        const folder = safeSegment(m.guestName);
+        const n = (perFolder.get(folder) ?? 0) + 1;
+        perFolder.set(folder, n);
+        const when = m.createdAt.slice(0, 19).replace(/[-:]/g, '').replace('T', '-');
+        const name = `${folder}/${String(n).padStart(2, '0')}_${when}${path.extname(file).toLowerCase() || '.jpg'}`;
+        entries.push({ name, path: file });
+        manifest.push([m.guestName, m.guestSlug ?? '', name, m.caption ?? '', m.look ?? '', m.likesCount ?? 0, m.commentsCount ?? 0, m.approved !== false, stamp(m.createdAt)]);
+      }
+      entries.unshift({
+        name: 'daftar-foto.csv',
+        data: Buffer.from(toCsv(['Tamu', 'Kode', 'File', 'Keterangan', 'Look', 'Suka', 'Komentar', 'Tayang', 'Waktu'], manifest), 'utf8'),
+      });
+      return entries;
     },
 
     async wishesCsv() {

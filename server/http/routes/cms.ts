@@ -1,5 +1,7 @@
 import express, { type Router } from 'express';
 import { config } from '../../config.js';
+import { issueDownloadTicket, verifyDownloadTicket } from '../../services/authService.js';
+import { ZipTooLargeError, writeZip } from '../zip.js';
 import { HttpError, badRequest, notFound, route } from '../http.js';
 import { requireAdmin, type AuthenticatedRequest } from '../middleware/requireAdmin.js';
 import type { OrderedRepository } from '../../repositories/contentRepositories.js';
@@ -43,7 +45,47 @@ function crud<T extends { id: string }>(router: Router, path: string, repo: Orde
 
 export function cmsRoutes(s: Services): Router {
   const router = express.Router();
+
+  // Browser downloads cannot send the Authorization header, so the CMS first asks for a 60-second ticket.
+  // Registered before requireAdmin, which guards only /cms and /admin.
+  router.get('/export/photos.zip', async (req, res) => {
+    if (!verifyDownloadTicket(String(req.query.t || ''), 'photos-zip')) {
+      res.status(401).json({ success: false, message: 'Tautan unduhan kedaluwarsa. Coba lagi dari CMS.' });
+      return;
+    }
+    try {
+      const entries = await s.exports.photoEntries(req.query.include === 'all' ? 'all' : 'approved');
+      res.setHeader('Content-Type', 'application/zip');
+      res.setHeader('Content-Disposition', 'attachment; filename="foto-tamu.zip"');
+      res.setHeader('Cache-Control', 'no-store');
+      await writeZip(res, entries);
+    } catch (err) {
+      if (res.headersSent) {
+        res.destroy();
+        return;
+      }
+      if (err instanceof ZipTooLargeError) {
+        res.status(413).json({ success: false, message: 'Foto terlalu banyak untuk satu ZIP. Unduh foto per tamu dari CMS.' });
+        return;
+      }
+      console.error('Gagal membuat ZIP foto:', err);
+      res.status(500).json({ success: false, message: 'Gagal membuat ZIP foto.' });
+    }
+  });
+
   router.use(['/cms', '/admin'], requireAdmin);
+
+  router.post(
+    '/cms/export/photos-ticket',
+    route<AuthenticatedRequest>((req) => ({ ticket: issueDownloadTicket(req.user!, 'photos-zip') }), 'Gagal menyiapkan unduhan.'),
+  );
+  router.post(
+    '/cms/photo-moments/approve-all',
+    route(async () => {
+      const count = await s.moments.approveAllPending();
+      return { message: count ? `${count} foto ditayangkan.` : 'Tidak ada foto yang menunggu.', data: { count } };
+    }, 'Gagal menayangkan foto.'),
+  );
   const noop = () => undefined;
 
   router.get(

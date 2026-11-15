@@ -261,6 +261,8 @@ export interface CMSStatsData {
     giftsCount: number;
   };
   recentGuests: GuestWish[];
+  /** Guest photos waiting for the couple's review. */
+  pendingMoments: number;
 }
 
 export interface CMSGeneralData {

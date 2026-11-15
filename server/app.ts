@@ -42,7 +42,7 @@ export function createServices(db: Db) {
 
   return {
     content,
-    invitation: invitationService({ invitation: invitationRepository(db), wishes, cameraSettings, ...content }),
+    invitation: invitationService({ invitation: invitationRepository(db), wishes, cameraSettings, moments: photoMomentRepository(db), ...content }),
     guestbook: guestbookService(wishes, invitedGuests),
     guests: guestService(invitedGuests),
     moments: photoMomentService({
@@ -52,7 +52,7 @@ export function createServices(db: Db) {
       settings: cameraSettings,
       guests: invitedGuests,
     }),
-    exports: exportService({ guests: invitedGuests, wishes }),
+    exports: exportService({ guests: invitedGuests, wishes, moments: photoMomentRepository(db), uploadDir: config.uploadDir }),
     auth: authService(adminRepository(db)),
     resetDemo: () => seedDatabase(db),
     /** Deletes uploaded files that never became part of a photo, wish or gallery entry. */

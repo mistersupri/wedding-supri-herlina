@@ -224,6 +224,12 @@ export function photoMomentRepository(db: Db) {
     async latestApproved(take: number) {
       return (await db.photoMoment.findMany({ where: { approved: true }, orderBy: { createdAt: 'desc' }, take })).map(toMoment);
     },
+    async countPending() {
+      return db.photoMoment.count({ where: { approved: false } });
+    },
+    async approveAllPending() {
+      return (await db.photoMoment.updateMany({ where: { approved: false }, data: { approved: true } })).count;
+    },
     async countApproved() {
       return db.photoMoment.count({ where: { approved: true } });
     },

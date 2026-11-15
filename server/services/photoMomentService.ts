@@ -171,6 +171,7 @@ export function photoMomentService(d: Deps) {
     },
 
     all: () => d.moments.all(),
+    approveAllPending: () => d.moments.approveAllPending(),
 
     async approve(id: string, approved: boolean) {
       const saved = await d.moments.setApproved(id, approved);

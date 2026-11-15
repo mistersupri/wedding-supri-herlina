@@ -48,6 +48,19 @@ function verify(token: string, secret: string, type: 'access' | 'refresh') {
   }
 }
 
+/** A 60-second, single-purpose ticket so a browser download can authenticate without putting the real token in a URL. */
+export const issueDownloadTicket = (user: TokenPayload, scope: string) =>
+  jwt.sign({ id: user.id, type: 'download', scope }, config.jwt.accessSecret, { expiresIn: 60 });
+
+export function verifyDownloadTicket(ticket: string, scope: string) {
+  try {
+    const decoded = jwt.verify(ticket, config.jwt.accessSecret) as { type?: string; scope?: string };
+    return decoded.type === 'download' && decoded.scope === scope;
+  } catch {
+    return false;
+  }
+}
+
 export const verifyAccessToken = (token: string) => verify(token, config.jwt.accessSecret, 'access');
 
 export function authService(admins: ReturnType<typeof adminRepository>) {

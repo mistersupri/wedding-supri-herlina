@@ -40,6 +40,7 @@ interface Deps {
   gallery: OrderedRepository<GalleryPhoto>;
   wishes: ReturnType<typeof wishRepository>;
   cameraSettings: ReturnType<typeof cameraSettingRepository>;
+  moments: { countPending(): Promise<number> };
 }
 
 export function invitationService(d: Deps) {
@@ -95,10 +96,10 @@ export function invitationService(d: Deps) {
     },
 
     async cmsStats(): Promise<CMSStatsData> {
-      const [stats, eventsCount, galleryCount, storiesCount, giftsCount, recentGuests] = await Promise.all([
-        d.wishes.stats(), d.events.count(), d.gallery.count(), d.stories.count(), d.gifts.count(), d.wishes.recent(5),
+      const [stats, eventsCount, galleryCount, storiesCount, giftsCount, recentGuests, pendingMoments] = await Promise.all([
+        d.wishes.stats(), d.events.count(), d.gallery.count(), d.stories.count(), d.gifts.count(), d.wishes.recent(5), d.moments.countPending(),
       ]);
-      return { stats, counts: { eventsCount, galleryCount, storiesCount, giftsCount }, recentGuests };
+      return { stats, counts: { eventsCount, galleryCount, storiesCount, giftsCount }, recentGuests, pendingMoments };
     },
 
     async general() {
