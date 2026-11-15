@@ -18,7 +18,6 @@ import { Chip } from '../../ui/StatusChip.js';
 import { EmptyState, ErrorState, LoadingState } from '../../ui/StateView.js';
 import type { InvitedGuest, InvitedGuestInput } from '@shared/types';
 
-
 export const InvitedGuestsPanel: React.FC = () => {
   const client = useQueryClient();
   const notify = useToast();
@@ -111,32 +110,39 @@ export const InvitedGuestsPanel: React.FC = () => {
         </div>
       )}
 
-      <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
-        <label className="relative flex-1">
-          <span className="sr-only">Cari tamu</span>
-          <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-ink-soft" aria-hidden="true" />
-          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Cari nama, kode, telepon, meja" className="pl-9" />
-        </label>
-        <div className="grid grid-cols-2 gap-2 lg:flex">
-          <label>
-            <span className="sr-only">Kategori</span>
-            <Select value={category} onChange={(e) => setCategory(e.target.value)}>
-              <option value="ALL">Semua kategori</option>
-              {GUEST_CATEGORIES.map((c) => (
-                <option key={c}>{c}</option>
-              ))}
-            </Select>
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
+          <label className="relative flex-1">
+            <span className="sr-only">Cari tamu</span>
+            <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-ink-soft" aria-hidden="true" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Cari nama, kode, telepon, meja"
+              className="pl-9"
+            />
           </label>
-          <label>
-            <span className="sr-only">Status kirim</span>
-            <Select value={sent} onChange={(e) => setSent(e.target.value as typeof sent)}>
-              <option value="ALL">Semua status</option>
-              <option value="UNSENT">Belum dikirim</option>
-              <option value="SENT">Sudah dikirim</option>
-            </Select>
-          </label>
+          <div className="grid grid-cols-2 gap-2 lg:flex">
+            <label>
+              <span className="sr-only">Kategori</span>
+              <Select value={category} onChange={(e) => setCategory(e.target.value)}>
+                <option value="ALL">Semua kategori</option>
+                {GUEST_CATEGORIES.map((c) => (
+                  <option key={c}>{c}</option>
+                ))}
+              </Select>
+            </label>
+            <label>
+              <span className="sr-only">Status kirim</span>
+              <Select value={sent} onChange={(e) => setSent(e.target.value as typeof sent)}>
+                <option value="ALL">Semua status</option>
+                <option value="UNSENT">Belum dikirim</option>
+                <option value="SENT">Sudah dikirim</option>
+              </Select>
+            </label>
+          </div>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 lg:justify-end">
           <Button variant="secondary" onClick={() => setTemplateOpen(true)}>
             Pesan
           </Button>
