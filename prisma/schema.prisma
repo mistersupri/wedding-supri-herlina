@@ -113,8 +113,10 @@ model GalleryPhoto {
 model GuestWish {
   id               String           @id @default(cuid())
   guestName        String
-  /// Lower-cased, trimmed name: one wish per guest name.
+  /// One wish per key: "code:<invitation code>" for invited guests; older anonymous wishes keep the lower-cased name.
   guestKey         String           @unique
+  /// Invitation code of the sender. Never sent to the public page.
+  guestSlug        String?
   relationship     String
   attendanceStatus AttendanceStatus
   numberOfGuests   Int              @default(1)
@@ -125,6 +127,7 @@ model GuestWish {
   createdAt        DateTime         @default(now())
 
   @@index([createdAt])
+  @@index([guestSlug])
 }
 
 model InvitedGuest {

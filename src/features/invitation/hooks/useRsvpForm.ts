@@ -73,6 +73,7 @@ export function useRsvpForm(options: { confettiColors?: string[] } = {}) {
     e?.preventDefault();
     setError(null);
     const base = {
+      guestSlug: guest.slug,
       guestName: guest.name,
       relationship: guest.category || 'Tamu Undangan',
       attendanceStatus: attendance,

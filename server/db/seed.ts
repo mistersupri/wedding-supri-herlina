@@ -85,13 +85,22 @@ export async function seedDatabase(db: Db, data: LegacyData = createDemoData()) 
       })),
     });
 
-    const seenNames = new Set<string>();
+    // A wish belongs to the invitation code of the guest with that name (when exactly one has it).
+    const slugsByName = new Map<string, string[]>();
+    for (const g of data.invitedGuests || []) slugsByName.set(key(g.name), [...(slugsByName.get(key(g.name)) || []), g.slug.toUpperCase()]);
+    const ownerOf = (name: string) => (slugsByName.get(key(name))?.length === 1 ? slugsByName.get(key(name))![0] : null);
+    const seenKeys = new Set<string>();
     await tx.guestWish.createMany({
       data: (data.guests || [])
-        .filter((w) => !seenNames.has(key(w.guestName)) && seenNames.add(key(w.guestName)))
-        .map((w) => ({
+        .map((w) => ({ w, slug: ownerOf(w.guestName) }))
+        .filter(({ w, slug }) => {
+          const k = slug ? `code:${slug}` : key(w.guestName);
+          return !seenKeys.has(k) && seenKeys.add(k);
+        })
+        .map(({ w, slug }) => ({
           guestName: w.guestName,
-          guestKey: key(w.guestName),
+          guestKey: slug ? `code:${slug}` : key(w.guestName),
+          guestSlug: slug,
           relationship: w.relationship,
           attendanceStatus: w.attendanceStatus,
           numberOfGuests: w.numberOfGuests || 1,

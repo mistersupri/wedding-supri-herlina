@@ -162,12 +162,14 @@ export const publicApi = {
       'events' | 'giftInfo'
     >,
 
-  guestbook: async (): Promise<{ data: GuestWish[]; stats: RSVPStats }> => {
-    const json = await publicRequest('/public/guestbook');
-    return { data: json.data || [], stats: json.stats };
+  /** Public wishes, plus the caller's own wish when their invitation code is given. */
+  guestbook: async (code = ''): Promise<{ data: GuestWish[]; stats: RSVPStats; mine: GuestWish | null }> => {
+    const json = await publicRequest(`/public/guestbook${query({ c: code })}`);
+    return { data: json.data || [], stats: json.stats, mine: json.mine ?? null };
   },
 
   submitWish: async (input: {
+    guestSlug: string;
     guestName: string;
     relationship: string;
     attendanceStatus: AttendanceStatus;

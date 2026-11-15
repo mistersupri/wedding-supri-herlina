@@ -22,11 +22,13 @@ async function orNull<T>(op: Promise<T>): Promise<T | null> {
 }
 
 export const guestKey = (name: string) => name.trim().toLowerCase();
+/** Wish identity of an invited guest. */
+export const wishKeyFor = (slug: string) => `code:${slug.trim().toUpperCase()}`;
 
 // --- Guestbook wishes ---
 
 type WishRow = Awaited<ReturnType<Db['guestWish']['create']>>;
-const toWish = ({ guestKey: _k, ...r }: WishRow): GuestWish => ({
+const toWish = ({ guestKey: _k, guestSlug: _s, ...r }: WishRow): GuestWish => ({
   ...r,
   attendanceStatus: r.attendanceStatus as AttendanceStatus,
   createdAt: r.createdAt.toISOString(),
@@ -59,12 +61,17 @@ export function wishRepository(db: Db) {
       return (await db.guestWish.findMany({ orderBy: { createdAt: 'desc' }, take })).map(toWish);
     },
 
-    /** One wish per guest name: a second submission updates the attendance (and message, if given). */
-    async upsert(input: Omit<GuestWish, 'id' | 'createdAt' | 'isHidden' | 'reply'>): Promise<GuestWish> {
-      const key = guestKey(input.guestName);
+    async findBySlug(slug: string): Promise<GuestWish | null> {
+      const row = await db.guestWish.findUnique({ where: { guestKey: wishKeyFor(slug) } });
+      return row ? toWish(row) : null;
+    },
+
+    /** One wish per invitation code: a second submission updates the attendance (and message, if given). */
+    async upsert(input: Omit<GuestWish, 'id' | 'createdAt' | 'isHidden' | 'reply'>, slug: string): Promise<GuestWish> {
+      const key = wishKeyFor(slug);
       const row = await db.guestWish.upsert({
         where: { guestKey: key },
-        create: { ...input, voiceUrl: input.voiceUrl ?? null, guestKey: key },
+        create: { ...input, voiceUrl: input.voiceUrl ?? null, guestKey: key, guestSlug: slug },
         update: {
           attendanceStatus: input.attendanceStatus,
           numberOfGuests: input.numberOfGuests,

@@ -43,7 +43,7 @@ export function createServices(db: Db) {
   return {
     content,
     invitation: invitationService({ invitation: invitationRepository(db), wishes, cameraSettings, ...content }),
-    guestbook: guestbookService(wishes),
+    guestbook: guestbookService(wishes, invitedGuests),
     guests: guestService(invitedGuests),
     moments: photoMomentService({
       moments: photoMomentRepository(db),

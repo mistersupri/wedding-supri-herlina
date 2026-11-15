@@ -24,7 +24,7 @@ export function publicRoutes(s: Services): Router {
 
   router.get(
     '/public/guestbook',
-    route(() => s.guestbook.publicList(), 'Gagal memuat buku tamu.'),
+    route((req) => s.guestbook.publicList(String(req.query.c || '')), 'Gagal memuat buku tamu.'),
   );
 
   router.post(
