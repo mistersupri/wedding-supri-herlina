@@ -4,6 +4,7 @@ import { LogOut, Menu, X } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.js';
 import { ToastProvider } from '../../components/cms/Toast.js';
 import { KawungMark } from '../../components/ui/Kawung.js';
+import { BrandLogo } from '../../components/ui/BrandLogo.js';
 import { IconButton } from '../../components/ui/Button.js';
 import { LoadingState } from '../../components/ui/StateView.js';
 import { useDialogBehaviour } from '../../components/ui/Modal.js';
@@ -113,7 +114,7 @@ export const CMSLayout: React.FC = () => {
         <aside className="on-deep sticky top-0 hidden h-dvh flex-col justify-between overflow-y-auto p-4 md:flex">
           <div>
             <p className="mb-8 flex items-center gap-2 px-3 font-display text-xl">
-              <KawungMark className="h-6 w-6 text-prada-on-deep" />
+              <BrandLogo className="h-9 w-9" />
               Undangan
             </p>
             <NavList />
@@ -123,7 +124,7 @@ export const CMSLayout: React.FC = () => {
 
         <header className="on-deep sticky top-0 z-30 flex items-center justify-between px-3 py-2 md:hidden">
           <p className="flex items-center gap-2 px-2 font-display text-lg">
-            <KawungMark className="h-5 w-5 text-prada-on-deep" />
+            <BrandLogo className="h-8 w-8" />
             Undangan
           </p>
           <IconButton tone="deep" label="Buka menu" aria-expanded={drawerOpen} onClick={() => setDrawerOpen(true)}>
