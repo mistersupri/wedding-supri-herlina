@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { HttpError, badRequest, notFound } from '../http/http.js';
 import type { invitedGuestRepository } from '../repositories/guestRepositories.js';
 import type { InvitedGuest, InvitedGuestInput, PresensiStats, PublicGuest } from '../../shared/types.js';
@@ -18,7 +19,7 @@ export const toPublicGuest = (g: InvitedGuest): PublicGuest => ({
 function randomSlug(taken: Set<string>): string {
   for (let attempt = 0; attempt < 1000; attempt++) {
     let slug = '';
-    for (let i = 0; i < 4; i++) slug += SLUG_ALPHABET[Math.floor(Math.random() * SLUG_ALPHABET.length)];
+    for (let i = 0; i < 4; i++) slug += SLUG_ALPHABET[crypto.randomInt(SLUG_ALPHABET.length)];
     if (!taken.has(slug)) return slug;
   }
   throw new HttpError(409, 'Kode undangan 4 karakter sudah habis terpakai.');

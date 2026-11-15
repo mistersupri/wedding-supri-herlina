@@ -155,6 +155,13 @@ const query = (params: Record<string, string | number | undefined>) => {
 export const publicApi = {
   invitation: async () => (await publicRequest('/invitation')).data as InvitationData,
 
+  /** Venue addresses, map links and gift accounts; the server answers only for a valid invitation code. */
+  guestDetails: async (code: string) =>
+    (await publicRequest('/public/guest-details', jsonInit('POST', { code: code.trim().toUpperCase() }))).data as Pick<
+      InvitationData,
+      'events' | 'giftInfo'
+    >,
+
   guestbook: async (): Promise<{ data: GuestWish[]; stats: RSVPStats }> => {
     const json = await publicRequest('/public/guestbook');
     return { data: json.data || [], stats: json.stats };
@@ -231,7 +238,7 @@ export const authApi = {
 export const cmsApi = {
   stats: () => adminData<CMSStatsData>('/cms/stats'),
   general: () => adminData<CMSGeneralData>('/cms/general'),
-  resetDemo: () => adminData<InvitationData>('/admin/reset-default', { method: 'POST' }),
+  resetDemo: () => adminData<InvitationData>('/admin/reset-default', jsonInit('POST', { confirm: 'RESET' })),
 
   couple: {
     get: () => adminData<CoupleProfile>('/cms/couple'),
@@ -303,13 +310,13 @@ export const cmsApi = {
 
 // --- File uploads ---
 
-/** Uploads one file. Guests may only use the "moments" category; anything else sends the admin token. */
+/** Uploads one file. Guests may only use the "moments" and "voice" categories; anything else sends the admin token. */
 export async function uploadFile(file: File, category: UploadCategory): Promise<string> {
   const body = new FormData();
   body.append('file', file);
   const path = `/upload${query({ category })}`;
   const json =
-    category === 'moments' ? await publicRequest(path, { method: 'POST', body }) : await adminRequest(path, { method: 'POST', body });
+    category === 'moments' || category === 'voice' ? await publicRequest(path, { method: 'POST', body }) : await adminRequest(path, { method: 'POST', body });
   return json.url as string;
 }
 

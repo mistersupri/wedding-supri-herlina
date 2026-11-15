@@ -1,3 +1,5 @@
+import path from 'path';
+import { config } from '../config.js';
 import { badRequest, notFound } from '../http/http.js';
 import { transcribeAudioWithGemini } from '../infrastructure/gemini.js';
 import type { wishRepository } from '../repositories/guestRepositories.js';
@@ -15,11 +17,15 @@ export interface WishInput {
   voiceUrl?: string | null;
 }
 
+/** Voice notes are files under /uploads/voice; anything else (legacy data URLs, other paths) is ignored. */
+const VOICE_URL = /^\/uploads\/voice\/[A-Za-z0-9-]+\.[a-z0-9]{2,4}$/;
+const voicePath = (url: string) => path.join(config.uploadDir, 'voice', path.basename(url));
+
 /** Prefer the typed message; when only a voice note came in, ask Gemini for a transcript. */
 async function resolveMessage(message: string, voiceUrl: string | null) {
   const typed = message.trim();
   if (voiceUrl && (!typed || typed.startsWith('[Voice Note]'))) {
-    return (await transcribeAudioWithGemini(voiceUrl)) || typed || VOICE_FALLBACK;
+    return (await transcribeAudioWithGemini(voicePath(voiceUrl))) || typed || VOICE_FALLBACK;
   }
   return typed || 'Selamat untuk kedua mempelai!';
 }
@@ -34,7 +40,8 @@ export function guestbookService(wishes: ReturnType<typeof wishRepository>) {
     async submit(input: WishInput) {
       const status = input.attendanceStatus as AttendanceStatus;
       if (!input.guestName?.trim() || !ATTENDANCE.includes(status)) throw badRequest('Nama dan status kehadiran wajib diisi.');
-      const voiceUrl = input.voiceUrl || null;
+      const voiceUrl = typeof input.voiceUrl === 'string' && VOICE_URL.test(input.voiceUrl) ? input.voiceUrl : null;
+      if (input.voiceUrl && !voiceUrl) throw badRequest('Pesan suara tidak valid. Rekam ulang atau tulis ucapan Anda.');
       return wishes.upsert({
         guestName: input.guestName.trim(),
         relationship: input.relationship?.trim() || 'Tamu Undangan',

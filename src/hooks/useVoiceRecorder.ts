@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { uploadFile } from '../lib/api.js';
 
 type SpeechRecognitionLike = {
   lang: string;
@@ -10,17 +11,9 @@ type SpeechRecognitionLike = {
   stop: () => void;
 };
 
-const blobToDataUrl = (blob: Blob) =>
-  new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onloadend = () => resolve(reader.result as string);
-    reader.onerror = () => reject(reader.error);
-    reader.readAsDataURL(blob);
-  });
-
 /**
  * Records a voice note and, where the browser supports it, transcribes it live in Indonesian.
- * The note is kept as a data URL so it travels in the same request as the wish.
+ * The note is uploaded as a file when the wish is sent; the wish itself only carries its URL.
  */
 export function useVoiceRecorder(onTranscript: (text: string) => void) {
   const [status, setStatus] = useState<'idle' | 'recording' | 'recorded'>('idle');
@@ -28,9 +21,10 @@ export function useVoiceRecorder(onTranscript: (text: string) => void) {
   const [error, setError] = useState<string | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
-  const dataUrlRef = useRef<string | null>(null);
+  const blobRef = useRef<Blob | null>(null);
+  const uploadedRef = useRef<string | null>(null);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
-  const stoppedRef = useRef<Promise<string | null> | null>(null);
+  const stoppedRef = useRef<Promise<Blob | null> | null>(null);
   const transcriptRef = useRef(onTranscript);
   transcriptRef.current = onTranscript;
 
@@ -50,9 +44,10 @@ export function useVoiceRecorder(onTranscript: (text: string) => void) {
           stream.getTracks().forEach((t) => t.stop());
           const blob = new Blob(chunksRef.current, { type: recorder.mimeType || 'audio/webm' });
           setAudioUrl(URL.createObjectURL(blob));
-          dataUrlRef.current = await blobToDataUrl(blob).catch(() => null);
+          blobRef.current = blob.size > 0 ? blob : null;
+          uploadedRef.current = null;
           setStatus('recorded');
-          resolve(dataUrlRef.current);
+          resolve(blobRef.current);
         };
       });
       recorderRef.current = recorder;
@@ -80,13 +75,17 @@ export function useVoiceRecorder(onTranscript: (text: string) => void) {
     }
   }, []);
 
-  /** Stops recording (if running) and resolves to the note as a data URL. */
+  /** Stops recording (if running), uploads the note and resolves to its URL. Rejects when the upload fails. */
   const stop = useCallback(async (): Promise<string | null> => {
     recognitionRef.current?.stop();
     recognitionRef.current = null;
     const recorder = recorderRef.current;
     if (recorder && recorder.state !== 'inactive') recorder.stop();
-    return stoppedRef.current ? stoppedRef.current : dataUrlRef.current;
+    const blob = stoppedRef.current ? await stoppedRef.current : blobRef.current;
+    if (!blob) return null;
+    // A retry after a failed wish submit reuses the file that already reached the server.
+    uploadedRef.current ??= await uploadFile(new File([blob], 'pesan-suara', { type: blob.type || 'audio/webm' }), 'voice');
+    return uploadedRef.current;
   }, []);
 
   const clear = useCallback(() => {
@@ -100,7 +99,8 @@ export function useVoiceRecorder(onTranscript: (text: string) => void) {
     }
     recorderRef.current = null;
     stoppedRef.current = null;
-    dataUrlRef.current = null;
+    blobRef.current = null;
+    uploadedRef.current = null;
     releaseUrl();
     setStatus('idle');
   }, []);

@@ -64,6 +64,7 @@ Yang terjadi saat container `app` menyala: migrasi Prisma dijalankan (`prisma mi
 - **Data:** volume `pgdata` (database) dan `uploads` (foto, video, pesan suara, foto tamu). Keduanya tetap ada saat `docker compose down`, dan baru terhapus dengan `down -v`.
 - **Health check:** `GET /api/health` mengembalikan `{"status":"ok"}` bila database terjangkau. Docker memakainya untuk status `healthy`.
 - **Keamanan:** di produksi aplikasi menolak menyala bila `ADMIN_PASSWORD`, `JWT_SECRET`, atau `JWT_REFRESH_SECRET` kosong, jadi nilai bawaan dari repo tidak pernah terpakai. PostgreSQL tidak dibuka ke host.
+- **Pembatasan & unggahan:** login, pengecekan kode undangan, ucapan, komentar, dan unggahan tamu dibatasi per alamat IP (atur `TRUST_PROXY` di belakang reverse proxy, kalau tidak semua pengunjung dianggap satu alamat). Jenis file unggahan dibaca dari isinya (gambar, video, audio saja), nama file diacak, dan file tamu yang tidak pernah dipakai dihapus otomatis setelah 24 jam. Alamat acara, tautan peta, dan rekening amplop hanya dikirim server setelah kode undangan valid. Tombol reset data demo mati di produksi kecuali `ALLOW_DEMO_RESET=true`.
 - **Cache:** file di `/assets` diberi cache 1 tahun (namanya sudah ber-hash), sedangkan `index.html` selalu divalidasi ulang, sehingga deploy baru langsung terlihat.
 - **Berhenti:** `docker stop` mengirim SIGTERM; server menyelesaikan request yang sedang berjalan lalu menutup koneksi database.
 

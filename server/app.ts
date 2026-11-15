@@ -24,6 +24,8 @@ import { uploadRoutes } from './http/uploads.js';
 import { publicRoutes } from './http/routes/public.js';
 import { authRoutes } from './http/routes/auth.js';
 import { cmsRoutes } from './http/routes/cms.js';
+import { securityHeaders, uploadStaticOptions } from './http/middleware/securityHeaders.js';
+import { cleanupOrphanUploads } from './services/uploadCleanup.js';
 
 /** Wire repositories into services. Routes only ever see this object. */
 export function createServices(db: Db) {
@@ -51,6 +53,8 @@ export function createServices(db: Db) {
     }),
     auth: authService(adminRepository(db)),
     resetDemo: () => seedDatabase(db),
+    /** Deletes uploaded files that never became part of a photo, wish or gallery entry. */
+    cleanupUploads: () => cleanupOrphanUploads(db, config.uploadDir),
     /** Readiness: the database answers. */
     ping: async () => {
       await db.$queryRaw`SELECT 1`;
@@ -63,6 +67,7 @@ export type Services = ReturnType<typeof createServices>;
 export async function createApp(services: Services) {
   const app = express();
   app.disable('x-powered-by');
+  app.use(securityHeaders);
   if (config.trustProxy) app.set('trust proxy', config.trustProxy);
 
   app.get('/api/health', async (_req, res) => {
@@ -75,7 +80,7 @@ export async function createApp(services: Services) {
   });
 
   app.use(express.json({ limit: config.jsonBodyLimit }));
-  app.use('/uploads', express.static(config.uploadDir));
+  app.use('/uploads', express.static(config.uploadDir, uploadStaticOptions));
 
   app.use('/api', uploadRoutes(), publicRoutes(services), authRoutes(services), cmsRoutes(services));
   app.use('/api', (_req, res) => {
@@ -102,6 +107,14 @@ export async function createApp(services: Services) {
     if (err instanceof multer.MulterError) {
       const message = err.code === 'LIMIT_FILE_SIZE' ? 'Ukuran file melebihi batas.' : 'File tidak dapat diterima.';
       res.status(400).json({ success: false, message });
+      return;
+    }
+    if ((err as { type?: string }).type === 'entity.too.large') {
+      res.status(413).json({ success: false, message: 'Data yang dikirim terlalu besar.' });
+      return;
+    }
+    if ((err as { type?: string }).type === 'entity.parse.failed') {
+      res.status(400).json({ success: false, message: 'Format data tidak valid.' });
       return;
     }
     console.error(err);

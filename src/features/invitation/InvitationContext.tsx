@@ -1,5 +1,8 @@
+import { useQuery } from '@tanstack/react-query';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { coupleNames } from '../../lib/format.js';
+import { publicApi } from '../../lib/api.js';
+import { queryKeys } from '../../lib/queryKeys.js';
 import { useAuth } from '../../context/AuthContext.js';
 import { GuestPassModal } from '../../components/wedding/GuestPassModal.js';
 import { useGuestAccess } from './hooks/useGuestAccess.js';
@@ -53,13 +56,26 @@ export function useVerifiedGuest() {
  * Everything a template needs to render one invitation: the data, who is reading,
  * the cover state, the guest pass and background music. Templates only read from here.
  */
-export const InvitationProvider: React.FC<{ invitation: InvitationData; children: React.ReactNode }> = ({ invitation, children }) => {
+export const InvitationProvider: React.FC<{ invitation: InvitationData; children: React.ReactNode }> = ({ invitation: publicInvitation, children }) => {
   const { isAuthenticated } = useAuth();
   const access = useGuestAccess();
   const [isOpen, setIsOpen] = useState(false);
   const [pass, setPass] = useState<{ open: boolean; rsvp: RsvpSummary | null }>({ open: false, rsvp: null });
   const audioRef = useRef<HTMLAudioElement>(null);
   const [playing, setPlaying] = useState(false);
+  const { guest } = access;
+
+  // The public payload leaves out addresses and gift accounts; a verified guest fetches them separately.
+  const details = useQuery({
+    queryKey: queryKeys.guestDetails(guest?.slug ?? ''),
+    queryFn: () => publicApi.guestDetails(guest!.slug),
+    enabled: Boolean(guest),
+    staleTime: 5 * 60_000,
+  });
+  const invitation = useMemo<InvitationData>(
+    () => (details.data ? { ...publicInvitation, events: details.data.events, giftInfo: details.data.giftInfo } : publicInvitation),
+    [publicInvitation, details.data],
+  );
   const names = coupleNames(invitation);
 
   useEffect(() => {
@@ -79,7 +95,6 @@ export const InvitationProvider: React.FC<{ invitation: InvitationData; children
     else audio.pause();
   }, []);
 
-  const { guest } = access;
   const value = useMemo<InvitationContextValue>(
     () => ({
       invitation,

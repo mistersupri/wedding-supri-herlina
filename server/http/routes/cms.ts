@@ -1,5 +1,6 @@
 import express, { type Router } from 'express';
-import { badRequest, notFound, route } from '../http.js';
+import { config } from '../../config.js';
+import { HttpError, badRequest, notFound, route } from '../http.js';
 import { requireAdmin, type AuthenticatedRequest } from '../middleware/requireAdmin.js';
 import type { OrderedRepository } from '../../repositories/contentRepositories.js';
 import type { Services } from '../../app.js';
@@ -236,7 +237,11 @@ export function cmsRoutes(s: Services): Router {
 
   router.post(
     '/admin/reset-default',
-    route(async () => {
+    route(async (req) => {
+      if (config.isProduction && !config.allowDemoReset) {
+        throw new HttpError(403, 'Reset data dimatikan di server produksi. Set ALLOW_DEMO_RESET=true bila memang diperlukan.');
+      }
+      if (req.body?.confirm !== 'RESET') throw badRequest('Konfirmasi reset tidak lengkap.');
       await s.resetDemo();
       return { message: 'Data dikembalikan ke isi demo.', data: await s.invitation.publicInvitation() };
     }, 'Gagal mereset data.'),

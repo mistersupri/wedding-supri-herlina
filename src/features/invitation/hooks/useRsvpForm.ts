@@ -82,7 +82,15 @@ export function useRsvpForm(options: { confettiColors?: string[] } = {}) {
       mutation.mutate({ ...base, message: existingWish.message, voiceUrl: existingWish.voiceUrl ?? null });
       return;
     }
-    const voiceUrl = voice.status === 'idle' ? null : await voice.stop();
+    let voiceUrl: string | null = null;
+    if (voice.status !== 'idle') {
+      try {
+        voiceUrl = await voice.stop();
+      } catch (err) {
+        setError((err as Error).message || 'Pesan suara belum terunggah. Periksa sinyal, lalu coba kirim lagi.');
+        return;
+      }
+    }
     if (!message.trim() && !voiceUrl) {
       setError('Tuliskan ucapan atau rekam pesan suara terlebih dahulu.');
       return;

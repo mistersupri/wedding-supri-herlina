@@ -26,6 +26,9 @@ const THEME_KEYS: (keyof ThemeSettings)[] = [
   'templateId', 'themeColor', 'musicUrl', 'musicTitle', 'weddingDate', 'countdownTarget', 'whatsappNumber', 'whatsappTemplate',
 ];
 
+/** Fields of an event that only invited guests may read. */
+const redactEvent = (e: WeddingEvent): WeddingEvent => ({ ...e, address: '', mapsUrl: '', mapsEmbedUrl: undefined });
+
 const pick = <T extends object>(source: Partial<T>, keys: (keyof T)[]): Partial<T> =>
   Object.fromEntries(keys.filter((k) => source[k] !== undefined).map((k) => [k, source[k]])) as Partial<T>;
 
@@ -52,7 +55,22 @@ export function invitationService(d: Deps) {
       const [inv, events, gallery, loveStories, giftInfo, stats, camera] = await Promise.all([
         core(), d.events.list(), d.gallery.list(), d.stories.list(), d.gifts.list(), d.wishes.stats(), d.cameraSettings.get(),
       ]);
-      return { ...inv, events, gallery, loveStories, giftInfo, stats, photoMoments: { access: camera.access, cameraOpen: camera.cameraOpen } };
+      // Addresses, map links and bank accounts leave the server only through guestDetails(), behind an invitation code.
+      return {
+        ...inv,
+        events: events.map(redactEvent),
+        gallery,
+        loveStories,
+        giftInfo: [],
+        stats,
+        photoMoments: { access: camera.access, cameraOpen: camera.cameraOpen },
+      };
+    },
+
+    /** The parts of the invitation held back from the public page. Callers must have verified an invitation code. */
+    async guestDetails(): Promise<Pick<InvitationData, 'events' | 'giftInfo'>> {
+      const [events, giftInfo] = await Promise.all([d.events.list(), d.gifts.list()]);
+      return { events, giftInfo };
     },
 
     async couple(): Promise<CoupleProfile> {

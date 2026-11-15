@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { config, ENV_ADMIN_ID } from '../config.js';
@@ -14,6 +15,12 @@ export interface TokenPayload {
 }
 
 const ACCESS_TTL_SECONDS = 3600;
+
+/** Compares secrets in constant time, so response timing reveals nothing about how much matched. */
+const safeEqual = (a: string, b: string) => {
+  const digest = (v: string) => crypto.createHash('sha256').update(v).digest();
+  return crypto.timingSafeEqual(digest(a), digest(b));
+};
 
 export const hashPassword = (password: string) => bcrypt.hashSync(password, 10);
 
@@ -67,7 +74,7 @@ export function authService(admins: ReturnType<typeof adminRepository>) {
       if (!username || !password) throw new HttpError(400, 'Username dan kata sandi wajib diisi.');
       let user: AdminUser | null = null;
       if (isEnvAdmin({ username: username.trim() })) {
-        user = password === config.admin.password ? envAdminProfile() : null;
+        user = safeEqual(password, config.admin.password) ? envAdminProfile() : null;
       } else {
         const stored = await admins.findByUsername(username);
         user = stored && bcrypt.compareSync(password, stored.passwordHash) ? withoutHash(stored) : null;

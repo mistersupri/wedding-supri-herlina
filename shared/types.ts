@@ -10,7 +10,7 @@ export type TemplateId = 'nusantara' | 'gulungan' | 'bilik' | 'cozy' | 'layar';
 
 export type MediaType = 'IMAGE' | 'VIDEO';
 
-export type UploadCategory = 'hero' | 'gallery' | 'couples' | 'moments' | 'general';
+export type UploadCategory = 'hero' | 'gallery' | 'couples' | 'moments' | 'voice' | 'general';
 
 export interface GiftAccount {
   id: string;
