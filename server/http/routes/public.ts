@@ -103,7 +103,7 @@ export function publicRoutes(s: Services): Router {
       const { emoji, action } = req.body || {};
       return s.moments.react(
         req.params.id,
-        typeof emoji === 'string' && emoji ? emoji.slice(0, 8) : '❤️',
+        typeof emoji === 'string' && emoji ? emoji : '❤️',
         action === 'remove' ? 'remove' : 'add',
       );
     }, 'Gagal mengirim reaksi.'),

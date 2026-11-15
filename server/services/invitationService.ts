@@ -45,7 +45,7 @@ interface Deps {
 export function invitationService(d: Deps) {
   const core = async () => {
     const inv = await d.invitation.get();
-    if (!inv) throw new HttpError(503, 'Data undangan belum disiapkan. Jalankan seed database.');
+    if (!inv) throw new HttpError(503, 'Data undangan belum disiapkan. Impor data (`yarn db:import-json`) atau jalankan seed database.');
     return inv;
   };
 

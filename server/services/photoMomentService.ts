@@ -1,3 +1,6 @@
+import fs from 'fs/promises';
+import path from 'path';
+import { config } from '../config.js';
 import { HttpError, badRequest, notFound } from '../http/http.js';
 import { DEFAULT_CAMERA_SETTINGS } from '../repositories/guestRepositories.js';
 import type {
@@ -17,9 +20,19 @@ interface Deps {
   guests: ReturnType<typeof invitedGuestRepository>;
 }
 
-const MOMENT_PATH = '/uploads/moments/';
+/** A file this server stored for a guest: one plain filename under /uploads/moments, no path tricks. */
+const MOMENT_FILE = /^\/uploads\/moments\/[A-Za-z0-9][A-Za-z0-9._-]*$/;
+/** The reactions the guest feed offers; anything else is rejected so the counts cannot be flooded with arbitrary keys. */
+export const REACTION_EMOJIS = ['❤️', '😍', '🎉', '👏', '😊', '🙏'];
+const fileExists = (url: string) => fs.access(path.join(config.uploadDir, 'moments', path.basename(url))).then(() => true, () => false);
+
+/** Checks that an uploaded photo URL points at a real file in the moments folder. */
+async function assertStoredPhoto(url: unknown, message: string) {
+  if (typeof url !== 'string' || !MOMENT_FILE.test(url) || url.includes('..') || !(await fileExists(url))) throw badRequest(message);
+  return url;
+}
 const isGenericName = (name: string) => !name.trim() || name.trim().toLowerCase() === 'tamu undangan';
-const clean = (v: unknown, max: number) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
+const clean = (v: unknown, max: number) => (typeof v === 'string' ? v.replace(/\s+/g, ' ').trim().slice(0, max) : '');
 
 const ACCESS = ['CHECKED_IN', 'INVITED', 'ANYONE'] as const;
 const VISIBILITY = ['ALL', 'OWN'] as const;
@@ -102,33 +115,31 @@ export function photoMomentService(d: Deps) {
     async add(input: { guestName?: string; guestSlug?: string; photoUrl?: string; originalUrl?: string; caption?: string; look?: string }) {
       const settings = await d.settings.get();
       if (!settings.cameraOpen) throw new HttpError(403, 'Kamera tamu sudah ditutup. Foto yang sudah masuk tetap tersimpan.');
-      if (typeof input.photoUrl !== 'string' || !input.photoUrl.startsWith(MOMENT_PATH)) throw badRequest('Foto belum terunggah.');
-      if (input.originalUrl && (typeof input.originalUrl !== 'string' || !input.originalUrl.startsWith(MOMENT_PATH)))
-        throw badRequest('Foto asli tidak valid.');
+      const photoUrl = await assertStoredPhoto(input.photoUrl, 'Foto belum terunggah.');
+      const originalUrl = input.originalUrl ? await assertStoredPhoto(input.originalUrl, 'Foto asli tidak valid.') : undefined;
+      if (originalUrl === photoUrl) throw badRequest('Foto asli tidak valid.');
       const who = await identify(input, settings);
-      if ((await countFor(who)) >= settings.framesPerGuest) {
-        throw new HttpError(400, `Jatah ${settings.framesPerGuest} foto Anda sudah habis. Terima kasih sudah ikut mengabadikan.`);
-      }
-      return d.moments.create({
+      // A file can belong to one photo only, so nobody can re-register another guest's upload as their own.
+      if (await d.moments.urlInUse(originalUrl ? [photoUrl, originalUrl] : [photoUrl])) throw badRequest('Foto ini sudah tersimpan.');
+      const created = await d.moments.createWithinQuota(who, settings.framesPerGuest, {
         guestName: who.name,
         guestSlug: who.slug,
-        photoUrl: input.photoUrl,
-        originalUrl: input.originalUrl || undefined,
+        photoUrl,
+        originalUrl,
         caption: clean(input.caption, 140),
         look: clean(input.look, 20) || undefined,
         approved: !settings.moderation,
       });
+      if (!created) {
+        throw new HttpError(400, `Jatah ${settings.framesPerGuest} foto Anda sudah habis. Terima kasih sudah ikut mengabadikan.`);
+      }
+      return created;
     },
 
     async react(id: string, emoji: string, action: 'add' | 'remove') {
-      const photo = await d.moments.findById(id);
-      if (!photo) throw notFound('Foto tidak ditemukan.');
-      const reactions = { ...(photo.reactions || {}) };
-      const delta = action === 'add' ? 1 : -1;
-      reactions[emoji] = Math.max(0, (reactions[emoji] || 0) + delta);
-      if (reactions[emoji] === 0) delete reactions[emoji];
-      const likesCount = Math.max(0, (photo.likesCount || 0) + delta);
-      const saved = await d.moments.saveReactions(id, reactions, likesCount);
+      if (!REACTION_EMOJIS.includes(emoji)) throw badRequest('Reaksi tidak dikenal.');
+      const saved = await d.moments.react(id, emoji, action === 'add' ? 1 : -1);
+      if (!saved) throw notFound('Foto tidak ditemukan.');
       return { likesCount: saved.likesCount || 0, reactions: saved.reactions || {} };
     },
 

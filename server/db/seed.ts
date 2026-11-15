@@ -141,6 +141,12 @@ export async function seedDatabase(db: Db, data: LegacyData = createDemoData()) 
 
 /** First run: fill an empty database with the demo invitation. */
 export async function seedIfEmpty(db: Db) {
+  if (process.env.SEED_DEMO === 'false') {
+    if ((await db.invitation.count()) === 0) {
+      console.warn('SEED_DEMO=false dan database masih kosong: isi data undangan lewat `yarn db:import-json`, atau hapus SEED_DEMO untuk data demo.');
+    }
+    return;
+  }
   if ((await db.invitation.count()) === 0) {
     await seedDatabase(db);
     console.log('Database kosong: data demo undangan sudah diisi.');

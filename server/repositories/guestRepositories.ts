@@ -139,11 +139,13 @@ export function invitedGuestRepository(db: Db) {
       const r = await db.invitedGuest.findUnique({ where: { slug: slug.trim().toUpperCase() } });
       return r ? toInvited(r) : null;
     },
-    async findByName(name: string) {
+    /** Exact (case-insensitive) matches first; only when there are none, partial matches. At most `take` rows. */
+    async findByName(name: string, take = 2): Promise<InvitedGuest[]> {
       const q = name.trim();
-      const exact = await db.invitedGuest.findFirst({ where: { name: { equals: q, mode: 'insensitive' } } });
-      const r = exact ?? (await db.invitedGuest.findFirst({ where: { name: { contains: q, mode: 'insensitive' } } }));
-      return r ? toInvited(r) : null;
+      if (!q) return [];
+      const exact = await db.invitedGuest.findMany({ where: { name: { equals: q, mode: 'insensitive' } }, take });
+      const rows = exact.length ? exact : await db.invitedGuest.findMany({ where: { name: { contains: q, mode: 'insensitive' } }, take });
+      return rows.map(toInvited);
     },
     async slugs(): Promise<Set<string>> {
       return new Set((await db.invitedGuest.findMany({ select: { slug: true } })).map((g) => g.slug));
@@ -227,6 +229,38 @@ export function photoMomentRepository(db: Db) {
     async countByName(name: string) {
       return db.photoMoment.count({ where: { guestName: { equals: name.trim(), mode: 'insensitive' } } });
     },
+    /** True when this uploaded file is already attached to a photo. */
+    async urlInUse(urls: string[]) {
+      return (await db.photoMoment.count({ where: { OR: [{ photoUrl: { in: urls } }, { originalUrl: { in: urls } }] } })) > 0;
+    },
+    /**
+     * Adds a photo only while the guest is under their frame limit. The count and the insert run in one
+     * transaction behind a per-guest lock, so photos uploaded in parallel cannot slip past the limit.
+     * Resolves to null when the limit is reached.
+     */
+    async createWithinQuota(
+      who: { slug?: string; name: string },
+      limit: number,
+      data: {
+        guestName: string;
+        guestSlug?: string;
+        photoUrl: string;
+        originalUrl?: string;
+        caption: string;
+        look?: string;
+        approved: boolean;
+      },
+    ) {
+      const lockKey = who.slug ? `moment:slug:${who.slug}` : `moment:name:${who.name.trim().toLowerCase()}`;
+      return db.$transaction(async (tx) => {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`;
+        const used = who.slug
+          ? await tx.photoMoment.count({ where: { guestSlug: who.slug } })
+          : await tx.photoMoment.count({ where: { guestName: { equals: who.name.trim(), mode: 'insensitive' } } });
+        if (used >= limit) return null;
+        return toMoment(await tx.photoMoment.create({ data }));
+      });
+    },
     async create(data: {
       guestName: string;
       guestSlug?: string;
@@ -242,8 +276,20 @@ export function photoMomentRepository(db: Db) {
       const r = await db.photoMoment.findUnique({ where: { id } });
       return r ? toMoment(r) : null;
     },
-    async saveReactions(id: string, reactions: Record<string, number>, likesCount: number) {
-      return toMoment(await db.photoMoment.update({ where: { id }, data: { reactions, likesCount } }));
+    /**
+     * Adds or removes one reaction. The photo row is locked while its counts are read and written, so
+     * simultaneous taps cannot overwrite each other, and `likesCount` is always the sum of `reactions`.
+     */
+    async react(id: string, emoji: string, delta: 1 | -1) {
+      return db.$transaction(async (tx) => {
+        const rows = await tx.$queryRaw<{ reactions: unknown }[]>`SELECT "reactions" FROM "PhotoMoment" WHERE "id" = ${id} FOR UPDATE`;
+        if (rows.length === 0) return null;
+        const reactions = { ...((rows[0].reactions ?? {}) as Record<string, number>) };
+        reactions[emoji] = Math.max(0, (reactions[emoji] || 0) + delta);
+        if (reactions[emoji] === 0) delete reactions[emoji];
+        const likesCount = Object.values(reactions).reduce((sum, n) => sum + n, 0);
+        return toMoment(await tx.photoMoment.update({ where: { id }, data: { reactions, likesCount } }));
+      });
     },
     async setApproved(id: string, approved: boolean) {
       return orNull(db.photoMoment.update({ where: { id }, data: { approved } }).then(toMoment));

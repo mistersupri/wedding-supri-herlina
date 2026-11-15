@@ -58,7 +58,7 @@ docker compose up -d --build
 docker compose ps        # app dan db harus "healthy"
 ```
 
-Yang terjadi saat container `app` menyala: migrasi Prisma dijalankan (`prisma migrate deploy`), database kosong diisi data demo sekali, lalu server berjalan di port 3000 sebagai user non-root.
+Yang terjadi saat container `app` menyala: migrasi Prisma dijalankan (`prisma migrate deploy`), database kosong diisi data demo sekali (matikan dengan `SEED_DEMO=false`, lalu isi data lewat `yarn db:import-json`), lalu server berjalan di port 3000 sebagai user non-root.
 
 - **Port:** aplikasi hanya dibuka di `127.0.0.1:3000` di host. Pasang reverse proxy dengan HTTPS di depannya (Caddy, Nginx, Traefik). Contoh Caddy: `undangan.example.com { reverse_proxy 127.0.0.1:3000 }`. Untuk membuka langsung tanpa proxy, set `APP_BIND=0.0.0.0`.
 - **Data:** volume `pgdata` (database) dan `uploads` (foto, video, pesan suara, foto tamu). Keduanya tetap ada saat `docker compose down`, dan baru terhapus dengan `down -v`.
