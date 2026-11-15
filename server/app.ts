@@ -15,6 +15,7 @@ import {
 } from './repositories/guestRepositories.js';
 import { invitationRepository } from './repositories/invitationRepository.js';
 import { authService } from './services/authService.js';
+import { exportService } from './services/exportService.js';
 import { guestService } from './services/guestService.js';
 import { guestbookService } from './services/guestbookService.js';
 import { invitationService } from './services/invitationService.js';
@@ -51,6 +52,7 @@ export function createServices(db: Db) {
       settings: cameraSettings,
       guests: invitedGuests,
     }),
+    exports: exportService({ guests: invitedGuests, wishes }),
     auth: authService(adminRepository(db)),
     resetDemo: () => seedDatabase(db),
     /** Deletes uploaded files that never became part of a photo, wish or gallery entry. */

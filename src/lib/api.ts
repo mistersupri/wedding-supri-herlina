@@ -238,6 +238,8 @@ export const authApi = {
 export const cmsApi = {
   stats: () => adminData<CMSStatsData>('/cms/stats'),
   general: () => adminData<CMSGeneralData>('/cms/general'),
+  exportGuests: () => downloadAdminFile('/cms/export/guests.csv', 'daftar-tamu.csv'),
+  exportWishes: () => downloadAdminFile('/cms/export/wishes.csv', 'ucapan-rsvp.csv'),
   resetDemo: () => adminData<InvitationData>('/admin/reset-default', jsonInit('POST', { confirm: 'RESET' })),
 
   couple: {
@@ -307,6 +309,24 @@ export const cmsApi = {
     },
   },
 };
+
+/** Downloads a protected file (CSV, ZIP) with the admin token and hands it to the browser as a save-as. */
+export async function downloadAdminFile(path: string, fallbackName: string) {
+  let res = await fetch(API + path, withToken(undefined, getAccessToken()));
+  if (res.status === 401) {
+    const token = await refreshAuthToken();
+    if (!token) throw new ApiError('Sesi berakhir. Silakan masuk lagi.');
+    res = await fetch(API + path, withToken(undefined, token));
+  }
+  if (!res.ok) throw new ApiError((await res.json().catch(() => ({}))).message || `Unduhan gagal (${res.status}).`);
+  const name = /filename="([^"]+)"/.exec(res.headers.get('Content-Disposition') || '')?.[1] || fallbackName;
+  const url = URL.createObjectURL(await res.blob());
+  const link = Object.assign(document.createElement('a'), { href: url, download: name });
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10_000);
+}
 
 // --- File uploads ---
 

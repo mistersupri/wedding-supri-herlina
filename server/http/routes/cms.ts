@@ -97,6 +97,22 @@ export function cmsRoutes(s: Services): Router {
   crud(router, '/cms/gifts', s.content.gifts, 'Rekening', noop);
   crud(router, '/cms/gallery', s.content.gallery, 'Foto', noop);
 
+  // --- Spreadsheet exports ---
+  const sendCsv = (res: express.Response, filename: string, body: string) => {
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Cache-Control', 'no-store');
+    res.send(body);
+  };
+  router.get(
+    '/cms/export/guests.csv',
+    route(async (req, res) => sendCsv(res, 'daftar-tamu.csv', await s.exports.guestsCsv(`${req.protocol}://${req.get('host')}`)), 'Gagal mengekspor daftar tamu.'),
+  );
+  router.get(
+    '/cms/export/wishes.csv',
+    route(async (_req, res) => sendCsv(res, 'ucapan-rsvp.csv', await s.exports.wishesCsv()), 'Gagal mengekspor ucapan.'),
+  );
+
   // --- Guestbook moderation ---
   router.get(
     '/cms/guests',
