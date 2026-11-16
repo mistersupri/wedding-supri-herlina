@@ -6,7 +6,18 @@ import { createApp, createServices } from './app.js';
 
 const db = createPrisma();
 await seedIfEmpty(db);
-const app = await createApp(createServices(db));
+const services = createServices(db);
+const app = await createApp(services);
+
+// Drop guest uploads that never became a photo or a wish; once at start, then hourly.
+const sweepUploads = () =>
+  services
+    .cleanupUploads()
+    .then((n) => n && console.log(`${n} file unggahan yatim dihapus.`))
+    .catch((err) => console.error('Pembersihan unggahan gagal:', err));
+void sweepUploads();
+const sweepTimer = setInterval(sweepUploads, 3_600_000);
+sweepTimer.unref();
 
 const server = app.listen(config.port, '0.0.0.0', () => {
   console.log(`Wedding app listening on http://localhost:${config.port}`);

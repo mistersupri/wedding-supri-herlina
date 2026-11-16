@@ -13,6 +13,7 @@ import { buttonClass } from '../components/ui/Button.js';
 import { Field, Input } from '../components/ui/Field.js';
 import { KawungDivider } from '../components/ui/Kawung.js';
 import { ErrorState, LoadingState } from '../components/ui/StateView.js';
+import { SelfCheckIn } from '../components/wedding/SelfCheckIn.js';
 import { GuestPassModal } from '../components/wedding/GuestPassModal.js';
 import type { MomentIdentity } from '@shared/types';
 
@@ -20,8 +21,8 @@ const NAME_KEY = 'wedding_moments_name';
 
 /**
  * Guest camera page, reachable from the invitation or from a QR card on the tables. Who may use it
- * follows the couple's rule (CMS > Photo Moments): checked-in guests, any invited guest, or anyone
- * who types a name. The server enforces the same rule.
+ * follows the couple's rule (CMS > Photo Moments): invited guests (checked in first, when the couple
+ * requires it) or anyone who types a name. The server enforces the same rule.
  */
 export const PhotoMomentsPage: React.FC = () => {
   const navigate = useNavigate();
@@ -56,9 +57,9 @@ export const PhotoMomentsPage: React.FC = () => {
     );
   }
 
-  const { access } = camera.data.settings;
+  const { access, requireCheckIn } = camera.data.settings;
   const identity: MomentIdentity | null =
-    guest && (access !== 'CHECKED_IN' || guest.isCheckedIn)
+    guest && (!requireCheckIn || guest.isCheckedIn)
       ? { name: guest.name, slug: guest.slug }
       : access === 'ANYONE' && name
         ? { name }
@@ -72,7 +73,9 @@ export const PhotoMomentsPage: React.FC = () => {
     );
   }
 
-  const waitingCheckIn = Boolean(guest) && access === 'CHECKED_IN';
+  // With the check-in requirement on, a guest with a valid code but no check-in yet lands here.
+  const waitingCheckIn = Boolean(guest) && requireCheckIn;
+  const selfCheckIn = invitation?.attendance;
   return (
     <div className="on-deep kawung-field flex min-h-dvh items-center justify-center px-5 py-10">
       <div className="w-full max-w-md rounded-md bg-card p-7 text-ink">
@@ -82,13 +85,16 @@ export const PhotoMomentsPage: React.FC = () => {
         </h1>
         <p className="mt-3 text-[15px] leading-relaxed text-ink-soft">
           {waitingCheckIn
-            ? 'Tunjukkan kartu tamu Anda di meja penerima tamu. Setelah tercatat hadir, buka halaman ini lagi.'
+            ? selfCheckIn?.selfCheckIn
+              ? 'Catat kehadiran Anda dari HP di bawah ini, atau tunjukkan kartu tamu di meja penerima tamu.'
+              : 'Tunjukkan kartu tamu Anda di meja penerima tamu. Setelah tercatat hadir, buka halaman ini lagi.'
             : `Setiap tamu punya ${camera.data.settings.framesPerGuest} frame. Foto langsung masuk ke galeri bersama.`}
         </p>
         <KawungDivider className="my-6" />
 
         {waitingCheckIn ? (
           <div className="flex flex-col gap-2">
+            {guest && <SelfCheckIn guest={guest} rules={selfCheckIn} className="mb-2" />}
             <button type="button" onClick={() => setPassOpen(true)} className={buttonClass('primary')}>
               Tampilkan kartu tamu
             </button>
@@ -141,7 +147,7 @@ export const PhotoMomentsPage: React.FC = () => {
           </>
         )}
       </div>
-      {guest && <GuestPassModal open={passOpen} onClose={() => setPassOpen(false)} guest={guest} coupleNames={names} />}
+      {guest && <GuestPassModal open={passOpen} onClose={() => setPassOpen(false)} guest={guest} coupleNames={names} selfCheckIn={selfCheckIn} />}
     </div>
   );
 };

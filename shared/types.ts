@@ -10,7 +10,7 @@ export type TemplateId = 'nusantara' | 'gulungan' | 'bilik' | 'cozy' | 'layar';
 
 export type MediaType = 'IMAGE' | 'VIDEO';
 
-export type UploadCategory = 'hero' | 'gallery' | 'couples' | 'moments' | 'general';
+export type UploadCategory = 'hero' | 'gallery' | 'couples' | 'moments' | 'voice' | 'general';
 
 export interface GiftAccount {
   id: string;
@@ -117,7 +117,19 @@ export interface InvitationData extends InvitationRecord {
   gallery: GalleryPhoto[];
   stats?: RSVPStats;
   /** Enough of the camera rules for templates to decide whether to show the camera link. */
-  photoMoments?: { access: MomentAccess; cameraOpen: boolean };
+  photoMoments?: { access: MomentAccess; cameraOpen: boolean; requireCheckIn: boolean };
+  /** Whether guests may confirm their own attendance, and whether that needs them to be at the venue. */
+  attendance?: { selfCheckIn: boolean; verifyLocation: boolean };
+}
+
+/** The couple's rules for guests confirming their own attendance (CMS > Meja penerima tamu). */
+export interface AttendanceSettings {
+  selfCheckIn: boolean;
+  /** Require the guest's phone to be within `radiusMeters` of the venue. On by default. */
+  verifyLocation: boolean;
+  venueLat: number | null;
+  venueLng: number | null;
+  radiusMeters: number;
 }
 
 export type CMSCoupleData = CoupleProfile;
@@ -148,7 +160,7 @@ export interface InvitedGuest {
   invitationSentAt?: string | null;
   isCheckedIn: boolean;
   checkInTime?: string | null;
-  checkInMethod?: 'QR_SCAN' | 'MANUAL' | null;
+  checkInMethod?: 'QR_SCAN' | 'MANUAL' | 'SELF' | null;
   actualPax?: number | null;
   souvenirGiven?: boolean;
   createdAt: string;
@@ -162,6 +174,8 @@ export interface GuestAccessVerification {
   isValid: boolean;
   guest: PublicGuest | null;
   message?: string;
+  /** The server could not be reached, so the code was neither accepted nor refused. */
+  offline?: boolean;
 }
 
 export interface PhotoMoment {
@@ -191,13 +205,16 @@ export interface PhotoComment {
   createdAt: string;
 }
 
-export type MomentAccess = 'CHECKED_IN' | 'INVITED' | 'ANYONE';
+/** Who may use the guest camera: only invited guests (by code), or anyone who types a name. */
+export type MomentAccess = 'INVITED' | 'ANYONE';
 export type MomentVisibility = 'ALL' | 'OWN';
 export type MomentDownload = 'NONE' | 'OWN' | 'ALL';
 
 /** The couple's rules for the guest camera (CMS > Photo Moments). */
 export interface CameraSettings {
   access: MomentAccess;
+  /** Invited guests must be checked in first. Off by default. */
+  requireCheckIn: boolean;
   framesPerGuest: number;
   cameraOpen: boolean;
   moderation: boolean;
@@ -261,6 +278,8 @@ export interface CMSStatsData {
     giftsCount: number;
   };
   recentGuests: GuestWish[];
+  /** Guest photos waiting for the couple's review. */
+  pendingMoments: number;
 }
 
 export interface CMSGeneralData {

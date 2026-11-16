@@ -72,11 +72,14 @@ export const WishesModeration: React.FC = () => {
           <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-ink-soft" aria-hidden="true" />
           <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Cari nama atau isi ucapan" className="pl-9" />
         </label>
+        <Button variant="secondary" onClick={() => cmsApi.exportWishes().catch((e: Error) => notify(e.message, 'error'))}>
+          Ekspor CSV
+        </Button>
         <Segmented<StatusFilter>
           name="Saring kehadiran"
           value={status}
           onChange={setStatus}
-          className="lg:w-[28rem]"
+          className="lg:w-[24rem]"
           options={[
             { value: 'ALL', label: 'Semua' },
             { value: 'HADIR', label: 'Hadir' },

@@ -6,6 +6,7 @@ import type { Db } from './infrastructure/prisma.js';
 import { eventRepository, galleryRepository, giftRepository, storyRepository } from './repositories/contentRepositories.js';
 import {
   adminRepository,
+  attendanceSettingRepository,
   cameraSettingRepository,
   frameRepository,
   invitedGuestRepository,
@@ -14,7 +15,9 @@ import {
   wishRepository,
 } from './repositories/guestRepositories.js';
 import { invitationRepository } from './repositories/invitationRepository.js';
+import { attendanceService } from './services/attendanceService.js';
 import { authService } from './services/authService.js';
+import { exportService } from './services/exportService.js';
 import { guestService } from './services/guestService.js';
 import { guestbookService } from './services/guestbookService.js';
 import { invitationService } from './services/invitationService.js';
@@ -24,6 +27,8 @@ import { uploadRoutes } from './http/uploads.js';
 import { publicRoutes } from './http/routes/public.js';
 import { authRoutes } from './http/routes/auth.js';
 import { cmsRoutes } from './http/routes/cms.js';
+import { securityHeaders, uploadStaticOptions } from './http/middleware/securityHeaders.js';
+import { cleanupOrphanUploads } from './services/uploadCleanup.js';
 
 /** Wire repositories into services. Routes only ever see this object. */
 export function createServices(db: Db) {
@@ -37,11 +42,23 @@ export function createServices(db: Db) {
   const invitedGuests = invitedGuestRepository(db);
   const cameraSettings = cameraSettingRepository(db);
 
+  const guestsService = guestService(invitedGuests);
+  const attendanceSettings = attendanceSettingRepository(db);
+  const attendance = attendanceService({ settings: attendanceSettings, guests: invitedGuests, guestService: guestsService });
+
   return {
     content,
-    invitation: invitationService({ invitation: invitationRepository(db), wishes, cameraSettings, ...content }),
-    guestbook: guestbookService(wishes),
-    guests: guestService(invitedGuests),
+    attendance,
+    invitation: invitationService({
+      invitation: invitationRepository(db),
+      wishes,
+      cameraSettings,
+      attendanceRules: attendance.publicRules,
+      moments: photoMomentRepository(db),
+      ...content,
+    }),
+    guestbook: guestbookService(wishes, invitedGuests),
+    guests: guestsService,
     moments: photoMomentService({
       moments: photoMomentRepository(db),
       comments: photoCommentRepository(db),
@@ -49,8 +66,11 @@ export function createServices(db: Db) {
       settings: cameraSettings,
       guests: invitedGuests,
     }),
+    exports: exportService({ guests: invitedGuests, wishes, moments: photoMomentRepository(db), uploadDir: config.uploadDir }),
     auth: authService(adminRepository(db)),
     resetDemo: () => seedDatabase(db),
+    /** Deletes uploaded files that never became part of a photo, wish or gallery entry. */
+    cleanupUploads: () => cleanupOrphanUploads(db, config.uploadDir),
     /** Readiness: the database answers. */
     ping: async () => {
       await db.$queryRaw`SELECT 1`;
@@ -63,6 +83,7 @@ export type Services = ReturnType<typeof createServices>;
 export async function createApp(services: Services) {
   const app = express();
   app.disable('x-powered-by');
+  app.use(securityHeaders);
   if (config.trustProxy) app.set('trust proxy', config.trustProxy);
 
   app.get('/api/health', async (_req, res) => {
@@ -75,7 +96,7 @@ export async function createApp(services: Services) {
   });
 
   app.use(express.json({ limit: config.jsonBodyLimit }));
-  app.use('/uploads', express.static(config.uploadDir));
+  app.use('/uploads', express.static(config.uploadDir, uploadStaticOptions));
 
   app.use('/api', uploadRoutes(), publicRoutes(services), authRoutes(services), cmsRoutes(services));
   app.use('/api', (_req, res) => {
@@ -83,10 +104,21 @@ export async function createApp(services: Services) {
   });
 
   if (config.isProduction) {
+    // The worker and manifest are not fingerprinted, so browsers must check them on every load to notice a new version.
+    app.get(['/sw.js', '/manifest.webmanifest'], (req, res, next) => {
+      res.setHeader('Cache-Control', 'no-cache');
+      if (req.path === '/sw.js') res.setHeader('Service-Worker-Allowed', '/');
+      next();
+    });
     // Vite fingerprints everything under /assets, so it can be cached for good; index.html must always be revalidated.
     app.use('/assets', express.static(path.join(config.distDir, 'assets'), { immutable: true, maxAge: '1y' }));
     app.use(express.static(config.distDir, { index: false }));
-    app.get('*', (_req, res) => {
+    app.get('*', (req, res) => {
+      // A missing file must be a 404, never the HTML shell: a browser or the service worker would take it for the script.
+      if (path.extname(req.path)) {
+        res.status(404).type('text/plain').send('Not found');
+        return;
+      }
       res.setHeader('Cache-Control', 'no-cache');
       res.sendFile(path.join(config.distDir, 'index.html'));
     });
@@ -102,6 +134,14 @@ export async function createApp(services: Services) {
     if (err instanceof multer.MulterError) {
       const message = err.code === 'LIMIT_FILE_SIZE' ? 'Ukuran file melebihi batas.' : 'File tidak dapat diterima.';
       res.status(400).json({ success: false, message });
+      return;
+    }
+    if ((err as { type?: string }).type === 'entity.too.large') {
+      res.status(413).json({ success: false, message: 'Data yang dikirim terlalu besar.' });
+      return;
+    }
+    if ((err as { type?: string }).type === 'entity.parse.failed') {
+      res.status(400).json({ success: false, message: 'Format data tidak valid.' });
       return;
     }
     console.error(err);

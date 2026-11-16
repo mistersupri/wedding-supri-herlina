@@ -3,7 +3,7 @@ import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.js';
 import { Button } from '../../components/ui/Button.js';
 import { Field, Input } from '../../components/ui/Field.js';
-import { KawungMark } from '../../components/ui/Kawung.js';
+import { BrandLogo } from '../../components/ui/BrandLogo.js';
 
 export const CMSLoginPage: React.FC = () => {
   const navigate = useNavigate();
@@ -33,7 +33,7 @@ export const CMSLoginPage: React.FC = () => {
   return (
     <div className="on-deep kawung-field flex min-h-dvh items-center justify-center px-5 py-10">
       <main className="w-full max-w-sm rounded-md bg-card p-7 text-ink">
-        <KawungMark className="h-8 w-8 text-prada" />
+        <BrandLogo className="h-14 w-14" onLight />
         <h1 className="mt-4 font-display text-3xl">Masuk ke CMS</h1>
         <p className="mt-1 text-[15px] text-ink-soft">Kelola isi undangan, daftar tamu, dan penerimaan tamu.</p>
         <form onSubmit={submit} className="mt-6 space-y-4">

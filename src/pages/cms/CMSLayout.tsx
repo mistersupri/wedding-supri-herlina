@@ -1,9 +1,13 @@
+import { useQuery } from '@tanstack/react-query';
 import React, { Suspense, useEffect, useRef, useState } from 'react';
 import { NavLink, Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { LogOut, Menu, X } from 'lucide-react';
+import { cmsApi } from '../../lib/api.js';
+import { queryKeys } from '../../lib/queryKeys.js';
 import { useAuth } from '../../context/AuthContext.js';
 import { ToastProvider } from '../../components/cms/Toast.js';
 import { KawungMark } from '../../components/ui/Kawung.js';
+import { BrandLogo } from '../../components/ui/BrandLogo.js';
 import { IconButton } from '../../components/ui/Button.js';
 import { LoadingState } from '../../components/ui/StateView.js';
 import { useDialogBehaviour } from '../../components/ui/Modal.js';
@@ -32,37 +36,50 @@ const NAV_GROUPS = [
   { title: 'Akun', items: [{ to: '/cms/pengaturan', label: 'Pengaturan' }] },
 ];
 
-const NavList: React.FC<{ onNavigate?: () => void }> = ({ onNavigate }) => (
-  <nav aria-label="Menu CMS" className="space-y-6">
-    {NAV_GROUPS.map((group) => (
-      <div key={group.title || 'home'}>
-        {group.title && <p className="px-3 text-xs font-semibold text-on-deep-soft">{group.title}</p>}
-        <ul className="mt-1.5 space-y-0.5">
-          {group.items.map((item) => (
-            <li key={item.to}>
-              <NavLink
-                to={item.to}
-                onClick={onNavigate}
-                className={({ isActive }) =>
-                  `flex min-h-11 items-center gap-2.5 rounded-sm px-3 text-[15px] transition-colors ${
-                    isActive ? 'bg-deep-2 font-semibold text-on-deep' : 'text-on-deep-soft hover:bg-deep-2/60 hover:text-on-deep'
-                  }`
-                }
-              >
-                {({ isActive }) => (
-                  <>
-                    <KawungMark className={`h-3 w-3 shrink-0 ${isActive ? 'text-prada-on-deep' : 'text-transparent'}`} />
-                    {item.label}
-                  </>
-                )}
-              </NavLink>
-            </li>
-          ))}
-        </ul>
-      </div>
-    ))}
-  </nav>
-);
+const NavList: React.FC<{ onNavigate?: () => void }> = ({ onNavigate }) => {
+  // Photos waiting for review show as a badge, so the couple notices them during the party.
+  const { data } = useQuery({ queryKey: queryKeys.cms.stats, queryFn: cmsApi.stats, refetchInterval: 30_000 });
+  const badges: Record<string, number> = { '/cms/photo-moments': data?.pendingMoments ?? 0 };
+  return (
+    <nav aria-label="Menu CMS" className="space-y-6">
+      {NAV_GROUPS.map((group) => (
+        <div key={group.title || 'home'}>
+          {group.title && <p className="px-3 text-xs font-semibold text-on-deep-soft">{group.title}</p>}
+          <ul className="mt-1.5 space-y-0.5">
+            {group.items.map((item) => (
+              <li key={item.to}>
+                <NavLink
+                  to={item.to}
+                  onClick={onNavigate}
+                  className={({ isActive }) =>
+                    `flex min-h-11 items-center gap-2.5 rounded-sm px-3 text-[15px] transition-colors ${
+                      isActive ? 'bg-deep-2 font-semibold text-on-deep' : 'text-on-deep-soft hover:bg-deep-2/60 hover:text-on-deep'
+                    }`
+                  }
+                >
+                  {({ isActive }) => (
+                    <>
+                      <KawungMark className={`h-3 w-3 shrink-0 ${isActive ? 'text-prada-on-deep' : 'text-transparent'}`} />
+                      {item.label}
+                      {badges[item.to] > 0 && (
+                        <span
+                          className="ml-auto rounded-full bg-prada-on-deep px-2 py-0.5 text-xs font-semibold text-deep"
+                          aria-label={`${badges[item.to]} menunggu`}
+                        >
+                          {badges[item.to]}
+                        </span>
+                      )}
+                    </>
+                  )}
+                </NavLink>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </nav>
+  );
+};
 
 export const CMSLayout: React.FC = () => {
   const { user, logout, isAuthenticated, isLoading } = useAuth();
@@ -113,7 +130,7 @@ export const CMSLayout: React.FC = () => {
         <aside className="on-deep sticky top-0 hidden h-dvh flex-col justify-between overflow-y-auto p-4 md:flex">
           <div>
             <p className="mb-8 flex items-center gap-2 px-3 font-display text-xl">
-              <KawungMark className="h-6 w-6 text-prada-on-deep" />
+              <BrandLogo className="h-9 w-9" />
               Undangan
             </p>
             <NavList />
@@ -123,7 +140,7 @@ export const CMSLayout: React.FC = () => {
 
         <header className="on-deep sticky top-0 z-30 flex items-center justify-between px-3 py-2 md:hidden">
           <p className="flex items-center gap-2 px-2 font-display text-lg">
-            <KawungMark className="h-5 w-5 text-prada-on-deep" />
+            <BrandLogo className="h-8 w-8" />
             Undangan
           </p>
           <IconButton tone="deep" label="Buka menu" aria-expanded={drawerOpen} onClick={() => setDrawerOpen(true)}>

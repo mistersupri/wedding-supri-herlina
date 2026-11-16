@@ -132,11 +132,22 @@ export const CMSPhotoMomentsTab: React.FC = () => {
     mutationFn: ({ id, approved }: { id: string; approved: boolean }) => cmsApi.photoMoments.approve(id, approved),
     onSuccess: (saved) => {
       client.invalidateQueries({ queryKey: queryKeys.cms.photoMoments });
+      client.invalidateQueries({ queryKey: queryKeys.cms.stats });
       notify(saved.approved ? 'Foto tampil di galeri tamu.' : 'Foto disembunyikan dari tamu.');
     },
     onError: (err: Error) => notify(err.message, 'error'),
   });
   const pendingCount = moments.filter((m) => m.approved === false).length;
+  const [includeHidden, setIncludeHidden] = useState(false);
+  const approveAll = useMutation({
+    mutationFn: cmsApi.photoMoments.approveAll,
+    onSuccess: (res) => {
+      client.invalidateQueries({ queryKey: queryKeys.cms.photoMoments });
+      client.invalidateQueries({ queryKey: queryKeys.cms.stats });
+      notify(res.count ? `${res.count} foto tampil di galeri tamu.` : 'Tidak ada foto yang menunggu.');
+    },
+    onError: (err: Error) => notify(err.message, 'error'),
+  });
 
   return (
     <>
@@ -144,9 +155,14 @@ export const CMSPhotoMomentsTab: React.FC = () => {
         title="Photo Moments"
         description="Kamera sekali pakai di HP tamu: look film, efek, bingkai, galeri bersama, dan layar besar."
         actions={
-          <Button variant="secondary" onClick={() => query.refetch()} loading={query.isRefetching}>
-            Muat ulang
-          </Button>
+          <>
+            <Button variant="secondary" onClick={() => cmsApi.photoMoments.downloadZip(includeHidden).catch((e: Error) => notify(e.message, 'error'))}>
+              Unduh semua foto (ZIP)
+            </Button>
+            <Button variant="secondary" onClick={() => query.refetch()} loading={query.isRefetching}>
+              Muat ulang
+            </Button>
+          </>
         }
       />
 
@@ -160,6 +176,15 @@ export const CMSPhotoMomentsTab: React.FC = () => {
       <CameraRulesPanel />
       <QrCardPanel />
       <FramePanel />
+
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+        <Checkbox label="ZIP juga memuat foto yang disembunyikan" checked={includeHidden} onChange={(e) => setIncludeHidden(e.target.checked)} />
+        {pendingCount > 0 && (
+          <Button variant="secondary" size="sm" onClick={() => approveAll.mutate()} loading={approveAll.isPending}>
+            Tayangkan semua yang menunggu ({pendingCount})
+          </Button>
+        )}
+      </div>
 
       <div role="group" aria-label="Saring foto" className="mb-3 flex gap-1">
         {(

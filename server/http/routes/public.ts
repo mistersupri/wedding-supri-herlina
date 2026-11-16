@@ -1,5 +1,6 @@
 import express, { type Router } from 'express';
-import { route } from '../http.js';
+import { HttpError, route } from '../http.js';
+import { limits } from '../middleware/rateLimit.js';
 import type { Services } from '../../app.js';
 
 export function publicRoutes(s: Services): Router {
@@ -10,13 +11,25 @@ export function publicRoutes(s: Services): Router {
     route(async () => ({ data: await s.invitation.publicInvitation() }), 'Gagal memuat data undangan.'),
   );
 
+  // Venue addresses, map links and gift accounts are only for guests who hold a valid invitation code.
+  router.post(
+    '/public/guest-details',
+    limits.verifyCode,
+    route(async (req) => {
+      const verification = await s.guests.verify(typeof req.body?.code === 'string' ? req.body.code : '');
+      if (!verification.isValid) throw new HttpError(403, verification.message);
+      return { data: await s.invitation.guestDetails() };
+    }, 'Gagal memuat detail acara.'),
+  );
+
   router.get(
     '/public/guestbook',
-    route(() => s.guestbook.publicList(), 'Gagal memuat buku tamu.'),
+    route((req) => s.guestbook.publicList(String(req.query.c || '')), 'Gagal memuat buku tamu.'),
   );
 
   router.post(
     '/public/guestbook',
+    limits.wish,
     route(async (req, res) => {
       const data = await s.guestbook.submit(req.body || {});
       res.status(201).json({ success: true, message: 'Terima kasih atas doa dan konfirmasinya.', data });
@@ -25,11 +38,22 @@ export function publicRoutes(s: Services): Router {
 
   router.get(
     '/public/guest/:slug',
+    limits.verifyCode,
     route((req) => s.guests.verify(req.params.slug), 'Gagal memeriksa kode undangan.'),
   );
   router.post(
     '/public/verify-access',
+    limits.verifyCode,
     route((req) => s.guests.verify(typeof req.body?.code === 'string' ? req.body.code : ''), 'Gagal memeriksa kode undangan.'),
+  );
+
+  router.post(
+    '/public/check-in',
+    limits.checkIn,
+    route(
+      (req) => s.attendance.selfCheckIn(typeof req.body?.code === 'string' ? req.body.code : '', req.body?.position ?? {}),
+      'Gagal mencatat kehadiran.',
+    ),
   );
 
   router.get(
@@ -61,6 +85,7 @@ export function publicRoutes(s: Services): Router {
 
   router.post(
     '/public/photo-moments',
+    limits.addMoment,
     route(async (req, res) => {
       const photo = await s.moments.add(req.body || {});
       res.status(201).json({ success: true, photo });
@@ -73,6 +98,7 @@ export function publicRoutes(s: Services): Router {
   );
   router.post(
     '/public/photo-moments/:id/comments',
+    limits.comment,
     route(async (req, res) => {
       const data = await s.moments.addComment(req.params.id, req.body || {});
       res.status(201).json({ success: true, data });
@@ -81,11 +107,12 @@ export function publicRoutes(s: Services): Router {
 
   router.post(
     '/public/photo-moments/:id/react',
+    limits.react,
     route((req) => {
       const { emoji, action } = req.body || {};
       return s.moments.react(
         req.params.id,
-        typeof emoji === 'string' && emoji ? emoji.slice(0, 8) : '❤️',
+        typeof emoji === 'string' && emoji ? emoji : '❤️',
         action === 'remove' ? 'remove' : 'add',
       );
     }, 'Gagal mengirim reaksi.'),

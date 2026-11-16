@@ -2,6 +2,8 @@
 export const queryKeys = {
   invitation: ['invitation'] as const,
   guestbook: ['guestbook'] as const,
+  guestbookFor: (code: string) => ['guestbook', code] as const,
+  guestDetails: (code: string) => ['guest-details', code] as const,
   guestAccess: (code: string) => ['guest-access', code] as const,
   cameraConfig: ['camera-config'] as const,
   photoComments: (id: string) => ['photo-comments', id] as const,
@@ -21,6 +23,7 @@ export const queryKeys = {
     invitedGuests: ['cms', 'invited-guests'] as const,
     photoMoments: ['cms', 'photo-moments'] as const,
     frame: ['cms', 'frame'] as const,
+    attendanceSettings: ['cms', 'attendance-settings'] as const,
     cameraSettings: ['cms', 'camera-settings'] as const,
   },
 };

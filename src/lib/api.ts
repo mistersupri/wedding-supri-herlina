@@ -1,5 +1,7 @@
+import { readLocal, writeLocal } from './guestSession.js';
 import type {
   AdminUser,
+  AttendanceSettings,
   AttendanceStatus,
   AuthResponse,
   CameraConfig,
@@ -68,12 +70,29 @@ export function clearAuthTokens() {
 
 type Json = Record<string, any>;
 
-export class ApiError extends Error {}
+export class ApiError extends Error {
+  /** The server could not be reached (no signal, server down, proxy error). The request itself may be fine. */
+  offline = false;
+  /** HTTP status of the answer, when there was one. */
+  status?: number;
+}
+
+const unreachable = () => Object.assign(new ApiError('Tidak ada koneksi internet. Coba lagi saat sinyal kembali.'), { offline: true });
+
+/** fetch that reports a dead network as an ApiError marked offline, instead of a bare "Failed to fetch". */
+async function request(input: string, init?: RequestInit): Promise<Response> {
+  try {
+    return await fetch(input, init);
+  } catch {
+    throw unreachable();
+  }
+}
 
 async function parse(res: Response): Promise<Json> {
   const json = (await res.json().catch(() => ({}))) as Json;
   if (!res.ok || json.success === false) {
-    throw new ApiError(json.message || `Permintaan gagal (${res.status}).`);
+    // 502, 503 and 504 come from a proxy in front of a server that is down or restarting.
+    throw Object.assign(new ApiError(json.message || `Permintaan gagal (${res.status}).`), { offline: [502, 503, 504].includes(res.status), status: res.status });
   }
   return json;
 }
@@ -86,7 +105,7 @@ const jsonInit = (method: string, body?: unknown): RequestInit => ({
 
 /** Unauthenticated request; resolves to the whole JSON body. */
 async function publicRequest(path: string, init?: RequestInit): Promise<Json> {
-  return parse(await fetch(API + path, init));
+  return parse(await request(API + path, init));
 }
 
 // One refresh in flight at a time, shared by every request that hit a 401.
@@ -120,11 +139,11 @@ function withToken(init: RequestInit = {}, token: string | null): RequestInit {
 
 /** Admin request; refreshes the token once on 401 and replays. Resolves to the whole JSON body. */
 async function adminRequest(path: string, init?: RequestInit): Promise<Json> {
-  let res = await fetch(API + path, withToken(init, getAccessToken()));
+  let res = await request(API + path, withToken(init, getAccessToken()));
   if (res.status === 401) {
     const token = await refreshAuthToken();
     if (!token) throw new ApiError('Sesi berakhir. Silakan masuk lagi.');
-    res = await fetch(API + path, withToken(init, token));
+    res = await request(API + path, withToken(init, token));
   }
   return parse(res);
 }
@@ -155,12 +174,30 @@ const query = (params: Record<string, string | number | undefined>) => {
 export const publicApi = {
   invitation: async () => (await publicRequest('/invitation')).data as InvitationData,
 
-  guestbook: async (): Promise<{ data: GuestWish[]; stats: RSVPStats }> => {
-    const json = await publicRequest('/public/guestbook');
-    return { data: json.data || [], stats: json.stats };
+  /** Venue addresses, map links and gift accounts; the server answers only for a valid invitation code. */
+  guestDetails: async (code: string) => {
+    const clean = code.trim().toUpperCase();
+    const saved = `wedding_guest_details_${clean}`;
+    try {
+      const data = (await publicRequest('/public/guest-details', jsonInit('POST', { code: clean }))).data as Pick<InvitationData, 'events' | 'giftInfo'>;
+      // Kept on this device, so the venue address and gift accounts are still there with no signal.
+      writeLocal(saved, data);
+      return data;
+    } catch (err) {
+      const offline = readLocal<Pick<InvitationData, 'events' | 'giftInfo'> | null>(saved, null);
+      if ((err as ApiError).offline && offline) return offline;
+      throw err;
+    }
+  },
+
+  /** Public wishes, plus the caller's own wish when their invitation code is given. */
+  guestbook: async (code = ''): Promise<{ data: GuestWish[]; stats: RSVPStats; mine: GuestWish | null }> => {
+    const json = await publicRequest(`/public/guestbook${query({ c: code })}`);
+    return { data: json.data || [], stats: json.stats, mine: json.mine ?? null };
   },
 
   submitWish: async (input: {
+    guestSlug: string;
     guestName: string;
     relationship: string;
     attendanceStatus: AttendanceStatus;
@@ -169,13 +206,22 @@ export const publicApi = {
     voiceUrl?: string | null;
   }) => (await publicRequest('/public/guestbook', jsonInit('POST', input))).data as GuestWish,
 
+  /** Marks the guest present from their own phone. `position` is needed when the couple verifies location. */
+  selfCheckIn: async (code: string, position?: { lat: number; lng: number; accuracy?: number }) => {
+    const json = await publicRequest('/public/check-in', jsonInit('POST', { code: code.trim().toUpperCase(), position }));
+    return { isValid: true, guest: json.guest, message: json.message, alreadyCheckedIn: Boolean(json.alreadyCheckedIn) } as GuestAccessVerification & {
+      alreadyCheckedIn: boolean;
+    };
+  },
+
   /** Never throws: a network failure reads as "not verified". */
   verifyCode: async (code: string): Promise<GuestAccessVerification> => {
     try {
       const json = await publicRequest('/public/verify-access', jsonInit('POST', { code: code.trim().toUpperCase() }));
       return { isValid: Boolean(json.isValid), guest: json.guest || null, message: json.message };
     } catch (err) {
-      return { isValid: false, guest: null, message: (err as Error).message };
+      // `offline` tells the caller this is "could not check", not "not on the list".
+      return { isValid: false, guest: null, message: (err as Error).message, offline: (err as ApiError).offline === true };
     }
   },
 
@@ -231,7 +277,9 @@ export const authApi = {
 export const cmsApi = {
   stats: () => adminData<CMSStatsData>('/cms/stats'),
   general: () => adminData<CMSGeneralData>('/cms/general'),
-  resetDemo: () => adminData<InvitationData>('/admin/reset-default', { method: 'POST' }),
+  exportGuests: () => downloadAdminFile('/cms/export/guests.csv', 'daftar-tamu.csv'),
+  exportWishes: () => downloadAdminFile('/cms/export/wishes.csv', 'ucapan-rsvp.csv'),
+  resetDemo: () => adminData<InvitationData>('/admin/reset-default', jsonInit('POST', { confirm: 'RESET' })),
 
   couple: {
     get: () => adminData<CoupleProfile>('/cms/couple'),
@@ -240,6 +288,11 @@ export const cmsApi = {
   theme: {
     get: () => adminData<ThemeSettings>('/cms/theme'),
     save: (input: Partial<ThemeSettings>) => adminData<ThemeSettings>('/cms/theme', jsonInit('PUT', input)),
+  },
+
+  attendance: {
+    get: () => adminData<AttendanceSettings>('/cms/attendance-settings'),
+    save: (input: Partial<AttendanceSettings>) => adminData<AttendanceSettings>('/cms/attendance-settings', jsonInit('PUT', input)),
   },
 
   events: collection<WeddingEvent>('/cms/events'),
@@ -294,6 +347,8 @@ export const cmsApi = {
     saveFrame: (input: Partial<PhotoFrameConfig>) => adminData<PhotoFrameConfig>('/cms/photo-moments/frame-config', jsonInit('PUT', input)),
     settings: () => adminData<CameraSettings>('/cms/photo-moments/settings'),
     saveSettings: (input: Partial<CameraSettings>) => adminData<CameraSettings>('/cms/photo-moments/settings', jsonInit('PUT', input)),
+    approveAll: () => adminData<{ count: number }>('/cms/photo-moments/approve-all', { method: 'POST' }),
+    downloadZip: downloadPhotosZip,
     approve: (id: string, approved: boolean) => adminData<PhotoMoment>(`/cms/photo-moments/${id}/approval`, jsonInit('PUT', { approved })),
     removeComment: async (id: string) => {
       await adminRequest(`/cms/photo-moments/comments/${id}`, { method: 'DELETE' });
@@ -301,15 +356,45 @@ export const cmsApi = {
   },
 };
 
+/** Downloads a protected file (CSV, ZIP) with the admin token and hands it to the browser as a save-as. */
+export async function downloadAdminFile(path: string, fallbackName: string) {
+  let res = await fetch(API + path, withToken(undefined, getAccessToken()));
+  if (res.status === 401) {
+    const token = await refreshAuthToken();
+    if (!token) throw new ApiError('Sesi berakhir. Silakan masuk lagi.');
+    res = await fetch(API + path, withToken(undefined, token));
+  }
+  if (!res.ok) throw new ApiError((await res.json().catch(() => ({}))).message || `Unduhan gagal (${res.status}).`);
+  const name = /filename="([^"]+)"/.exec(res.headers.get('Content-Disposition') || '')?.[1] || fallbackName;
+  const url = URL.createObjectURL(await res.blob());
+  const link = Object.assign(document.createElement('a'), { href: url, download: name });
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10_000);
+}
+
+/** Asks for a short-lived ticket, then lets the browser stream the ZIP straight to disk (no memory spike for big albums). */
+export async function downloadPhotosZip(includeHidden: boolean) {
+  const { ticket } = (await adminRequest('/cms/export/photos-ticket', { method: 'POST' })) as { ticket: string };
+  const link = Object.assign(document.createElement('a'), {
+    href: `${API}/export/photos.zip${query({ t: ticket, include: includeHidden ? 'all' : '' })}`,
+    download: 'foto-tamu.zip',
+  });
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+}
+
 // --- File uploads ---
 
-/** Uploads one file. Guests may only use the "moments" category; anything else sends the admin token. */
+/** Uploads one file. Guests may only use the "moments" and "voice" categories; anything else sends the admin token. */
 export async function uploadFile(file: File, category: UploadCategory): Promise<string> {
   const body = new FormData();
   body.append('file', file);
   const path = `/upload${query({ category })}`;
   const json =
-    category === 'moments' ? await publicRequest(path, { method: 'POST', body }) : await adminRequest(path, { method: 'POST', body });
+    category === 'moments' || category === 'voice' ? await publicRequest(path, { method: 'POST', body }) : await adminRequest(path, { method: 'POST', body });
   return json.url as string;
 }
 

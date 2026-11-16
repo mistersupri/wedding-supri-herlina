@@ -19,7 +19,7 @@ File `.env` bersifat opsional untuk lokal. Salin `.env.example` bila ingin mengg
 
 - Undangan: `/`. Tautan pribadi tamu: `/?to=Nama%20Tamu&c=KODE`
 - CMS: `/cms` (login dengan `ADMIN_USERNAME` / `ADMIN_PASSWORD`)
-- Kamera tamu: `/photo-moments?c=KODE` (terbuka setelah tamu dicatat hadir)
+- Kamera tamu: `/photo-moments?c=KODE` (secara bawaan cukup kode undangan; bisa diwajibkan check-in dulu di CMS)
 
 ## Template undangan
 
@@ -34,17 +34,57 @@ Pilih di CMS, menu **Template & musik**. Semua template membaca data yang sama (
 
 Foto yang tampil di template selalu foto pasangan dari menu Mempelai, Kisah, dan Galeri. Alamat lengkap dan amplop digital tetap hanya terbuka untuk tamu yang memasukkan kode undangan.
 
+## Daftar tamu di CMS
+
+- **Kirim undangan:** tombol *Kirim WA* per tamu, atau *Kirim berurutan* yang menyiapkan tamu satu per satu (hanya yang punya nomor dan belum terkirim), menandainya terkirim, lalu lanjut ke tamu berikutnya. Isi pesan bisa diubah lewat tombol *Pesan* dengan penanda `{nama}`, `{kode}`, `{link}`, `{mempelai}`; tersimpan di perangkat yang dipakai.
+- **Ekspor CSV:** daftar tamu (lengkap dengan status kirim dan check-in) serta ucapan & RSVP, siap dibuka di Excel atau Google Sheets.
+- **Ucapan:** satu ucapan per kode undangan; tamu hanya bisa mengirim dengan kode yang valid, dan jumlah kursi dibatasi sesuai daftar.
+
+## Mode offline
+
+Setelah tamu membuka undangan **satu kali dengan internet**, undangan itu tetap bisa dibuka tanpa sinyal atau saat server mati. Ini memakai service worker (hanya aktif di build produksi dan lewat HTTPS atau localhost).
+
+- **Tersimpan di HP tamu:** halaman dan semua template, data undangan, foto (hero, mempelai, kisah, galeri) yang diambil di latar belakang, ucapan terakhir, kode undangan tamu, serta alamat acara dan rekening amplop untuk tamu yang sudah memasukkan kode. Kartu tamu dan QR tetap tampil. Halaman kamera juga terbuka, dan foto yang dijepret antre di HP lalu terkirim saat sinyal kembali.
+- **Saat online, data selalu yang terbaru:** halaman dan data diambil dari server lebih dulu. Salinan tersimpan hanya dipakai bila server tidak menjawab (atau lambat lebih dari 3,5 detik, atau memberi error 5xx).
+- **Versi baru:** setelah deploy, tamu melihat pita "Versi baru undangan tersedia" dan menekan *Muat ulang*. Versi baru tidak mengambil alih sendiri, supaya halaman yang sedang terbuka tidak kehilangan berkasnya.
+- **Tidak tersimpan offline:** video hero, musik latar, peta Google Maps tersemat, dan foto dari alamat luar (bukan unggahan). Memuat foto tamu lain dan konfirmasi hadir lewat lokasi butuh sinyal; pesan yang tampil menyebut bahwa koneksi tidak ada.
+- **RSVP dan ucapan saat offline:** bila sinyal hilang, konfirmasi dan ucapan (termasuk pesan suara) disimpan di HP tamu dan terkirim sendiri begitu sinyal kembali: saat halaman masih terbuka, atau saat undangan dibuka lagi. Tamu melihat kartu "Tersimpan di HP Anda" dengan tombol *Kirim sekarang* dan *Batalkan dan ubah*. Server mencatat satu ucapan per kode, jadi pengiriman ulang tidak membuat dobel. Pengiriman tidak berjalan bila halaman ditutup; tamu perlu membukanya lagi.
+- **Bisa dipasang seperti aplikasi:** peramban menawarkan "Tambahkan ke layar utama" (ikon dan manifest sudah ada).
+- **Yang tidak pernah disimpan:** halaman CMS, login, dan semua permintaan tulis.
+
+Kunjungan pertama tetap butuh internet, jadi kirim tautan undangan beberapa hari sebelum acara, dan sarankan tamu membukanya sekali di rumah.
+
+## Kehadiran oleh tamu
+
+Di CMS, *Meja penerima tamu*, panel *Konfirmasi kehadiran oleh tamu*:
+
+- **Tamu boleh konfirmasi hadir sendiri** (mati secara bawaan): tombol *Saya sudah di lokasi* muncul di kartu tamu dan di halaman kamera tamu.
+- **Verifikasi lokasi** (aktif secara bawaan): peramban membaca posisi HP, dan server menerima konfirmasi hanya bila posisinya dalam radius (bawaan 150 m) dari koordinat lokasi acara. Isi koordinat dengan menempel dari Google Maps, tautan peta acara, atau tombol *Pakai lokasi saya sekarang*. Bila dimatikan, kode undangan yang valid sudah cukup.
+- Check-in mandiri tercatat dengan metode *Mandiri* dan jumlah hadir sesuai jatah kursi, tanpa suvenir. Meja penerima tamu tetap bisa menyesuaikan jumlah orang dan suvenir.
+- Lokasi dibaca dari peramban tamu, jadi ini mencegah konfirmasi dari rumah, bukan pengaman mutlak. Membaca lokasi butuh HTTPS (atau localhost) dan izin lokasi dari tamu.
+
 ## Kamera tamu (Photo Moments)
 
 Kamera sekali pakai yang jalan di peramban HP tamu, tanpa aplikasi. Diatur di CMS, menu **Photo Moments**.
 
-- **Masuk:** dari tautan undangan, atau dari kartu QR di meja (CMS > Photo Moments > Kartu QR untuk meja > Cetak kartu). Siapa yang boleh memotret: tamu yang sudah check-in, semua tamu berkode undangan, atau siapa saja yang menulis nama. Aturan ini juga diperiksa di server.
+- **Masuk:** dari tautan undangan, atau dari kartu QR di meja (CMS > Photo Moments > Kartu QR untuk meja). Siapa yang boleh memotret: tamu berkode undangan, atau siapa saja yang menulis nama. Opsi *Tamu undangan wajib check-in dulu* (mati secara bawaan) menahan tamu berkode sampai kehadirannya tercatat, di meja penerima tamu atau lewat konfirmasi di HP mereka. Aturan ini juga diperiksa di server.
+- **Kartu QR (PDF):** di CMS, Photo Moments, *Kartu QR untuk meja*: pilih gaya (Nusantara dengan preset warnanya, Gulungan Kenangan, Bilik Foto, Cozy Home, atau Layar Perak; bawaannya mengikuti template aktif) dan ukuran kertas A4, A5, atau A6, lalu *Unduh PDF*. Resolusi 300 dpi, dan QR bisa diklik di pembaca PDF. Font diambil dari Google Fonts saat PDF dibuat, jadi butuh internet.
 - **Jepret:** kamera depan atau belakang, atau ambil dari galeri HP (juga jalan keluar bila kamera diblokir). Hasil otomatis 4:5 dan masih bisa digeser, di-zoom, dan diputar.
 - **Kamar gelap:** 20 look film (Terang, Kalem, Hangat, Nyeleneh) dengan slider kekuatan, lalu bisa ditumpuk: debu (5 taburan, ketuk lagi untuk ganti), light bleed (16 variasi), grain, 9 setelan manual, cap tanggal oranye, dan bingkai (putih, hitam, dua dengan teks keterangan, atau bingkai acara).
 - **Kirim:** foto masuk antrean di HP dan terkirim di belakang layar dengan bar progres; tamu langsung bisa jepret lagi. Tanpa sinyal, foto tersimpan di HP dan terkirim sendiri saat sinyal kembali. Ukuran asli disimpan untuk diunduh, salinan kecil untuk galeri.
 - **Galeri:** reaksi, komentar, simpan ukuran asli. Penghitung frame seperti kamera sekali pakai (bawaan 15 per tamu).
 - **Layar besar:** `/photo-moments/layar` untuk proyektor di lokasi: slideshow foto terbaru dengan QR untuk ikut memotret.
+- **Setelah acara:** *Unduh semua foto (ZIP)* di CMS: satu folder per tamu, ukuran asli, plus daftar foto (CSV). Foto yang menunggu dicek muncul sebagai angka di menu, dan bisa ditayangkan sekaligus.
 - **Aturan di CMS:** frame per tamu, tutup kamera, cek dulu sebelum tayang, siapa melihat apa, boleh unduh apa, look mana yang nyala, dan look awal. Foto yang menunggu dicek bisa ditayangkan atau disembunyikan, dan komentar bisa dihapus.
+
+## Tes
+
+```bash
+yarn lint    # type check
+yarn test    # tes unit dan tes database (PostgreSQL bawaan PGlite, tanpa konfigurasi)
+```
+
+Tes database memakai migrasi asli, jadi perubahan skema ikut teruji. CI (GitHub Actions) menjalankan lint, tes, dan build pada setiap push.
 
 ## Deploy produksi (Docker)
 
@@ -58,13 +98,15 @@ docker compose up -d --build
 docker compose ps        # app dan db harus "healthy"
 ```
 
-Yang terjadi saat container `app` menyala: migrasi Prisma dijalankan (`prisma migrate deploy`), database kosong diisi data demo sekali, lalu server berjalan di port 3000 sebagai user non-root.
+Yang terjadi saat container `app` menyala: migrasi Prisma dijalankan (`prisma migrate deploy`), database kosong diisi data demo sekali (matikan dengan `SEED_DEMO=false`, lalu isi data lewat `yarn db:import-json`), lalu server berjalan di port 3000 sebagai user non-root.
 
 - **Port:** aplikasi hanya dibuka di `127.0.0.1:3000` di host. Pasang reverse proxy dengan HTTPS di depannya (Caddy, Nginx, Traefik). Contoh Caddy: `undangan.example.com { reverse_proxy 127.0.0.1:3000 }`. Untuk membuka langsung tanpa proxy, set `APP_BIND=0.0.0.0`.
 - **Data:** volume `pgdata` (database) dan `uploads` (foto, video, pesan suara, foto tamu). Keduanya tetap ada saat `docker compose down`, dan baru terhapus dengan `down -v`.
 - **Health check:** `GET /api/health` mengembalikan `{"status":"ok"}` bila database terjangkau. Docker memakainya untuk status `healthy`.
 - **Keamanan:** di produksi aplikasi menolak menyala bila `ADMIN_PASSWORD`, `JWT_SECRET`, atau `JWT_REFRESH_SECRET` kosong, jadi nilai bawaan dari repo tidak pernah terpakai. PostgreSQL tidak dibuka ke host.
+- **Pembatasan & unggahan:** login, pengecekan kode undangan, ucapan, komentar, dan unggahan tamu dibatasi per alamat IP (atur `TRUST_PROXY` di belakang reverse proxy, kalau tidak semua pengunjung dianggap satu alamat). Jenis file unggahan dibaca dari isinya (gambar, video, audio saja), nama file diacak, dan file tamu yang tidak pernah dipakai dihapus otomatis setelah 24 jam. Alamat acara, tautan peta, dan rekening amplop hanya dikirim server setelah kode undangan valid. Tombol reset data demo mati di produksi kecuali `ALLOW_DEMO_RESET=true`.
 - **Cache:** file di `/assets` diberi cache 1 tahun (namanya sudah ber-hash), sedangkan `index.html` selalu divalidasi ulang, sehingga deploy baru langsung terlihat.
+- **Backup:** `./scripts/backup.sh` mencadangkan database dan folder unggahan, `./scripts/restore.sh` memulihkannya. Panduan lengkap, jadwal untuk hari H, dan cara menyimpan di luar server ada di [`docs/BACKUP.md`](docs/BACKUP.md).
 - **Berhenti:** `docker stop` mengirim SIGTERM; server menyelesaikan request yang sedang berjalan lalu menutup koneksi database.
 
 Perintah harian:

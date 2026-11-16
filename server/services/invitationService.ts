@@ -26,6 +26,9 @@ const THEME_KEYS: (keyof ThemeSettings)[] = [
   'templateId', 'themeColor', 'musicUrl', 'musicTitle', 'weddingDate', 'countdownTarget', 'whatsappNumber', 'whatsappTemplate',
 ];
 
+/** Fields of an event that only invited guests may read. */
+const redactEvent = (e: WeddingEvent): WeddingEvent => ({ ...e, address: '', mapsUrl: '', mapsEmbedUrl: undefined });
+
 const pick = <T extends object>(source: Partial<T>, keys: (keyof T)[]): Partial<T> =>
   Object.fromEntries(keys.filter((k) => source[k] !== undefined).map((k) => [k, source[k]])) as Partial<T>;
 
@@ -37,22 +40,40 @@ interface Deps {
   gallery: OrderedRepository<GalleryPhoto>;
   wishes: ReturnType<typeof wishRepository>;
   cameraSettings: ReturnType<typeof cameraSettingRepository>;
+  moments: { countPending(): Promise<number> };
+  attendanceRules: () => Promise<{ selfCheckIn: boolean; verifyLocation: boolean }>;
 }
 
 export function invitationService(d: Deps) {
   const core = async () => {
     const inv = await d.invitation.get();
-    if (!inv) throw new HttpError(503, 'Data undangan belum disiapkan. Jalankan seed database.');
+    if (!inv) throw new HttpError(503, 'Data undangan belum disiapkan. Impor data (`yarn db:import-json`) atau jalankan seed database.');
     return inv;
   };
 
   return {
     /** Everything the public page renders in one request. */
     async publicInvitation(): Promise<InvitationData> {
-      const [inv, events, gallery, loveStories, giftInfo, stats, camera] = await Promise.all([
-        core(), d.events.list(), d.gallery.list(), d.stories.list(), d.gifts.list(), d.wishes.stats(), d.cameraSettings.get(),
+      const [inv, events, gallery, loveStories, giftInfo, stats, camera, attendance] = await Promise.all([
+        core(), d.events.list(), d.gallery.list(), d.stories.list(), d.gifts.list(), d.wishes.stats(), d.cameraSettings.get(), d.attendanceRules(),
       ]);
-      return { ...inv, events, gallery, loveStories, giftInfo, stats, photoMoments: { access: camera.access, cameraOpen: camera.cameraOpen } };
+      // Addresses, map links and bank accounts leave the server only through guestDetails(), behind an invitation code.
+      return {
+        ...inv,
+        events: events.map(redactEvent),
+        gallery,
+        loveStories,
+        giftInfo: [],
+        stats,
+        photoMoments: { access: camera.access, cameraOpen: camera.cameraOpen, requireCheckIn: camera.requireCheckIn },
+        attendance,
+      };
+    },
+
+    /** The parts of the invitation held back from the public page. Callers must have verified an invitation code. */
+    async guestDetails(): Promise<Pick<InvitationData, 'events' | 'giftInfo'>> {
+      const [events, giftInfo] = await Promise.all([d.events.list(), d.gifts.list()]);
+      return { events, giftInfo };
     },
 
     async couple(): Promise<CoupleProfile> {
@@ -77,10 +98,10 @@ export function invitationService(d: Deps) {
     },
 
     async cmsStats(): Promise<CMSStatsData> {
-      const [stats, eventsCount, galleryCount, storiesCount, giftsCount, recentGuests] = await Promise.all([
-        d.wishes.stats(), d.events.count(), d.gallery.count(), d.stories.count(), d.gifts.count(), d.wishes.recent(5),
+      const [stats, eventsCount, galleryCount, storiesCount, giftsCount, recentGuests, pendingMoments] = await Promise.all([
+        d.wishes.stats(), d.events.count(), d.gallery.count(), d.stories.count(), d.gifts.count(), d.wishes.recent(5), d.moments.countPending(),
       ]);
-      return { stats, counts: { eventsCount, galleryCount, storiesCount, giftsCount }, recentGuests };
+      return { stats, counts: { eventsCount, galleryCount, storiesCount, giftsCount }, recentGuests, pendingMoments };
     },
 
     async general() {

@@ -11,8 +11,7 @@ import { Checkbox, Field, Input, Segmented, Select } from '../../ui/Field.js';
 import type { CameraSettings, MomentAccess, MomentDownload, MomentVisibility } from '@shared/types';
 
 const ACCESS: { value: MomentAccess; label: string; hint: string }[] = [
-  { value: 'CHECKED_IN', label: 'Sudah check-in', hint: 'Kamera terbuka setelah tamu dicatat hadir di meja penerima tamu.' },
-  { value: 'INVITED', label: 'Semua undangan', hint: 'Tamu cukup punya kode undangan yang valid.' },
+  { value: 'INVITED', label: 'Tamu undangan', hint: 'Tamu perlu kode undangan yang valid.' },
   { value: 'ANYONE', label: 'Siapa saja', hint: 'Cocok untuk QR di meja: tamu cukup menulis nama. Kode tetap bisa dipakai.' },
 ];
 
@@ -86,6 +85,12 @@ export const CameraRulesPanel: React.FC = () => {
           <Field label="Siapa yang bisa memotret" hint={ACCESS.find((a) => a.value === form.access)?.hint}>
             {() => <Segmented<MomentAccess> name="Akses kamera" value={form.access} options={ACCESS} onChange={(v) => set('access', v)} />}
           </Field>
+          <Checkbox
+            label="Tamu undangan wajib check-in dulu"
+            description="Tamu berkode baru bisa memotret setelah tercatat hadir, di meja penerima tamu atau lewat konfirmasi di HP mereka. Mati secara bawaan."
+            checked={form.requireCheckIn}
+            onChange={(e) => set('requireCheckIn', e.target.checked)}
+          />
           <Field label="Frame per tamu" hint="Jatah jepretan setiap tamu, seperti kamera sekali pakai (1 sampai 50).">
             {(p) => (
               <Input

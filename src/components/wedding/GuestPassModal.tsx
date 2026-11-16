@@ -1,6 +1,7 @@
 import React from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Modal } from '../ui/Modal.js';
+import { SelfCheckIn, type SelfCheckInRules } from './SelfCheckIn.js';
 import { Button } from '../ui/Button.js';
 import { StatusChip } from '../ui/StatusChip.js';
 import { useCopy } from '../../hooks/useCopy.js';
@@ -14,10 +15,12 @@ interface GuestPassModalProps {
   coupleNames: string;
   /** Present right after an RSVP, so the card shows what was confirmed. */
   rsvp?: { attendance: AttendanceStatus; pax: number } | null;
+  /** When the couple lets guests confirm their own attendance, the pass offers the button. */
+  selfCheckIn?: SelfCheckInRules;
 }
 
 /** The guest's QR card. Reception scans the 4-character code it encodes. */
-export const GuestPassModal: React.FC<GuestPassModalProps> = ({ open, onClose, guest, coupleNames, rsvp }) => {
+export const GuestPassModal: React.FC<GuestPassModalProps> = ({ open, onClose, guest, coupleNames, rsvp, selfCheckIn }) => {
   const { copy, copied } = useCopy();
 
   return (
@@ -45,6 +48,8 @@ export const GuestPassModal: React.FC<GuestPassModalProps> = ({ open, onClose, g
         <p className="display-numeral mt-3 text-3xl tracking-[0.3em]" aria-label={`Kode ${guest.slug.split('').join(' ')}`}>
           {guest.slug}
         </p>
+
+        <SelfCheckIn guest={guest} rules={selfCheckIn} className="mt-4 w-full" />
 
         {guest.isCheckedIn && <p className="mt-3 rounded-xs bg-ok-bg px-3 py-1.5 text-sm font-semibold text-ok">Sudah tercatat hadir</p>}
 

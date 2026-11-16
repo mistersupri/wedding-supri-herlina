@@ -1,6 +1,7 @@
 import type { Db, Prisma } from '../infrastructure/prisma.js';
 import type {
   AdminUser,
+  AttendanceSettings,
   AttendanceStatus,
   CameraSettings,
   GuestWish,
@@ -22,11 +23,13 @@ async function orNull<T>(op: Promise<T>): Promise<T | null> {
 }
 
 export const guestKey = (name: string) => name.trim().toLowerCase();
+/** Wish identity of an invited guest. */
+export const wishKeyFor = (slug: string) => `code:${slug.trim().toUpperCase()}`;
 
 // --- Guestbook wishes ---
 
 type WishRow = Awaited<ReturnType<Db['guestWish']['create']>>;
-const toWish = ({ guestKey: _k, ...r }: WishRow): GuestWish => ({
+const toWish = ({ guestKey: _k, guestSlug: _s, ...r }: WishRow): GuestWish => ({
   ...r,
   attendanceStatus: r.attendanceStatus as AttendanceStatus,
   createdAt: r.createdAt.toISOString(),
@@ -59,12 +62,17 @@ export function wishRepository(db: Db) {
       return (await db.guestWish.findMany({ orderBy: { createdAt: 'desc' }, take })).map(toWish);
     },
 
-    /** One wish per guest name: a second submission updates the attendance (and message, if given). */
-    async upsert(input: Omit<GuestWish, 'id' | 'createdAt' | 'isHidden' | 'reply'>): Promise<GuestWish> {
-      const key = guestKey(input.guestName);
+    async findBySlug(slug: string): Promise<GuestWish | null> {
+      const row = await db.guestWish.findUnique({ where: { guestKey: wishKeyFor(slug) } });
+      return row ? toWish(row) : null;
+    },
+
+    /** One wish per invitation code: a second submission updates the attendance (and message, if given). */
+    async upsert(input: Omit<GuestWish, 'id' | 'createdAt' | 'isHidden' | 'reply'>, slug: string): Promise<GuestWish> {
+      const key = wishKeyFor(slug);
       const row = await db.guestWish.upsert({
         where: { guestKey: key },
-        create: { ...input, voiceUrl: input.voiceUrl ?? null, guestKey: key },
+        create: { ...input, voiceUrl: input.voiceUrl ?? null, guestKey: key, guestSlug: slug },
         update: {
           attendanceStatus: input.attendanceStatus,
           numberOfGuests: input.numberOfGuests,
@@ -139,11 +147,13 @@ export function invitedGuestRepository(db: Db) {
       const r = await db.invitedGuest.findUnique({ where: { slug: slug.trim().toUpperCase() } });
       return r ? toInvited(r) : null;
     },
-    async findByName(name: string) {
+    /** Exact (case-insensitive) matches first; only when there are none, partial matches. At most `take` rows. */
+    async findByName(name: string, take = 2): Promise<InvitedGuest[]> {
       const q = name.trim();
-      const exact = await db.invitedGuest.findFirst({ where: { name: { equals: q, mode: 'insensitive' } } });
-      const r = exact ?? (await db.invitedGuest.findFirst({ where: { name: { contains: q, mode: 'insensitive' } } }));
-      return r ? toInvited(r) : null;
+      if (!q) return [];
+      const exact = await db.invitedGuest.findMany({ where: { name: { equals: q, mode: 'insensitive' } }, take });
+      const rows = exact.length ? exact : await db.invitedGuest.findMany({ where: { name: { contains: q, mode: 'insensitive' } }, take });
+      return rows.map(toInvited);
     },
     async slugs(): Promise<Set<string>> {
       return new Set((await db.invitedGuest.findMany({ select: { slug: true } })).map((g) => g.slug));
@@ -215,6 +225,12 @@ export function photoMomentRepository(db: Db) {
     async latestApproved(take: number) {
       return (await db.photoMoment.findMany({ where: { approved: true }, orderBy: { createdAt: 'desc' }, take })).map(toMoment);
     },
+    async countPending() {
+      return db.photoMoment.count({ where: { approved: false } });
+    },
+    async approveAllPending() {
+      return (await db.photoMoment.updateMany({ where: { approved: false }, data: { approved: true } })).count;
+    },
     async countApproved() {
       return db.photoMoment.count({ where: { approved: true } });
     },
@@ -226,6 +242,38 @@ export function photoMomentRepository(db: Db) {
     },
     async countByName(name: string) {
       return db.photoMoment.count({ where: { guestName: { equals: name.trim(), mode: 'insensitive' } } });
+    },
+    /** True when this uploaded file is already attached to a photo. */
+    async urlInUse(urls: string[]) {
+      return (await db.photoMoment.count({ where: { OR: [{ photoUrl: { in: urls } }, { originalUrl: { in: urls } }] } })) > 0;
+    },
+    /**
+     * Adds a photo only while the guest is under their frame limit. The count and the insert run in one
+     * transaction behind a per-guest lock, so photos uploaded in parallel cannot slip past the limit.
+     * Resolves to null when the limit is reached.
+     */
+    async createWithinQuota(
+      who: { slug?: string; name: string },
+      limit: number,
+      data: {
+        guestName: string;
+        guestSlug?: string;
+        photoUrl: string;
+        originalUrl?: string;
+        caption: string;
+        look?: string;
+        approved: boolean;
+      },
+    ) {
+      const lockKey = who.slug ? `moment:slug:${who.slug}` : `moment:name:${who.name.trim().toLowerCase()}`;
+      return db.$transaction(async (tx) => {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`;
+        const used = who.slug
+          ? await tx.photoMoment.count({ where: { guestSlug: who.slug } })
+          : await tx.photoMoment.count({ where: { guestName: { equals: who.name.trim(), mode: 'insensitive' } } });
+        if (used >= limit) return null;
+        return toMoment(await tx.photoMoment.create({ data }));
+      });
     },
     async create(data: {
       guestName: string;
@@ -242,8 +290,20 @@ export function photoMomentRepository(db: Db) {
       const r = await db.photoMoment.findUnique({ where: { id } });
       return r ? toMoment(r) : null;
     },
-    async saveReactions(id: string, reactions: Record<string, number>, likesCount: number) {
-      return toMoment(await db.photoMoment.update({ where: { id }, data: { reactions, likesCount } }));
+    /**
+     * Adds or removes one reaction. The photo row is locked while its counts are read and written, so
+     * simultaneous taps cannot overwrite each other, and `likesCount` is always the sum of `reactions`.
+     */
+    async react(id: string, emoji: string, delta: 1 | -1) {
+      return db.$transaction(async (tx) => {
+        const rows = await tx.$queryRaw<{ reactions: unknown }[]>`SELECT "reactions" FROM "PhotoMoment" WHERE "id" = ${id} FOR UPDATE`;
+        if (rows.length === 0) return null;
+        const reactions = { ...((rows[0].reactions ?? {}) as Record<string, number>) };
+        reactions[emoji] = Math.max(0, (reactions[emoji] || 0) + delta);
+        if (reactions[emoji] === 0) delete reactions[emoji];
+        const likesCount = Object.values(reactions).reduce((sum, n) => sum + n, 0);
+        return toMoment(await tx.photoMoment.update({ where: { id }, data: { reactions, likesCount } }));
+      });
     },
     async setApproved(id: string, approved: boolean) {
       return orNull(db.photoMoment.update({ where: { id }, data: { approved } }).then(toMoment));
@@ -283,7 +343,8 @@ export function photoCommentRepository(db: Db) {
 }
 
 export const DEFAULT_CAMERA_SETTINGS: CameraSettings = {
-  access: 'CHECKED_IN',
+  access: 'INVITED',
+  requireCheckIn: false,
   framesPerGuest: 15,
   cameraOpen: true,
   moderation: false,
@@ -294,8 +355,21 @@ export const DEFAULT_CAMERA_SETTINGS: CameraSettings = {
   screenEnabled: true,
 };
 
+export const DEFAULT_ATTENDANCE_SETTINGS: AttendanceSettings = {
+  selfCheckIn: false,
+  verifyLocation: true,
+  venueLat: null,
+  venueLng: null,
+  radiusMeters: 150,
+};
+
 export function cameraSettingRepository(db: Db) {
-  const map = ({ id: _id, ...r }: Awaited<ReturnType<Db['cameraSetting']['create']>>): CameraSettings => r;
+  // CHECKED_IN is the retired "invited and checked in" mode; it reads as INVITED with the switch on.
+  const map = ({ id: _id, access, requireCheckIn, ...r }: Awaited<ReturnType<Db['cameraSetting']['create']>>): CameraSettings => ({
+    ...r,
+    access: access === 'ANYONE' ? 'ANYONE' : 'INVITED',
+    requireCheckIn: requireCheckIn || access === 'CHECKED_IN',
+  });
   return {
     async get(): Promise<CameraSettings> {
       const r = await db.cameraSetting.findUnique({ where: { id: 'main' } });
@@ -303,6 +377,19 @@ export function cameraSettingRepository(db: Db) {
     },
     async save(settings: CameraSettings) {
       return map(await db.cameraSetting.upsert({ where: { id: 'main' }, create: { id: 'main', ...settings }, update: settings }));
+    },
+  };
+}
+
+export function attendanceSettingRepository(db: Db) {
+  const map = ({ id: _id, ...r }: Awaited<ReturnType<Db['attendanceSetting']['create']>>): AttendanceSettings => r;
+  return {
+    async get(): Promise<AttendanceSettings> {
+      const r = await db.attendanceSetting.findUnique({ where: { id: 'main' } });
+      return r ? map(r) : DEFAULT_ATTENDANCE_SETTINGS;
+    },
+    async save(settings: AttendanceSettings) {
+      return map(await db.attendanceSetting.upsert({ where: { id: 'main' }, create: { id: 'main', ...settings }, update: settings }));
     },
   };
 }

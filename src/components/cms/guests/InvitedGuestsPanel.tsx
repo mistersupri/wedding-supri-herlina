@@ -1,13 +1,15 @@
 import React, { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Search } from 'lucide-react';
-import { cmsApi } from '../../../lib/api.js';
+import { cmsApi, publicApi } from '../../../lib/api.js';
 import { queryKeys } from '../../../lib/queryKeys.js';
-import { guestInvitationUrl } from '../../../lib/format.js';
+import { coupleNames, guestInvitationUrl } from '../../../lib/format.js';
+import { loadInviteTemplate, renderInvite, whatsappLink } from '../../../lib/inviteMessage.js';
 import { useDebounce } from '../../../hooks/useDebounce.js';
 import { useCopy } from '../../../hooks/useCopy.js';
 import { Pagination, Stat, usePagination } from '../CmsPage.js';
 import { useToast } from '../Toast.js';
+import { InviteQueueModal, InviteTemplateModal } from './InviteSender.js';
 import { GUEST_CATEGORIES, GuestForm, emptyGuest, guestToInput, parseGuestLines } from './GuestForm.js';
 import { Button } from '../../ui/Button.js';
 import { Field, Input, Select, Textarea } from '../../ui/Field.js';
@@ -15,16 +17,6 @@ import { ConfirmDialog, Modal } from '../../ui/Modal.js';
 import { Chip } from '../../ui/StatusChip.js';
 import { EmptyState, ErrorState, LoadingState } from '../../ui/StateView.js';
 import type { InvitedGuest, InvitedGuestInput } from '@shared/types';
-
-const inviteMessage = (g: InvitedGuest) =>
-  `Kepada Yth. Bapak/Ibu/Saudara/i *${g.name}*\n\n` +
-  `Tanpa mengurangi rasa hormat, kami mengundang Anda untuk hadir di acara pernikahan kami.\n\n` +
-  `Undangan pribadi Anda:\n${guestInvitationUrl(g)}\n\nKode undangan: *${g.slug}*\n\nTerima kasih atas doa dan kehadirannya.`;
-
-const waLink = (g: InvitedGuest) => {
-  const phone = (g.phone || '').replace(/[^0-9]/g, '').replace(/^0/, '62');
-  return phone ? `https://wa.me/${phone}?text=${encodeURIComponent(inviteMessage(g))}` : null;
-};
 
 export const InvitedGuestsPanel: React.FC = () => {
   const client = useQueryClient();
@@ -35,12 +27,19 @@ export const InvitedGuestsPanel: React.FC = () => {
   const [sent, setSent] = useState<'ALL' | 'SENT' | 'UNSENT'>('ALL');
   const [editing, setEditing] = useState<{ guest: InvitedGuest | null } | null>(null);
   const [importOpen, setImportOpen] = useState(false);
+  const [templateOpen, setTemplateOpen] = useState(false);
+  const [queueOpen, setQueueOpen] = useState(false);
+  const [template, setTemplate] = useState(loadInviteTemplate);
   const [importText, setImportText] = useState('');
   const [toDelete, setToDelete] = useState<InvitedGuest | null>(null);
   const q = useDebounce(search, 250).trim().toLowerCase();
 
   const query = useQuery({ queryKey: queryKeys.cms.invitedGuests, queryFn: () => cmsApi.invitedGuests.list() });
   const guests = query.data?.data || [];
+  const invitation = useQuery({ queryKey: queryKeys.invitation, queryFn: publicApi.invitation, staleTime: 5 * 60_000 });
+  const couple = invitation.data ? coupleNames(invitation.data) : 'kami';
+  const inviteMessage = (g: InvitedGuest) => renderInvite(template, g, couple);
+  const waLink = (g: InvitedGuest) => whatsappLink(g.phone, inviteMessage(g));
   const stats = query.data?.stats;
 
   const filtered = useMemo(
@@ -111,32 +110,48 @@ export const InvitedGuestsPanel: React.FC = () => {
         </div>
       )}
 
-      <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
-        <label className="relative flex-1">
-          <span className="sr-only">Cari tamu</span>
-          <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-ink-soft" aria-hidden="true" />
-          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Cari nama, kode, telepon, meja" className="pl-9" />
-        </label>
-        <div className="grid grid-cols-2 gap-2 lg:flex">
-          <label>
-            <span className="sr-only">Kategori</span>
-            <Select value={category} onChange={(e) => setCategory(e.target.value)}>
-              <option value="ALL">Semua kategori</option>
-              {GUEST_CATEGORIES.map((c) => (
-                <option key={c}>{c}</option>
-              ))}
-            </Select>
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
+          <label className="relative flex-1">
+            <span className="sr-only">Cari tamu</span>
+            <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-ink-soft" aria-hidden="true" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Cari nama, kode, telepon, meja"
+              className="pl-9"
+            />
           </label>
-          <label>
-            <span className="sr-only">Status kirim</span>
-            <Select value={sent} onChange={(e) => setSent(e.target.value as typeof sent)}>
-              <option value="ALL">Semua status</option>
-              <option value="UNSENT">Belum dikirim</option>
-              <option value="SENT">Sudah dikirim</option>
-            </Select>
-          </label>
+          <div className="grid grid-cols-2 gap-2 lg:flex">
+            <label>
+              <span className="sr-only">Kategori</span>
+              <Select value={category} onChange={(e) => setCategory(e.target.value)}>
+                <option value="ALL">Semua kategori</option>
+                {GUEST_CATEGORIES.map((c) => (
+                  <option key={c}>{c}</option>
+                ))}
+              </Select>
+            </label>
+            <label>
+              <span className="sr-only">Status kirim</span>
+              <Select value={sent} onChange={(e) => setSent(e.target.value as typeof sent)}>
+                <option value="ALL">Semua status</option>
+                <option value="UNSENT">Belum dikirim</option>
+                <option value="SENT">Sudah dikirim</option>
+              </Select>
+            </label>
+          </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2 lg:justify-end">
+          <Button variant="secondary" onClick={() => setTemplateOpen(true)}>
+            Pesan
+          </Button>
+          <Button variant="secondary" onClick={() => setQueueOpen(true)}>
+            Kirim berurutan
+          </Button>
+          <Button variant="secondary" onClick={() => cmsApi.exportGuests().catch((e: Error) => notify(e.message, 'error'))}>
+            Ekspor CSV
+          </Button>
           <Button variant="secondary" onClick={() => setImportOpen(true)}>
             Impor daftar
           </Button>
@@ -225,6 +240,22 @@ export const InvitedGuestsPanel: React.FC = () => {
           </Button>
         )}
       </div>
+
+      <InviteTemplateModal
+        open={templateOpen}
+        onClose={() => setTemplateOpen(false)}
+        couple={couple}
+        sample={guests[0]}
+        onSaved={setTemplate}
+      />
+      <InviteQueueModal
+        open={queueOpen}
+        onClose={() => setQueueOpen(false)}
+        guests={guests}
+        template={template}
+        couple={couple}
+        onSent={(id) => markSent.mutate({ ids: [id], value: true })}
+      />
 
       <Modal
         open={editing !== null}
