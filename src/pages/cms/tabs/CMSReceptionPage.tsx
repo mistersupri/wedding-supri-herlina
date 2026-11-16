@@ -8,6 +8,7 @@ import { playCheckInSuccessSound, playErrorSound } from '../../../lib/sound.js';
 import { useDebounce } from '../../../hooks/useDebounce.js';
 import { PageHeader, Pagination, Panel, Stat, usePagination } from '../../../components/cms/CmsPage.js';
 import { useToast } from '../../../components/cms/Toast.js';
+import { AttendanceRulesPanel } from '../../../components/cms/reception/AttendanceRulesPanel.js';
 import { useQrScanner } from '../../../components/cms/reception/useQrScanner.js';
 import { Button, IconButton } from '../../../components/ui/Button.js';
 import { Checkbox, Field, Input, Segmented } from '../../../components/ui/Field.js';
@@ -134,6 +135,8 @@ export const CMSReceptionPage: React.FC = () => {
           <Stat label="Belum datang" value={stats.totalRemaining} />
         </div>
       )}
+
+      <AttendanceRulesPanel />
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Panel

@@ -41,6 +41,7 @@ interface Deps {
   wishes: ReturnType<typeof wishRepository>;
   cameraSettings: ReturnType<typeof cameraSettingRepository>;
   moments: { countPending(): Promise<number> };
+  attendanceRules: () => Promise<{ selfCheckIn: boolean; verifyLocation: boolean }>;
 }
 
 export function invitationService(d: Deps) {
@@ -53,8 +54,8 @@ export function invitationService(d: Deps) {
   return {
     /** Everything the public page renders in one request. */
     async publicInvitation(): Promise<InvitationData> {
-      const [inv, events, gallery, loveStories, giftInfo, stats, camera] = await Promise.all([
-        core(), d.events.list(), d.gallery.list(), d.stories.list(), d.gifts.list(), d.wishes.stats(), d.cameraSettings.get(),
+      const [inv, events, gallery, loveStories, giftInfo, stats, camera, attendance] = await Promise.all([
+        core(), d.events.list(), d.gallery.list(), d.stories.list(), d.gifts.list(), d.wishes.stats(), d.cameraSettings.get(), d.attendanceRules(),
       ]);
       // Addresses, map links and bank accounts leave the server only through guestDetails(), behind an invitation code.
       return {
@@ -64,7 +65,8 @@ export function invitationService(d: Deps) {
         loveStories,
         giftInfo: [],
         stats,
-        photoMoments: { access: camera.access, cameraOpen: camera.cameraOpen },
+        photoMoments: { access: camera.access, cameraOpen: camera.cameraOpen, requireCheckIn: camera.requireCheckIn },
+        attendance,
       };
     },
 

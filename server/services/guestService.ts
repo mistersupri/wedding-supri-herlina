@@ -177,7 +177,7 @@ export function guestService(repo: ReturnType<typeof invitedGuestRepository>) {
 
     async checkIn(
       identifier: { id?: string; slug?: string; nameQuery?: string },
-      options: { actualPax?: number; souvenirGiven?: boolean; method?: 'QR_SCAN' | 'MANUAL' },
+      options: { actualPax?: number; souvenirGiven?: boolean; method?: 'QR_SCAN' | 'MANUAL' | 'SELF' },
     ) {
       let guest: InvitedGuest | null = null;
       if (identifier.id) guest = await repo.findById(String(identifier.id));
@@ -206,7 +206,7 @@ export function guestService(repo: ReturnType<typeof invitedGuestRepository>) {
         : (await repo.update(guest.id, {
             isCheckedIn: true,
             checkInTime: new Date().toISOString(),
-            checkInMethod: options.method === 'MANUAL' || options.method === 'QR_SCAN' ? options.method : identifier.slug ? 'QR_SCAN' : 'MANUAL',
+            checkInMethod: options.method === 'MANUAL' || options.method === 'QR_SCAN' || options.method === 'SELF' ? options.method : identifier.slug ? 'QR_SCAN' : 'MANUAL',
             actualPax: pax ?? guest.pax,
             souvenirGiven: souvenir ?? true,
           }))!;

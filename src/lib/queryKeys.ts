@@ -23,6 +23,7 @@ export const queryKeys = {
     invitedGuests: ['cms', 'invited-guests'] as const,
     photoMoments: ['cms', 'photo-moments'] as const,
     frame: ['cms', 'frame'] as const,
+    attendanceSettings: ['cms', 'attendance-settings'] as const,
     cameraSettings: ['cms', 'camera-settings'] as const,
   },
 };

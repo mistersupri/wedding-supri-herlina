@@ -6,6 +6,7 @@ import type { Db } from './infrastructure/prisma.js';
 import { eventRepository, galleryRepository, giftRepository, storyRepository } from './repositories/contentRepositories.js';
 import {
   adminRepository,
+  attendanceSettingRepository,
   cameraSettingRepository,
   frameRepository,
   invitedGuestRepository,
@@ -14,6 +15,7 @@ import {
   wishRepository,
 } from './repositories/guestRepositories.js';
 import { invitationRepository } from './repositories/invitationRepository.js';
+import { attendanceService } from './services/attendanceService.js';
 import { authService } from './services/authService.js';
 import { exportService } from './services/exportService.js';
 import { guestService } from './services/guestService.js';
@@ -40,11 +42,23 @@ export function createServices(db: Db) {
   const invitedGuests = invitedGuestRepository(db);
   const cameraSettings = cameraSettingRepository(db);
 
+  const guestsService = guestService(invitedGuests);
+  const attendanceSettings = attendanceSettingRepository(db);
+  const attendance = attendanceService({ settings: attendanceSettings, guests: invitedGuests, guestService: guestsService });
+
   return {
     content,
-    invitation: invitationService({ invitation: invitationRepository(db), wishes, cameraSettings, moments: photoMomentRepository(db), ...content }),
+    attendance,
+    invitation: invitationService({
+      invitation: invitationRepository(db),
+      wishes,
+      cameraSettings,
+      attendanceRules: attendance.publicRules,
+      moments: photoMomentRepository(db),
+      ...content,
+    }),
     guestbook: guestbookService(wishes, invitedGuests),
-    guests: guestService(invitedGuests),
+    guests: guestsService,
     moments: photoMomentService({
       moments: photoMomentRepository(db),
       comments: photoCommentRepository(db),

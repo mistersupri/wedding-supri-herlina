@@ -241,6 +241,16 @@ export function cmsRoutes(s: Services): Router {
     route(async () => ({ data: await s.guests.stats() }), 'Gagal memuat statistik.'),
   );
 
+  // --- Self check-in rules ---
+  router.get(
+    '/cms/attendance-settings',
+    route(async () => ({ data: await s.attendance.get() }), 'Gagal memuat aturan kehadiran.'),
+  );
+  router.put(
+    '/cms/attendance-settings',
+    route(async (req) => ({ message: 'Aturan kehadiran tersimpan.', data: await s.attendance.save(req.body || {}) }), 'Gagal menyimpan aturan kehadiran.'),
+  );
+
   // --- Photo moments moderation ---
   router.get(
     '/cms/photo-moments/frame-config',

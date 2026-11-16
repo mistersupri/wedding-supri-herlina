@@ -9,7 +9,7 @@ const photo = (guestName: string, extra: Record<string, unknown> = {}) =>
 
 beforeEach(async () => {
   ctx = await freshServices();
-  await moments().saveSettings({ access: 'ANYONE', framesPerGuest: 3, cameraOpen: true, moderation: false });
+  await moments().saveSettings({ access: 'ANYONE', framesPerGuest: 3, cameraOpen: true, moderation: false, requireCheckIn: false });
 });
 afterAll(async () => ctx?.db.$disconnect());
 
@@ -29,7 +29,7 @@ describe('photo quota', () => {
 
   it('counts invited guests by code and requires check-in when the rule says so', async () => {
     const guest = await ctx.services.guests.create({ name: 'Ani', slug: 'ANIA' });
-    await moments().saveSettings({ access: 'CHECKED_IN' });
+    await moments().saveSettings({ access: 'INVITED', requireCheckIn: true });
     await expect(photo('Ani', { guestSlug: guest.slug })).rejects.toMatchObject({ status: 403 });
     await ctx.services.guests.checkIn({ id: guest.id }, {});
     await expect(photo('Ani', { guestSlug: guest.slug })).resolves.toBeTruthy();

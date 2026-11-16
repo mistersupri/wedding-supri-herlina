@@ -47,6 +47,15 @@ export function publicRoutes(s: Services): Router {
     route((req) => s.guests.verify(typeof req.body?.code === 'string' ? req.body.code : ''), 'Gagal memeriksa kode undangan.'),
   );
 
+  router.post(
+    '/public/check-in',
+    limits.checkIn,
+    route(
+      (req) => s.attendance.selfCheckIn(typeof req.body?.code === 'string' ? req.body.code : '', req.body?.position ?? {}),
+      'Gagal mencatat kehadiran.',
+    ),
+  );
+
   router.get(
     '/public/photo-moments/frame-config',
     route(async () => ({ data: await s.moments.frame() }), 'Gagal memuat bingkai foto.'),

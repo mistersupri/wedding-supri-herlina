@@ -64,6 +64,8 @@ export const limits = {
   verifyCode: rateLimit({ max: 60, windowMs: 10 * MINUTE, message: 'Terlalu banyak percobaan kode. Tunggu beberapa menit lalu coba lagi.' }),
   wish: rateLimit({ max: 60, windowMs: 10 * MINUTE, message: 'Terlalu banyak ucapan dikirim dari jaringan ini. Coba lagi nanti.' }),
   comment: rateLimit({ max: 60, windowMs: 10 * MINUTE, message: 'Terlalu banyak komentar. Coba lagi nanti.' }),
+  /** Self check-in: a few honest retries (GPS, permissions), not a loop. */
+  checkIn: rateLimit({ max: 40, windowMs: 10 * MINUTE, message: 'Terlalu banyak percobaan. Tunggu beberapa menit lalu coba lagi.' }),
   react: rateLimit({ max: 300, windowMs: MINUTE }),
   guestUpload: rateLimit({ max: 300, windowMs: 10 * MINUTE, message: 'Terlalu banyak unggahan dari jaringan ini. Coba lagi nanti.' }),
   addMoment: rateLimit({ max: 300, windowMs: 10 * MINUTE }),

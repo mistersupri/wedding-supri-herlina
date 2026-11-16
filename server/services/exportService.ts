@@ -35,7 +35,7 @@ export function exportService(deps: {
             stamp(g.invitationSentAt),
             g.isCheckedIn,
             stamp(g.checkInTime),
-            g.checkInMethod === 'QR_SCAN' ? 'Scan QR' : g.checkInMethod === 'MANUAL' ? 'Manual' : '',
+            g.checkInMethod === 'QR_SCAN' ? 'Scan QR' : g.checkInMethod === 'MANUAL' ? 'Manual' : g.checkInMethod === 'SELF' ? 'Mandiri (HP tamu)' : '',
             g.actualPax,
             g.souvenirGiven,
             `${origin}/?to=${encodeURIComponent(g.name)}&c=${g.slug}`,

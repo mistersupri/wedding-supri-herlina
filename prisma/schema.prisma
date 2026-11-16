@@ -30,6 +30,8 @@ enum MediaType {
 enum CheckInMethod {
   QR_SCAN
   MANUAL
+  /// The guest confirmed it on their own phone.
+  SELF
 }
 
 enum AdminRole {
@@ -211,7 +213,10 @@ enum MomentDownload {
 /// The couple's rules for the guest camera.
 model CameraSetting {
   id             String           @id @default("main")
-  access         MomentAccess     @default(CHECKED_IN)
+  /// CHECKED_IN is the old "invited and checked in" mode: it is rewritten to INVITED + requireCheckIn and never written again.
+  access         MomentAccess     @default(INVITED)
+  /// Invited guests must be checked in before they can use the camera.
+  requireCheckIn Boolean          @default(false)
   framesPerGuest Int              @default(15)
   cameraOpen     Boolean          @default(true)
   moderation     Boolean          @default(false)
@@ -221,6 +226,18 @@ model CameraSetting {
   enabledLooks   String[]         @default([])
   defaultLook    String           @default("none")
   screenEnabled  Boolean          @default(true)
+}
+
+/// Self check-in by guests. A single row (id "main").
+model AttendanceSetting {
+  id             String  @id @default("main")
+  /// Guests may mark themselves present from the invitation.
+  selfCheckIn    Boolean @default(false)
+  /// Require the phone to be within radiusMeters of the venue.
+  verifyLocation Boolean @default(true)
+  venueLat       Float?
+  venueLng       Float?
+  radiusMeters   Int     @default(150)
 }
 
 model PhotoFrameSetting {

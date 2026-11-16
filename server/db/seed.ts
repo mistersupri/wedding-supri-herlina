@@ -22,6 +22,7 @@ export async function seedDatabase(db: Db, data: LegacyData = createDemoData()) 
     await tx.photoComment.deleteMany();
     await tx.photoMoment.deleteMany();
     await tx.cameraSetting.deleteMany();
+    await tx.attendanceSetting.deleteMany();
     await tx.guestWish.deleteMany();
     await tx.invitedGuest.deleteMany();
     await tx.galleryPhoto.deleteMany();

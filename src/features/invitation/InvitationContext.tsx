@@ -28,12 +28,16 @@ interface InvitationContextValue {
   music: { available: boolean; playing: boolean; title: string; toggle: () => void };
 }
 
-/** The camera link, shown only to guests the couple's rule lets in (checked in, invited, or anyone). */
+/** The camera link, shown only to guests the couple's rule lets in (invited guests, checked in when required, or anyone). */
 function cameraHref(invitation: InvitationData, guest: PublicGuest | null) {
   const rule = invitation.photoMoments;
   if (rule && !rule.cameraOpen) return undefined;
-  const access = rule?.access ?? 'CHECKED_IN';
-  if (guest && (access !== 'CHECKED_IN' || guest.isCheckedIn)) return `/photo-moments?c=${guest.slug}&to=${encodeURIComponent(guest.name)}`;
+  const access = rule?.access ?? 'INVITED';
+  // A guest who still has to check in is sent to the camera page too when they can do it there from their phone.
+  const canCheckInHere = Boolean(invitation.attendance?.selfCheckIn);
+  if (guest && (!rule?.requireCheckIn || guest.isCheckedIn || canCheckInHere)) {
+    return `/photo-moments?c=${guest.slug}&to=${encodeURIComponent(guest.name)}`;
+  }
   return access === 'ANYONE' ? '/photo-moments' : undefined;
 }
 
@@ -133,6 +137,7 @@ export const InvitationProvider: React.FC<{ invitation: InvitationData; children
           guest={guest}
           coupleNames={names}
           rsvp={pass.rsvp}
+          selfCheckIn={invitation.attendance}
         />
       )}
     </InvitationContext.Provider>

@@ -34,7 +34,7 @@ async function assertStoredPhoto(url: unknown, message: string) {
 const isGenericName = (name: string) => !name.trim() || name.trim().toLowerCase() === 'tamu undangan';
 const clean = (v: unknown, max: number) => (typeof v === 'string' ? v.replace(/\s+/g, ' ').trim().slice(0, max) : '');
 
-const ACCESS = ['CHECKED_IN', 'INVITED', 'ANYONE'] as const;
+const ACCESS = ['INVITED', 'ANYONE'] as const;
 const VISIBILITY = ['ALL', 'OWN'] as const;
 const DOWNLOAD = ['NONE', 'OWN', 'ALL'] as const;
 const oneOf = <T extends string>(list: readonly T[], v: unknown, fallback: T): T => (list.includes(v as T) ? (v as T) : fallback);
@@ -48,8 +48,8 @@ export function photoMomentService(d: Deps) {
     const slug = clean(input.guestSlug, 8).toUpperCase();
     const guest = slug ? await d.guests.findBySlug(slug) : null;
     if (guest) {
-      if (settings.access === 'CHECKED_IN' && !guest.isCheckedIn) {
-        throw new HttpError(403, 'Kamera terbuka setelah Anda tercatat hadir di meja penerima tamu.');
+      if (settings.requireCheckIn && !guest.isCheckedIn) {
+        throw new HttpError(403, 'Kamera terbuka setelah Anda tercatat hadir. Konfirmasi kehadiran Anda atau lapor ke meja penerima tamu.', 'CHECK_IN_REQUIRED');
       }
       return { name: guest.name, slug: guest.slug };
     }
@@ -82,6 +82,7 @@ export function photoMomentService(d: Deps) {
       const current = await d.settings.get();
       const next: CameraSettings = {
         access: oneOf(ACCESS, input.access, current.access),
+        requireCheckIn: typeof input.requireCheckIn === 'boolean' ? input.requireCheckIn : current.requireCheckIn,
         framesPerGuest: Math.min(
           50,
           Math.max(1, Math.round(Number(input.framesPerGuest ?? current.framesPerGuest)) || DEFAULT_CAMERA_SETTINGS.framesPerGuest),

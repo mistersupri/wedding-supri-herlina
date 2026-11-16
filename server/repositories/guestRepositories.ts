@@ -1,6 +1,7 @@
 import type { Db, Prisma } from '../infrastructure/prisma.js';
 import type {
   AdminUser,
+  AttendanceSettings,
   AttendanceStatus,
   CameraSettings,
   GuestWish,
@@ -342,7 +343,8 @@ export function photoCommentRepository(db: Db) {
 }
 
 export const DEFAULT_CAMERA_SETTINGS: CameraSettings = {
-  access: 'CHECKED_IN',
+  access: 'INVITED',
+  requireCheckIn: false,
   framesPerGuest: 15,
   cameraOpen: true,
   moderation: false,
@@ -353,8 +355,21 @@ export const DEFAULT_CAMERA_SETTINGS: CameraSettings = {
   screenEnabled: true,
 };
 
+export const DEFAULT_ATTENDANCE_SETTINGS: AttendanceSettings = {
+  selfCheckIn: false,
+  verifyLocation: true,
+  venueLat: null,
+  venueLng: null,
+  radiusMeters: 150,
+};
+
 export function cameraSettingRepository(db: Db) {
-  const map = ({ id: _id, ...r }: Awaited<ReturnType<Db['cameraSetting']['create']>>): CameraSettings => r;
+  // CHECKED_IN is the retired "invited and checked in" mode; it reads as INVITED with the switch on.
+  const map = ({ id: _id, access, requireCheckIn, ...r }: Awaited<ReturnType<Db['cameraSetting']['create']>>): CameraSettings => ({
+    ...r,
+    access: access === 'ANYONE' ? 'ANYONE' : 'INVITED',
+    requireCheckIn: requireCheckIn || access === 'CHECKED_IN',
+  });
   return {
     async get(): Promise<CameraSettings> {
       const r = await db.cameraSetting.findUnique({ where: { id: 'main' } });
@@ -362,6 +377,19 @@ export function cameraSettingRepository(db: Db) {
     },
     async save(settings: CameraSettings) {
       return map(await db.cameraSetting.upsert({ where: { id: 'main' }, create: { id: 'main', ...settings }, update: settings }));
+    },
+  };
+}
+
+export function attendanceSettingRepository(db: Db) {
+  const map = ({ id: _id, ...r }: Awaited<ReturnType<Db['attendanceSetting']['create']>>): AttendanceSettings => r;
+  return {
+    async get(): Promise<AttendanceSettings> {
+      const r = await db.attendanceSetting.findUnique({ where: { id: 'main' } });
+      return r ? map(r) : DEFAULT_ATTENDANCE_SETTINGS;
+    },
+    async save(settings: AttendanceSettings) {
+      return map(await db.attendanceSetting.upsert({ where: { id: 'main' }, create: { id: 'main', ...settings }, update: settings }));
     },
   };
 }

@@ -1,5 +1,6 @@
 import type {
   AdminUser,
+  AttendanceSettings,
   AttendanceStatus,
   AuthResponse,
   CameraConfig,
@@ -178,6 +179,14 @@ export const publicApi = {
     voiceUrl?: string | null;
   }) => (await publicRequest('/public/guestbook', jsonInit('POST', input))).data as GuestWish,
 
+  /** Marks the guest present from their own phone. `position` is needed when the couple verifies location. */
+  selfCheckIn: async (code: string, position?: { lat: number; lng: number; accuracy?: number }) => {
+    const json = await publicRequest('/public/check-in', jsonInit('POST', { code: code.trim().toUpperCase(), position }));
+    return { isValid: true, guest: json.guest, message: json.message, alreadyCheckedIn: Boolean(json.alreadyCheckedIn) } as GuestAccessVerification & {
+      alreadyCheckedIn: boolean;
+    };
+  },
+
   /** Never throws: a network failure reads as "not verified". */
   verifyCode: async (code: string): Promise<GuestAccessVerification> => {
     try {
@@ -251,6 +260,11 @@ export const cmsApi = {
   theme: {
     get: () => adminData<ThemeSettings>('/cms/theme'),
     save: (input: Partial<ThemeSettings>) => adminData<ThemeSettings>('/cms/theme', jsonInit('PUT', input)),
+  },
+
+  attendance: {
+    get: () => adminData<AttendanceSettings>('/cms/attendance-settings'),
+    save: (input: Partial<AttendanceSettings>) => adminData<AttendanceSettings>('/cms/attendance-settings', jsonInit('PUT', input)),
   },
 
   events: collection<WeddingEvent>('/cms/events'),
