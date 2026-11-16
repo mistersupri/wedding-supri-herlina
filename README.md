@@ -19,7 +19,7 @@ File `.env` bersifat opsional untuk lokal. Salin `.env.example` bila ingin mengg
 
 - Undangan: `/`. Tautan pribadi tamu: `/?to=Nama%20Tamu&c=KODE`
 - CMS: `/cms` (login dengan `ADMIN_USERNAME` / `ADMIN_PASSWORD`)
-- Kamera tamu: `/photo-moments?c=KODE` (terbuka setelah tamu dicatat hadir)
+- Kamera tamu: `/photo-moments?c=KODE` (secara bawaan cukup kode undangan; bisa diwajibkan check-in dulu di CMS)
 
 ## Template undangan
 
@@ -40,11 +40,21 @@ Foto yang tampil di template selalu foto pasangan dari menu Mempelai, Kisah, dan
 - **Ekspor CSV:** daftar tamu (lengkap dengan status kirim dan check-in) serta ucapan & RSVP, siap dibuka di Excel atau Google Sheets.
 - **Ucapan:** satu ucapan per kode undangan; tamu hanya bisa mengirim dengan kode yang valid, dan jumlah kursi dibatasi sesuai daftar.
 
+## Kehadiran oleh tamu
+
+Di CMS, *Meja penerima tamu*, panel *Konfirmasi kehadiran oleh tamu*:
+
+- **Tamu boleh konfirmasi hadir sendiri** (mati secara bawaan): tombol *Saya sudah di lokasi* muncul di kartu tamu dan di halaman kamera tamu.
+- **Verifikasi lokasi** (aktif secara bawaan): peramban membaca posisi HP, dan server menerima konfirmasi hanya bila posisinya dalam radius (bawaan 150 m) dari koordinat lokasi acara. Isi koordinat dengan menempel dari Google Maps, tautan peta acara, atau tombol *Pakai lokasi saya sekarang*. Bila dimatikan, kode undangan yang valid sudah cukup.
+- Check-in mandiri tercatat dengan metode *Mandiri* dan jumlah hadir sesuai jatah kursi, tanpa suvenir. Meja penerima tamu tetap bisa menyesuaikan jumlah orang dan suvenir.
+- Lokasi dibaca dari peramban tamu, jadi ini mencegah konfirmasi dari rumah, bukan pengaman mutlak. Membaca lokasi butuh HTTPS (atau localhost) dan izin lokasi dari tamu.
+
 ## Kamera tamu (Photo Moments)
 
 Kamera sekali pakai yang jalan di peramban HP tamu, tanpa aplikasi. Diatur di CMS, menu **Photo Moments**.
 
-- **Masuk:** dari tautan undangan, atau dari kartu QR di meja (CMS > Photo Moments > Kartu QR untuk meja > Cetak kartu). Siapa yang boleh memotret: tamu yang sudah check-in, semua tamu berkode undangan, atau siapa saja yang menulis nama. Aturan ini juga diperiksa di server.
+- **Masuk:** dari tautan undangan, atau dari kartu QR di meja (CMS > Photo Moments > Kartu QR untuk meja). Siapa yang boleh memotret: tamu berkode undangan, atau siapa saja yang menulis nama. Opsi *Tamu undangan wajib check-in dulu* (mati secara bawaan) menahan tamu berkode sampai kehadirannya tercatat, di meja penerima tamu atau lewat konfirmasi di HP mereka. Aturan ini juga diperiksa di server.
+- **Kartu QR (PDF):** di CMS, Photo Moments, *Kartu QR untuk meja*: pilih gaya (Nusantara dengan preset warnanya, Gulungan Kenangan, Bilik Foto, Cozy Home, atau Layar Perak; bawaannya mengikuti template aktif) dan ukuran kertas A4, A5, atau A6, lalu *Unduh PDF*. Resolusi 300 dpi, dan QR bisa diklik di pembaca PDF. Font diambil dari Google Fonts saat PDF dibuat, jadi butuh internet.
 - **Jepret:** kamera depan atau belakang, atau ambil dari galeri HP (juga jalan keluar bila kamera diblokir). Hasil otomatis 4:5 dan masih bisa digeser, di-zoom, dan diputar.
 - **Kamar gelap:** 20 look film (Terang, Kalem, Hangat, Nyeleneh) dengan slider kekuatan, lalu bisa ditumpuk: debu (5 taburan, ketuk lagi untuk ganti), light bleed (16 variasi), grain, 9 setelan manual, cap tanggal oranye, dan bingkai (putih, hitam, dua dengan teks keterangan, atau bingkai acara).
 - **Kirim:** foto masuk antrean di HP dan terkirim di belakang layar dengan bar progres; tamu langsung bisa jepret lagi. Tanpa sinyal, foto tersimpan di HP dan terkirim sendiri saat sinyal kembali. Ukuran asli disimpan untuk diunduh, salinan kecil untuk galeri.

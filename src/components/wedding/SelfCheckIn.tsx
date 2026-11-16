@@ -26,7 +26,7 @@ function currentPosition(): Promise<{ lat: number; lng: number; accuracy: number
     navigator.geolocation.getCurrentPosition(
       (p) => resolve({ lat: p.coords.latitude, lng: p.coords.longitude, accuracy: p.coords.accuracy }),
       (e) => reject(new Error(POSITION_ERRORS[e.code] ?? POSITION_ERRORS[2])),
-      { enableHighAccuracy: true, timeout: 20_000, maximumAge: 10_000 },
+      { enableHighAccuracy: true, timeout: 20_000, maximumAge: 0 },
     );
   });
 }

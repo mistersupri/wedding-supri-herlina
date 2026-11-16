@@ -2,13 +2,15 @@ import type express from 'express';
 import type { NextFunction, Request, Response } from 'express';
 import { config } from '../../config.js';
 
+export const PERMISSIONS_POLICY = 'camera=(self), microphone=(self), geolocation=(self)';
+
 /** Baseline headers for every response. A full Content-Security-Policy is left out on purpose: the page embeds Google Maps and third-party media. */
 export function securityHeaders(_req: Request, res: Response, next: NextFunction) {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'SAMEORIGIN');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-  // The guest camera and voice notes need the camera and microphone of this origin only.
-  res.setHeader('Permissions-Policy', 'camera=(self), microphone=(self), geolocation=()');
+  // The guest camera, voice notes and self check-in need camera, microphone and location of this origin only.
+  res.setHeader('Permissions-Policy', PERMISSIONS_POLICY);
   if (config.isProduction) res.setHeader('Strict-Transport-Security', 'max-age=15552000');
   next();
 }
