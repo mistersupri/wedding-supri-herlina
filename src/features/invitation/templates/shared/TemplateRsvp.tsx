@@ -61,6 +61,29 @@ const RsvpForm: React.FC<TemplateRsvpProps> = ({ prefix: p, submitLabel, confett
   const f = useRsvpForm({ confettiColors });
   const { voice, existingWish } = f;
 
+  if (f.queued) {
+    return (
+      <div className={`${p}-form ${p}-summary`} aria-live="polite">
+        <p className={`${p}-label`}>Tersimpan di HP kamu</p>
+        <p className={`${p}-summary-name`}>Menunggu sinyal, {f.guest.name}</p>
+        <p className={`${p}-summary-line`}>
+          {ATTENDANCE_LABEL[f.queued.wish.attendanceStatus]}
+          {f.queued.wish.attendanceStatus === 'HADIR' ? ` · ${f.queued.wish.numberOfGuests} orang` : ''}
+        </p>
+        <p className={`${p}-summary-msg`}>“{f.queued.wish.message || (f.queued.hasVoice ? 'Pesan suara' : '')}”</p>
+        <p className={`${p}-note`}>
+          Tidak ada sambungan ke server. Akan terkirim sendiri begitu sinyal kembali. Bila belum, buka lagi undangan ini saat ada sinyal.
+        </p>
+        <button type="button" className={`${p}-submit`} onClick={f.sendQueuedNow} disabled={f.isSending}>
+          {f.isSending ? 'Mengirim...' : 'Kirim sekarang'}
+        </button>
+        <button type="button" className={`${p}-link`} onClick={f.cancelQueued}>
+          Batalkan dan ubah
+        </button>
+      </div>
+    );
+  }
+
   if (f.isSent && existingWish) {
     return (
       <div className={`${p}-form ${p}-summary`} aria-live="polite">

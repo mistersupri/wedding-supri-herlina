@@ -8,8 +8,16 @@ import './index.css';
 
 const queryClient = new QueryClient({
   defaultOptions: {
-    // Retrying an unreachable server only delays the offline fallbacks.
-    queries: { refetchOnWindowFocus: false, staleTime: 30_000, retry: (count, err) => !(err as { offline?: boolean }).offline && count < 1 },
+    // 'always': do not let the library hold requests while the browser reports offline. The service worker's
+    // saved answers and the wish queue handle a missing connection, and they need the request to actually run.
+    // Retrying an unreachable server only delays those fallbacks.
+    queries: {
+      networkMode: 'always',
+      refetchOnWindowFocus: false,
+      staleTime: 30_000,
+      retry: (count, err) => !(err as { offline?: boolean }).offline && count < 1,
+    },
+    mutations: { networkMode: 'always' },
   },
 });
 

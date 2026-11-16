@@ -3,6 +3,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 import { coupleNames } from '../../lib/format.js';
 import { publicApi } from '../../lib/api.js';
 import { warmImages } from '../../offline/register.js';
+import { startWishQueue } from '../../offline/wishQueue.instance.js';
 import { queryKeys } from '../../lib/queryKeys.js';
 import { useAuth } from '../../context/AuthContext.js';
 import { GuestPassModal } from '../../components/wedding/GuestPassModal.js';
@@ -82,6 +83,9 @@ export const InvitationProvider: React.FC<{ invitation: InvitationData; children
     [publicInvitation, details.data],
   );
   const names = coupleNames(invitation);
+
+  // Wishes saved while offline are sent as soon as the invitation is open and a signal is there.
+  useEffect(() => startWishQueue(), []);
 
   // Fetch the invitation's photos ahead of time, so they are there offline even if never scrolled to.
   useEffect(() => {

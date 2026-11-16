@@ -73,6 +73,8 @@ type Json = Record<string, any>;
 export class ApiError extends Error {
   /** The server could not be reached (no signal, server down, proxy error). The request itself may be fine. */
   offline = false;
+  /** HTTP status of the answer, when there was one. */
+  status?: number;
 }
 
 const unreachable = () => Object.assign(new ApiError('Tidak ada koneksi internet. Coba lagi saat sinyal kembali.'), { offline: true });
@@ -90,7 +92,7 @@ async function parse(res: Response): Promise<Json> {
   const json = (await res.json().catch(() => ({}))) as Json;
   if (!res.ok || json.success === false) {
     // 502, 503 and 504 come from a proxy in front of a server that is down or restarting.
-    throw Object.assign(new ApiError(json.message || `Permintaan gagal (${res.status}).`), { offline: [502, 503, 504].includes(res.status) });
+    throw Object.assign(new ApiError(json.message || `Permintaan gagal (${res.status}).`), { offline: [502, 503, 504].includes(res.status), status: res.status });
   }
   return json;
 }

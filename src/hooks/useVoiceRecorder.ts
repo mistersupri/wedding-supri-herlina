@@ -75,15 +75,17 @@ export function useVoiceRecorder(onTranscript: (text: string) => void) {
     }
   }, []);
 
-  /** Stops recording (if running), uploads the note and resolves to its URL. Rejects when the upload fails. */
-  const stop = useCallback(async (): Promise<string | null> => {
+  /** Stops recording (if running) and resolves to the recorded audio, without sending it anywhere. */
+  const recordedBlob = useCallback(async (): Promise<Blob | null> => {
     recognitionRef.current?.stop();
     recognitionRef.current = null;
     const recorder = recorderRef.current;
     if (recorder && recorder.state !== 'inactive') recorder.stop();
-    const blob = stoppedRef.current ? await stoppedRef.current : blobRef.current;
-    if (!blob) return null;
-    // A retry after a failed wish submit reuses the file that already reached the server.
+    return stoppedRef.current ? await stoppedRef.current : blobRef.current;
+  }, []);
+
+  /** Uploads the note and resolves to its URL. A retry after a failed wish reuses the file that already arrived. */
+  const upload = useCallback(async (blob: Blob): Promise<string> => {
     uploadedRef.current ??= await uploadFile(new File([blob], 'pesan-suara', { type: blob.type || 'audio/webm' }), 'voice');
     return uploadedRef.current;
   }, []);
@@ -107,5 +109,5 @@ export function useVoiceRecorder(onTranscript: (text: string) => void) {
 
   useEffect(() => clear, [clear]);
 
-  return { status, audioUrl, error, supported, start, stop, clear };
+  return { status, audioUrl, error, supported, start, stop: recordedBlob, recordedBlob, upload, clear };
 }
