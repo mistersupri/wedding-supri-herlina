@@ -104,10 +104,21 @@ export async function createApp(services: Services) {
   });
 
   if (config.isProduction) {
+    // The worker and manifest are not fingerprinted, so browsers must check them on every load to notice a new version.
+    app.get(['/sw.js', '/manifest.webmanifest'], (req, res, next) => {
+      res.setHeader('Cache-Control', 'no-cache');
+      if (req.path === '/sw.js') res.setHeader('Service-Worker-Allowed', '/');
+      next();
+    });
     // Vite fingerprints everything under /assets, so it can be cached for good; index.html must always be revalidated.
     app.use('/assets', express.static(path.join(config.distDir, 'assets'), { immutable: true, maxAge: '1y' }));
     app.use(express.static(config.distDir, { index: false }));
-    app.get('*', (_req, res) => {
+    app.get('*', (req, res) => {
+      // A missing file must be a 404, never the HTML shell: a browser or the service worker would take it for the script.
+      if (path.extname(req.path)) {
+        res.status(404).type('text/plain').send('Not found');
+        return;
+      }
       res.setHeader('Cache-Control', 'no-cache');
       res.sendFile(path.join(config.distDir, 'index.html'));
     });

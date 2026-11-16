@@ -2,6 +2,7 @@ import React, { Suspense, lazy } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { PublicInvitationPage } from './pages/PublicInvitationPage.js';
 import { LoadingState } from './components/ui/StateView.js';
+import { OfflineNotice } from './components/ui/OfflineNotice.js';
 
 // Guests only download the invitation; the camera page and the CMS load on demand.
 const named = <K extends string>(loader: () => Promise<Record<K, React.ComponentType>>, name: K) =>
@@ -26,6 +27,7 @@ const CMSSettingsTab = named(() => import('./pages/cms/tabs/CMSSettingsTab.js'),
 export default function App() {
   return (
     <BrowserRouter>
+      <OfflineNotice />
       <Suspense fallback={<LoadingState label="Memuat..." className="min-h-dvh" />}>
         <Routes>
           <Route path="/" element={<PublicInvitationPage />} />

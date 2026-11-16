@@ -19,7 +19,10 @@ export function useGuestAccess() {
     queryFn: () => publicApi.verifyCode(code),
     enabled: code.length === 4,
   });
-  const guest = verification.data?.isValid ? verification.data.guest : null;
+  // With no connection the code cannot be checked; a guest verified earlier on this device stays unlocked.
+  const stored = loadStoredGuest();
+  const checked = verification.data?.isValid ? verification.data.guest : null;
+  const guest = checked ?? (verification.data?.offline && stored?.slug === code ? stored : null);
 
   useEffect(() => {
     if (guest) storeGuest(guest);

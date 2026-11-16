@@ -1,3 +1,4 @@
+import { readLocal, writeLocal } from './guestSession.js';
 import type {
   AdminUser,
   AttendanceSettings,
@@ -69,12 +70,27 @@ export function clearAuthTokens() {
 
 type Json = Record<string, any>;
 
-export class ApiError extends Error {}
+export class ApiError extends Error {
+  /** The server could not be reached (no signal, server down, proxy error). The request itself may be fine. */
+  offline = false;
+}
+
+const unreachable = () => Object.assign(new ApiError('Tidak ada koneksi internet. Coba lagi saat sinyal kembali.'), { offline: true });
+
+/** fetch that reports a dead network as an ApiError marked offline, instead of a bare "Failed to fetch". */
+async function request(input: string, init?: RequestInit): Promise<Response> {
+  try {
+    return await fetch(input, init);
+  } catch {
+    throw unreachable();
+  }
+}
 
 async function parse(res: Response): Promise<Json> {
   const json = (await res.json().catch(() => ({}))) as Json;
   if (!res.ok || json.success === false) {
-    throw new ApiError(json.message || `Permintaan gagal (${res.status}).`);
+    // 502, 503 and 504 come from a proxy in front of a server that is down or restarting.
+    throw Object.assign(new ApiError(json.message || `Permintaan gagal (${res.status}).`), { offline: [502, 503, 504].includes(res.status) });
   }
   return json;
 }
@@ -87,7 +103,7 @@ const jsonInit = (method: string, body?: unknown): RequestInit => ({
 
 /** Unauthenticated request; resolves to the whole JSON body. */
 async function publicRequest(path: string, init?: RequestInit): Promise<Json> {
-  return parse(await fetch(API + path, init));
+  return parse(await request(API + path, init));
 }
 
 // One refresh in flight at a time, shared by every request that hit a 401.
@@ -121,11 +137,11 @@ function withToken(init: RequestInit = {}, token: string | null): RequestInit {
 
 /** Admin request; refreshes the token once on 401 and replays. Resolves to the whole JSON body. */
 async function adminRequest(path: string, init?: RequestInit): Promise<Json> {
-  let res = await fetch(API + path, withToken(init, getAccessToken()));
+  let res = await request(API + path, withToken(init, getAccessToken()));
   if (res.status === 401) {
     const token = await refreshAuthToken();
     if (!token) throw new ApiError('Sesi berakhir. Silakan masuk lagi.');
-    res = await fetch(API + path, withToken(init, token));
+    res = await request(API + path, withToken(init, token));
   }
   return parse(res);
 }
@@ -157,11 +173,20 @@ export const publicApi = {
   invitation: async () => (await publicRequest('/invitation')).data as InvitationData,
 
   /** Venue addresses, map links and gift accounts; the server answers only for a valid invitation code. */
-  guestDetails: async (code: string) =>
-    (await publicRequest('/public/guest-details', jsonInit('POST', { code: code.trim().toUpperCase() }))).data as Pick<
-      InvitationData,
-      'events' | 'giftInfo'
-    >,
+  guestDetails: async (code: string) => {
+    const clean = code.trim().toUpperCase();
+    const saved = `wedding_guest_details_${clean}`;
+    try {
+      const data = (await publicRequest('/public/guest-details', jsonInit('POST', { code: clean }))).data as Pick<InvitationData, 'events' | 'giftInfo'>;
+      // Kept on this device, so the venue address and gift accounts are still there with no signal.
+      writeLocal(saved, data);
+      return data;
+    } catch (err) {
+      const offline = readLocal<Pick<InvitationData, 'events' | 'giftInfo'> | null>(saved, null);
+      if ((err as ApiError).offline && offline) return offline;
+      throw err;
+    }
+  },
 
   /** Public wishes, plus the caller's own wish when their invitation code is given. */
   guestbook: async (code = ''): Promise<{ data: GuestWish[]; stats: RSVPStats; mine: GuestWish | null }> => {
@@ -193,7 +218,8 @@ export const publicApi = {
       const json = await publicRequest('/public/verify-access', jsonInit('POST', { code: code.trim().toUpperCase() }));
       return { isValid: Boolean(json.isValid), guest: json.guest || null, message: json.message };
     } catch (err) {
-      return { isValid: false, guest: null, message: (err as Error).message };
+      // `offline` tells the caller this is "could not check", not "not on the list".
+      return { isValid: false, guest: null, message: (err as Error).message, offline: (err as ApiError).offline === true };
     }
   },
 

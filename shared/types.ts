@@ -174,6 +174,8 @@ export interface GuestAccessVerification {
   isValid: boolean;
   guest: PublicGuest | null;
   message?: string;
+  /** The server could not be reached, so the code was neither accepted nor refused. */
+  offline?: boolean;
 }
 
 export interface PhotoMoment {

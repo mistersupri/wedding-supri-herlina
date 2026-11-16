@@ -40,6 +40,19 @@ Foto yang tampil di template selalu foto pasangan dari menu Mempelai, Kisah, dan
 - **Ekspor CSV:** daftar tamu (lengkap dengan status kirim dan check-in) serta ucapan & RSVP, siap dibuka di Excel atau Google Sheets.
 - **Ucapan:** satu ucapan per kode undangan; tamu hanya bisa mengirim dengan kode yang valid, dan jumlah kursi dibatasi sesuai daftar.
 
+## Mode offline
+
+Setelah tamu membuka undangan **satu kali dengan internet**, undangan itu tetap bisa dibuka tanpa sinyal atau saat server mati. Ini memakai service worker (hanya aktif di build produksi dan lewat HTTPS atau localhost).
+
+- **Tersimpan di HP tamu:** halaman dan semua template, data undangan, foto (hero, mempelai, kisah, galeri) yang diambil di latar belakang, ucapan terakhir, kode undangan tamu, serta alamat acara dan rekening amplop untuk tamu yang sudah memasukkan kode. Kartu tamu dan QR tetap tampil. Halaman kamera juga terbuka, dan foto yang dijepret antre di HP lalu terkirim saat sinyal kembali.
+- **Saat online, data selalu yang terbaru:** halaman dan data diambil dari server lebih dulu. Salinan tersimpan hanya dipakai bila server tidak menjawab (atau lambat lebih dari 3,5 detik, atau memberi error 5xx).
+- **Versi baru:** setelah deploy, tamu melihat pita "Versi baru undangan tersedia" dan menekan *Muat ulang*. Versi baru tidak mengambil alih sendiri, supaya halaman yang sedang terbuka tidak kehilangan berkasnya.
+- **Tidak tersimpan offline:** video hero, musik latar, peta Google Maps tersemat, dan foto dari alamat luar (bukan unggahan). Mengirim ucapan, konfirmasi hadir, dan memuat foto tamu lain butuh sinyal; pesan yang tampil menyebut bahwa koneksi tidak ada.
+- **Bisa dipasang seperti aplikasi:** peramban menawarkan "Tambahkan ke layar utama" (ikon dan manifest sudah ada).
+- **Yang tidak pernah disimpan:** halaman CMS, login, dan semua permintaan tulis.
+
+Kunjungan pertama tetap butuh internet, jadi kirim tautan undangan beberapa hari sebelum acara, dan sarankan tamu membukanya sekali di rumah.
+
 ## Kehadiran oleh tamu
 
 Di CMS, *Meja penerima tamu*, panel *Konfirmasi kehadiran oleh tamu*:

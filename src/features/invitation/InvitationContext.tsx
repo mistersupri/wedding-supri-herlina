@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { coupleNames } from '../../lib/format.js';
 import { publicApi } from '../../lib/api.js';
+import { warmImages } from '../../offline/register.js';
 import { queryKeys } from '../../lib/queryKeys.js';
 import { useAuth } from '../../context/AuthContext.js';
 import { GuestPassModal } from '../../components/wedding/GuestPassModal.js';
@@ -81,6 +82,18 @@ export const InvitationProvider: React.FC<{ invitation: InvitationData; children
     [publicInvitation, details.data],
   );
   const names = coupleNames(invitation);
+
+  // Fetch the invitation's photos ahead of time, so they are there offline even if never scrolled to.
+  useEffect(() => {
+    warmImages([
+      invitation.heroImage,
+      invitation.groomPhoto,
+      invitation.bridePhoto,
+      ...invitation.loveStories.map((s) => s.photoUrl),
+      ...invitation.gallery.map((g) => (g.mediaType === 'VIDEO' ? g.thumbnailUrl : g.url)),
+      ...invitation.giftInfo.map((g) => g.qrisImageUrl),
+    ]);
+  }, [invitation]);
 
   useEffect(() => {
     document.title = `Pernikahan ${names}`;

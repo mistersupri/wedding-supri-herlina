@@ -8,7 +8,8 @@ import './index.css';
 
 const queryClient = new QueryClient({
   defaultOptions: {
-    queries: { refetchOnWindowFocus: false, staleTime: 30_000, retry: 1 },
+    // Retrying an unreachable server only delays the offline fallbacks.
+    queries: { refetchOnWindowFocus: false, staleTime: 30_000, retry: (count, err) => !(err as { offline?: boolean }).offline && count < 1 },
   },
 });
 
