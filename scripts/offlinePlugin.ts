@@ -4,7 +4,7 @@ import path from 'path';
 import type { Plugin } from 'vite';
 
 /** Files from /public that guest pages use. logo.png (large, shown only in the CMS) is left out on purpose. */
-const PUBLIC_FILES = ['manifest.webmanifest', 'favicon.png', 'icon-192.png', 'apple-touch-icon.png'];
+const PUBLIC_FILES = ['manifest.webmanifest', 'favicon.png', 'icon-192.png', 'apple-touch-icon.png', 'media/envelope-opener.webm'];
 
 /** Pages and chunks only the admin needs; they stay out of the guests' precache and are cached when first visited. */
 const ADMIN_ONLY = /\/src\/pages\/cms\/|\/src\/pages\/MomentsScreenPage/;

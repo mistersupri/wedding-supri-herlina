@@ -16,7 +16,7 @@ Semua template membaca data yang sama, jadi berganti template tidak perlu mengis
 | **Gulungan Kenangan** | Kisah di gulungan film, tiket per acara, hitung mundur bioskop, layar lebar video prewedding |
 | **Bilik Foto** | Mesin photobooth, papan huruf jadwal, struk lokasi, ucapan sebagai strip foto |
 | **Cozy Home** | Dunia kecil di hutan, papan kayu, surat yang mengetik sendiri |
-| **Layar Perak** | Program bioskop gading dan emas, tiket tayang, lembar kontak, credit roll |
+| **Layar Perak** | Kertas hangat dan emas; sampul amplop bersegel (video pembuka), bunga anggrek berjatuhan, film strip, polaroid, buku tamu |
 
 ### 1.3. Isi undangan
 Hero (foto atau video) dan hitung mundur · profil mempelai dengan orang tua dan Instagram · kutipan · kisah cinta · jadwal acara dan *Tambah ke Google Calendar* · galeri foto dan video dengan lightbox · buku tamu · tanda kasih · pemutar musik terapung · navigasi bawah (Mempelai, Acara, Galeri, Ucapan, Kado, Kartu, Kamera).
