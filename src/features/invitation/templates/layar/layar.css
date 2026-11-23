@@ -393,6 +393,13 @@
 }
 
 /* ---------- greeting & quote */
+.lp .lp-corner-tl {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: min(300px, 26vw);
+  pointer-events: none;
+}
 .lp-salam {
   position: relative;
   padding: 70px 24px 48px;
@@ -1573,12 +1580,11 @@ input.lp-code {
     flex-wrap: wrap;
     gap: 4px 12px;
   }
-  .lp-corner-tl {
-    width: 40vw;
-    top: -24px;
+  .lp .lp-corner-tl {
+    width: 38vw;
   }
   .lp-salam {
-    padding-top: 120px;
+    padding-top: 84px;
   }
   .lp-quote {
     padding-bottom: 40px;
