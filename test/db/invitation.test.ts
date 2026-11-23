@@ -33,9 +33,24 @@ describe('public invitation', () => {
 describe('exports', () => {
   it('lists guests with check-in state and keeps typed text from becoming a formula', async () => {
     await ctx.db.invitedGuest.deleteMany();
-    await ctx.services.guests.create({ name: '=CMD()', phone: '+62 812' });
+    await ctx.services.guests.create({ name: '=CMD()', phone: '+62 812 3456 7890' });
     const csv = await ctx.services.exports.guestsCsv('https://undangan.example');
     expect(csv).toContain("'=CMD()");
     expect(csv).toContain('https://undangan.example/?to=');
+  });
+});
+
+describe('settings input', () => {
+  it('stores the WhatsApp destination as international digits and refuses nonsense', async () => {
+    const saved = await ctx.services.invitation.saveTheme({ whatsappNumber: '0812-3456-7890' });
+    expect(saved.whatsappNumber).toBe('6281234567890');
+    await expect(ctx.services.invitation.saveTheme({ whatsappNumber: 'hubungi saya' })).rejects.toMatchObject({ status: 400 });
+  });
+
+  it('reduces Instagram links to the bare name on the couple profile', async () => {
+    const saved = await ctx.services.invitation.saveCouple({ groomInstagram: '@arya.pradipta', brideInstagram: 'instagram.com/nadhira.k/' });
+    expect(saved.groomInstagram).toBe('arya.pradipta');
+    expect(saved.brideInstagram).toBe('nadhira.k');
+    await expect(ctx.services.invitation.saveCouple({ groomInstagram: 'a b!c' })).rejects.toMatchObject({ status: 400 });
   });
 });

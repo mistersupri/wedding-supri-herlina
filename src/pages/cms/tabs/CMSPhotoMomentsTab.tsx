@@ -211,7 +211,7 @@ export const CMSPhotoMomentsTab: React.FC = () => {
         <Input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Cari nama tamu, kode, atau keterangan"
+          type="search" inputMode="search" enterKeyHint="search" autoComplete="off" placeholder="Cari nama tamu, kode, atau keterangan"
           className="pl-9"
         />
       </label>

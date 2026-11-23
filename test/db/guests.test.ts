@@ -82,3 +82,24 @@ describe('check-in', () => {
     expect(undone.guest).toMatchObject({ isCheckedIn: false, checkInTime: null, actualPax: null, souvenirGiven: false });
   });
 });
+
+describe('phone and Instagram', () => {
+  it('tidies a phone number and an Instagram link on create', async () => {
+    const g = await guests().create({ name: 'Rina', phone: '+62 812 3456 7890', instagram: ' https://instagram.com/rina.s/?hl=id ' });
+    expect(g.phone).toBe('0812-3456-7890');
+    expect(g.instagram).toBe('rina.s');
+  });
+
+  it('refuses a number that cannot be read, on create and on edit', async () => {
+    await expect(guests().create({ name: 'Rina', phone: 'nomor saya' })).rejects.toMatchObject({ status: 400 });
+    const g = await guests().create({ name: 'Rina' });
+    await expect(guests().update(g.id, { phone: '0812' })).rejects.toMatchObject({ status: 400 });
+    await expect(guests().update(g.id, { instagram: 'a b!c' })).rejects.toMatchObject({ status: 400 });
+    expect((await guests().update(g.id, { phone: '08123456789' })).phone).toBe('0812-3456-789');
+  });
+
+  it('drops an unreadable number in a bulk import instead of failing the list', async () => {
+    const made = await guests().createMany([{ name: 'A', phone: '0812 3456 7890' }, { name: 'B', phone: '???' }, { name: 'C' }]);
+    expect(made.map((m) => m.phone)).toEqual(['0812-3456-7890', '', '']);
+  });
+});

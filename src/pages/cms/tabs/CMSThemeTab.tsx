@@ -8,6 +8,10 @@ import { PageHeader, Panel } from '../../../components/cms/CmsPage.js';
 import { useToast } from '../../../components/cms/Toast.js';
 import { Button } from '../../../components/ui/Button.js';
 import { Field, Input, Textarea } from '../../../components/ui/Field.js';
+import { PhoneField } from '../../../components/ui/fields.js';
+import { MediaField } from '../../../components/cms/MediaField.js';
+import { parsePhone } from '@shared/phone';
+import { required, useFormErrors } from '../../../components/cms/useFormErrors.js';
 import { ErrorState, LoadingState } from '../../../components/ui/StateView.js';
 import type { ThemeSettings } from '@shared/types';
 
@@ -24,6 +28,7 @@ export const CMSThemeTab: React.FC = () => {
   const notify = useToast();
   const { data, isLoading, isError, refetch } = useQuery({ queryKey: queryKeys.cms.theme, queryFn: cmsApi.theme.get });
   const [form, setForm] = useState<ThemeSettings | null>(null);
+  const { errors, clear, validate, formRef } = useFormErrors<'musicTitle' | 'whatsappNumber' | 'weddingDate' | 'countdownTarget'>();
 
   useEffect(() => {
     if (data) setForm(data);
@@ -42,13 +47,24 @@ export const CMSThemeTab: React.FC = () => {
   if (isLoading) return <LoadingState label="Memuat pengaturan..." />;
   if (isError || !form) return <ErrorState title="Pengaturan belum bisa dimuat." onRetry={() => refetch()} />;
 
-  const set = <K extends keyof ThemeSettings>(key: K, value: ThemeSettings[K]) => setForm((f) => (f ? { ...f, [key]: value } : f));
+  const set = <K extends keyof ThemeSettings>(key: K, value: ThemeSettings[K]) => {
+    setForm((f) => (f ? { ...f, [key]: value } : f));
+    clear(key as 'musicTitle');
+  };
 
   return (
     <form
+      ref={formRef}
+      noValidate
       onSubmit={(e) => {
         e.preventDefault();
-        save.mutate(form);
+        const ok = validate({
+          weddingDate: !form.weddingDate ? 'Isi tanggal dan jam pernikahan.' : null,
+          countdownTarget: !form.countdownTarget ? 'Isi target hitung mundur.' : null,
+          musicTitle: form.musicUrl && !form.musicTitle.trim() ? 'Isi judul lagu agar tamu tahu yang sedang diputar.' : null,
+          whatsappNumber: form.whatsappNumber.trim() && !parsePhone(form.whatsappNumber) ? 'Nomor belum benar. Contoh: 0812-3456-7890.' : null,
+        });
+        if (ok) save.mutate(form);
       }}
     >
       <PageHeader
@@ -125,7 +141,7 @@ export const CMSThemeTab: React.FC = () => {
 
         <Panel title="Tanggal">
           <div className="space-y-4">
-            <Field label="Tanggal & jam pernikahan" hint="Tampil di sampul dan dipakai untuk Google Calendar.">
+            <Field label="Tanggal & jam pernikahan" error={errors.weddingDate} hint="Tampil di sampul dan dipakai untuk Google Calendar.">
               {(p) => (
                 <Input
                   {...p}
@@ -136,7 +152,7 @@ export const CMSThemeTab: React.FC = () => {
                 />
               )}
             </Field>
-            <Field label="Hitung mundur menuju" hint="Biasanya sama dengan jam akad.">
+            <Field label="Hitung mundur menuju" error={errors.countdownTarget} hint="Biasanya sama dengan jam akad.">
               {(p) => (
                 <Input
                   {...p}
@@ -152,13 +168,19 @@ export const CMSThemeTab: React.FC = () => {
 
         <Panel title="Musik latar" description="Mulai diputar saat tamu membuka sampul.">
           <div className="space-y-4">
-            <Field label="Judul lagu">
-              {(p) => <Input {...p} value={form.musicTitle} onChange={(e) => set('musicTitle', e.target.value)} />}
+            <MediaField
+              label="File lagu"
+              category="general"
+              kinds={['audio']}
+              maxMB={{ audio: 15 }}
+              noUrl={false}
+              value={form.musicUrl}
+              onChange={(url) => set('musicUrl', url)}
+              hint="MP3 atau M4A, maksimal 15 MB; sekitar 5 MB sudah cukup dan hemat kuota tamu. Hapus file untuk mematikan musik."
+            />
+            <Field label="Judul lagu" error={errors.musicTitle} hint="Tampil di pemutar musik. Cantumkan penyanyi bila perlu.">
+              {(p) => <Input {...p} maxLength={80} autoComplete="off" autoCapitalize="words" value={form.musicTitle} onChange={(e) => set('musicTitle', e.target.value)} />}
             </Field>
-            <Field label="URL file audio" hint="MP3 yang bisa diakses publik. Kosongkan untuk mematikan musik.">
-              {(p) => <Input {...p} type="url" value={form.musicUrl} onChange={(e) => set('musicUrl', e.target.value)} />}
-            </Field>
-            {form.musicUrl && <audio src={form.musicUrl} controls preload="none" className="w-full" aria-label="Dengarkan musik latar" />}
           </div>
         </Panel>
 
@@ -168,18 +190,13 @@ export const CMSThemeTab: React.FC = () => {
           className="lg:col-span-2"
         >
           <div className="grid gap-4 lg:grid-cols-[18rem_1fr]">
-            <Field label="Nomor WhatsApp tujuan" hint="Format internasional tanpa +, contoh 6281234567890.">
-              {(p) => (
-                <Input
-                  {...p}
-                  inputMode="tel"
-                  value={form.whatsappNumber}
-                  onChange={(e) => set('whatsappNumber', e.target.value.replace(/[^0-9]/g, ''))}
-                />
-              )}
-            </Field>
-            <Field label="Isi pesan" hint="Kata yang diganti otomatis: {nama_tamu}, {status_kehadiran}, {jumlah_tamu}, {ucapan}.">
-              {(p) => <Textarea {...p} rows={4} value={form.whatsappTemplate} onChange={(e) => set('whatsappTemplate', e.target.value)} />}
+            <PhoneField label="Nomor WhatsApp tujuan" format="international" optional value={form.whatsappNumber} onChange={(v) => set('whatsappNumber', v)} error={errors.whatsappNumber} />
+            <Field
+              label="Isi pesan"
+              counter={{ value: form.whatsappTemplate.length, max: 500 }}
+              hint="Kata yang diganti otomatis: {nama_tamu}, {status_kehadiran}, {jumlah_tamu}, {ucapan}."
+            >
+              {(p) => <Textarea {...p} rows={4} maxLength={500} value={form.whatsappTemplate} onChange={(e) => set('whatsappTemplate', e.target.value)} />}
             </Field>
           </div>
         </Panel>

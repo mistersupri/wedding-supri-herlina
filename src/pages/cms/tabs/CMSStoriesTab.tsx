@@ -6,6 +6,7 @@ import { MediaField } from '../../../components/cms/MediaField.js';
 import { useCollection } from '../../../components/cms/useCollection.js';
 import { Button } from '../../../components/ui/Button.js';
 import { Field, Input, Textarea } from '../../../components/ui/Field.js';
+import { required, useFormErrors } from '../../../components/cms/useFormErrors.js';
 import { ConfirmDialog, Modal } from '../../../components/ui/Modal.js';
 import { EmptyState, ErrorState, LoadingState } from '../../../components/ui/StateView.js';
 import type { LoveStoryItem } from '@shared/types';
@@ -16,7 +17,11 @@ export const CMSStoriesTab: React.FC = () => {
   const { query, items, save, remove } = useCollection(queryKeys.cms.stories, cmsApi.stories, 'Kisah');
   const [draft, setDraft] = useState<Partial<LoveStoryItem> | null>(null);
   const [toDelete, setToDelete] = useState<LoveStoryItem | null>(null);
-  const set = (key: keyof LoveStoryItem, value: string) => setDraft((d) => (d ? { ...d, [key]: value } : d));
+  const { errors, clear, validate, formRef } = useFormErrors<'year' | 'title' | 'description'>();
+  const set = (key: keyof LoveStoryItem, value: string) => {
+    setDraft((d) => (d ? { ...d, [key]: value } : d));
+    clear(key as 'year');
+  };
 
   return (
     <>
@@ -73,29 +78,53 @@ export const CMSStoriesTab: React.FC = () => {
         {draft && (
           <form
             id="story-form"
+            ref={formRef}
+            noValidate
             className="space-y-4"
             onSubmit={(e) => {
               e.preventDefault();
-              save.mutate(draft, { onSuccess: () => setDraft(null) });
+              const year = (draft.year || '').trim();
+              const ok = validate({
+                year: !year ? 'Isi tahun.' : !/^(19|20)\d{2}$/.test(year) ? 'Tulis tahun 4 angka, contoh: 2023.' : null,
+                title: required(draft.title, 'Judul'),
+                description: required(draft.description, 'Cerita'),
+              });
+              if (ok) save.mutate(draft, { onSuccess: () => setDraft(null) });
             }}
           >
-            <Field label="Tahun">
-              {(p) => <Input {...p} required value={draft.year || ''} onChange={(e) => set('year', e.target.value)} placeholder="2023" />}
-            </Field>
-            <Field label="Judul">
-              {(p) => <Input {...p} required value={draft.title || ''} onChange={(e) => set('title', e.target.value)} />}
-            </Field>
-            <Field label="Cerita">
+            <Field label="Tahun" error={errors.year} hint="Empat angka. Kisah diurutkan menurut urutan daftar.">
               {(p) => (
-                <Textarea {...p} rows={4} required value={draft.description || ''} onChange={(e) => set('description', e.target.value)} />
+                <Input
+                  {...p}
+                  required
+                  inputMode="numeric"
+                  pattern="(19|20)[0-9]{2}"
+                  maxLength={4}
+                  autoComplete="off"
+                  className="w-32"
+                  value={draft.year || ''}
+                  onChange={(e) => set('year', e.target.value.replace(/\D/g, ''))}
+                  placeholder="2023"
+                />
+              )}
+            </Field>
+            <Field label="Judul" error={errors.title} counter={{ value: (draft.title || '').length, max: 60 }}>
+              {(p) => <Input {...p} required maxLength={60} autoComplete="off" value={draft.title || ''} onChange={(e) => set('title', e.target.value)} />}
+            </Field>
+            <Field label="Cerita" error={errors.description} counter={{ value: (draft.description || '').length, max: 400 }}>
+              {(p) => (
+                <Textarea {...p} rows={4} required maxLength={400} value={draft.description || ''} onChange={(e) => set('description', e.target.value)} />
               )}
             </Field>
             <MediaField
               label="Foto (opsional)"
               aspect="portrait"
               category="gallery"
+              maxDimension={1400}
+              minWidth={600}
               value={draft.photoUrl || ''}
               onChange={(url) => set('photoUrl', url)}
+              hint="Potret tegak 4:5 paling pas dalam bingkai gunungan."
             />
           </form>
         )}

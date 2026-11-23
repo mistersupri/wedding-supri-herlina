@@ -5,6 +5,9 @@ import { PageHeader } from '../../../components/cms/CmsPage.js';
 import { useCollection } from '../../../components/cms/useCollection.js';
 import { Button } from '../../../components/ui/Button.js';
 import { Field, Input, Textarea } from '../../../components/ui/Field.js';
+import { DateField, TimeRangeFields } from '../../../components/ui/fields.js';
+import { checkMapsEmbed, checkMapsLink, extractEmbedSrc, isAfter, parseEventTime, parseIdDate } from '../../../lib/inputs.js';
+import { required, useFormErrors } from '../../../components/cms/useFormErrors.js';
 import { ConfirmDialog, Modal } from '../../../components/ui/Modal.js';
 import { EmptyState, ErrorState, LoadingState } from '../../../components/ui/StateView.js';
 import type { WeddingEvent } from '@shared/types';
@@ -27,8 +30,12 @@ export const CMSEventsTab: React.FC = () => {
   const { query, items, save, remove } = useCollection(queryKeys.cms.events, cmsApi.events, 'Acara');
   const [draft, setDraft] = useState<Partial<WeddingEvent> | null>(null);
   const [toDelete, setToDelete] = useState<WeddingEvent | null>(null);
+  const { errors, clear, validate, formRef } = useFormErrors<'title' | 'date' | 'startTime' | 'endTime' | 'venueName' | 'address' | 'mapsUrl' | 'mapsEmbedUrl'>();
 
-  const set = (key: keyof WeddingEvent, value: string | number) => setDraft((d) => (d ? { ...d, [key]: value } : d));
+  const set = (key: keyof WeddingEvent, value: string | number) => {
+    setDraft((d) => (d ? { ...d, [key]: value } : d));
+    clear(key as 'title');
+  };
   const text = (key: keyof WeddingEvent) => (draft?.[key] as string) || '';
 
   return (
@@ -95,69 +102,82 @@ export const CMSEventsTab: React.FC = () => {
         {draft && (
           <form
             id="event-form"
+            ref={formRef}
+            noValidate
             className="grid gap-4 sm:grid-cols-2"
             onSubmit={(e) => {
               e.preventDefault();
-              save.mutate(draft, { onSuccess: () => setDraft(null) });
+              const start = parseEventTime(text('startTime'));
+              const end = parseEventTime(text('endTime'));
+              const ok = validate({
+                title: required(text('title'), 'Nama acara'),
+                date: !text('date').trim() ? 'Pilih tanggal acara.' : !parseIdDate(text('date')) ? 'Tanggal belum terbaca. Pilih dari kalender.' : null,
+                startTime: !start.time ? 'Isi jam mulai.' : null,
+                endTime: !end.time ? 'Isi jam selesai.' : !isAfter(end.time, start.time) ? 'Jam selesai harus setelah jam mulai.' : null,
+                venueName: required(text('venueName'), 'Nama tempat'),
+                address: required(text('address'), 'Alamat'),
+                mapsUrl: !text('mapsUrl') ? 'Tempel tautan Google Maps.' : checkMapsLink(text('mapsUrl')),
+                mapsEmbedUrl: checkMapsEmbed(text('mapsEmbedUrl')),
+              });
+              if (ok) save.mutate(draft, { onSuccess: () => setDraft(null) });
             }}
           >
-            <Field label="Nama acara" className="sm:col-span-2">
+            <Field label="Nama acara" error={errors.title} className="sm:col-span-2">
               {(p) => (
-                <Input {...p} required value={text('title')} onChange={(e) => set('title', e.target.value)} placeholder="Akad Nikah" />
+                <Input {...p} required maxLength={60} autoComplete="off" autoCapitalize="words" value={text('title')} onChange={(e) => set('title', e.target.value)} placeholder="Akad Nikah" />
               )}
             </Field>
-            <Field label="Tanggal" hint="Ditulis apa adanya, contoh: Jumat, 20 November 2026" className="sm:col-span-2">
-              {(p) => <Input {...p} required value={text('date')} onChange={(e) => set('date', e.target.value)} />}
+            <DateField value={text('date')} onChange={(v) => set('date', v)} error={errors.date} className="sm:col-span-2" />
+            <TimeRangeFields
+              start={text('startTime')}
+              end={text('endTime')}
+              error={errors.startTime || errors.endTime}
+              onChange={(s, e2) => {
+                setDraft((d) => (d ? { ...d, startTime: s, endTime: e2 } : d));
+                clear('startTime');
+                clear('endTime');
+              }}
+            />
+            <Field label="Nama tempat" error={errors.venueName} className="sm:col-span-2">
+              {(p) => <Input {...p} required maxLength={100} autoComplete="off" autoCapitalize="words" value={text('venueName')} onChange={(e) => set('venueName', e.target.value)} />}
             </Field>
-            <Field label="Mulai">
+            <Field label="Alamat" error={errors.address} counter={{ value: text('address').length, max: 300 }} hint="Hanya tampil untuk tamu yang memakai kode undangan." className="sm:col-span-2">
+              {(p) => <Textarea {...p} rows={2} required maxLength={300} value={text('address')} onChange={(e) => set('address', e.target.value)} />}
+            </Field>
+            <Field label="Tautan Google Maps" error={errors.mapsUrl} hint="Di Google Maps: Bagikan, Salin link." className="sm:col-span-2">
               {(p) => (
-                <Input
-                  {...p}
-                  required
-                  value={text('startTime')}
-                  onChange={(e) => set('startTime', e.target.value)}
-                  placeholder="08:00 WIB"
-                />
+                <Input {...p} type="url" inputMode="url" required autoComplete="off" spellCheck={false} placeholder="https://maps.app.goo.gl/..." value={text('mapsUrl')} onChange={(e) => set('mapsUrl', e.target.value.trim())} />
               )}
-            </Field>
-            <Field label="Selesai">
-              {(p) => (
-                <Input {...p} required value={text('endTime')} onChange={(e) => set('endTime', e.target.value)} placeholder="10:00 WIB" />
-              )}
-            </Field>
-            <Field label="Nama tempat" className="sm:col-span-2">
-              {(p) => <Input {...p} required value={text('venueName')} onChange={(e) => set('venueName', e.target.value)} />}
-            </Field>
-            <Field label="Alamat" className="sm:col-span-2">
-              {(p) => <Textarea {...p} rows={2} required value={text('address')} onChange={(e) => set('address', e.target.value)} />}
-            </Field>
-            <Field label="Tautan Google Maps" className="sm:col-span-2">
-              {(p) => <Input {...p} type="url" required value={text('mapsUrl')} onChange={(e) => set('mapsUrl', e.target.value)} />}
             </Field>
             <Field
               label="URL embed peta"
               aside="opsional"
-              hint="Dari Google Maps: Bagikan, Sematkan peta, salin isi src."
+              error={errors.mapsEmbedUrl}
+              hint="Di Google Maps: Bagikan, Sematkan peta, lalu tempel seluruh kodenya. Bagian src diambil otomatis."
               className="sm:col-span-2"
             >
-              {(p) => <Input {...p} type="url" value={text('mapsEmbedUrl')} onChange={(e) => set('mapsEmbedUrl', e.target.value)} />}
-            </Field>
-            <Field label="Busana" aside="opsional">
-              {(p) => <Input {...p} value={text('dressCode')} onChange={(e) => set('dressCode', e.target.value)} />}
-            </Field>
-            <Field label="Urutan">
               {(p) => (
                 <Input
                   {...p}
-                  type="number"
-                  min={1}
-                  value={draft.orderIndex ?? 1}
-                  onChange={(e) => set('orderIndex', Number(e.target.value) || 1)}
+                  inputMode="url"
+                  autoComplete="off"
+                  spellCheck={false}
+                  placeholder="https://www.google.com/maps/embed?..."
+                  value={text('mapsEmbedUrl')}
+                  onChange={(e) => set('mapsEmbedUrl', extractEmbedSrc(e.target.value))}
                 />
               )}
             </Field>
-            <Field label="Catatan" aside="opsional" className="sm:col-span-2">
-              {(p) => <Textarea {...p} rows={2} value={text('notes')} onChange={(e) => set('notes', e.target.value)} />}
+            <Field label="Busana" aside="opsional" hint="Contoh: Nuansa sogan dan krem">
+              {(p) => <Input {...p} maxLength={80} autoComplete="off" value={text('dressCode')} onChange={(e) => set('dressCode', e.target.value)} />}
+            </Field>
+            <Field label="Urutan" hint="1 tampil paling awal.">
+              {(p) => (
+                <Input {...p} type="number" inputMode="numeric" min={1} max={20} value={draft.orderIndex ?? 1} onChange={(e) => set('orderIndex', Number(e.target.value) || 1)} />
+              )}
+            </Field>
+            <Field label="Catatan" aside="opsional" counter={{ value: text('notes').length, max: 300 }} className="sm:col-span-2">
+              {(p) => <Textarea {...p} rows={2} maxLength={300} value={text('notes')} onChange={(e) => set('notes', e.target.value)} />}
             </Field>
           </form>
         )}
