@@ -206,7 +206,13 @@ export const DateField: React.FC<{ label?: string; value: string; onChange: (tex
 };
 
 /** Start and end time with one time-zone choice. Stored as "08:00 WIB" so templates print it as is. */
-export const TimeRangeFields: React.FC<{ start: string; end: string; onChange: (start: string, end: string) => void; error?: string | null }> = ({ start, end, onChange, error }) => {
+export const TimeRangeFields: React.FC<{ start: string; end: string; onChange: (start: string, end: string) => void; startError?: string | null; endError?: string | null }> = ({
+  start,
+  end,
+  onChange,
+  startError,
+  endError,
+}) => {
   const a = parseEventTime(start);
   const b = parseEventTime(end);
   const zone: TimeZoneName = start.trim() ? a.zone : b.zone;
@@ -215,10 +221,10 @@ export const TimeRangeFields: React.FC<{ start: string; end: string; onChange: (
   const emit = (t1: string, t2: string, z: TimeZoneName) => onChange(composeEventTime(t1, z), composeEventTime(t2, z));
   return (
     <>
-      <Field label="Mulai" error={error}>
+      <Field label="Mulai" error={startError}>
         {(p) => <Input {...p} type="time" required value={a.time} onChange={(e) => emit(e.target.value, b.time, zone)} />}
       </Field>
-      <Field label="Selesai" error={bad}>
+      <Field label="Selesai" error={endError ?? bad}>
         {(p) => <Input {...p} type="time" required value={b.time} onChange={(e) => emit(a.time, e.target.value, zone)} />}
       </Field>
       <Field label="Zona waktu" className="sm:col-span-2" hint={legacy ? 'Jam lama belum terbaca. Pilih jam untuk menggantinya.' : undefined}>

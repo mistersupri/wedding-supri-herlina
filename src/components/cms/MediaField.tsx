@@ -2,7 +2,7 @@ import React, { useEffect, useId, useRef, useState } from 'react';
 import { AlertCircle, Film, Image as ImageIcon, Link2, Music, RefreshCw, Trash2, X } from 'lucide-react';
 import { uploadFileWithProgress } from '../../lib/api.js';
 import { resizeImageFile } from '../../lib/image.js';
-import { checkFile, formatBytes, kindOf, kindOfUrl, type FileRules, type MediaKind } from '../../lib/files.js';
+import { checkFile, kindOf, kindOfUrl, type FileRules, type MediaKind } from '../../lib/files.js';
 import { checkUrl } from '../../lib/inputs.js';
 import { DropSurface, FileDropzone } from '../ui/FileDropzone.js';
 import { Input } from '../ui/Field.js';
@@ -47,12 +47,13 @@ const PROMPT: Record<string, string> = {
   'image-video': 'Tarik foto atau video ke sini, atau pilih dari perangkat',
 };
 
-const fileNameOf = (url: string) => {
-  if (url.startsWith('data:')) return 'berkas tersimpan';
+/** Uploaded files are stored under random names, so show where a file is from rather than that name. */
+const sourceOf = (url: string) => {
+  if (url.startsWith('data:') || url.startsWith('/uploads/')) return 'Diunggah ke server';
   try {
-    return decodeURIComponent(new URL(url, window.location.origin).pathname.split('/').pop() || url);
+    return new URL(url).hostname.replace(/^www\./, '');
   } catch {
-    return url;
+    return 'Tautan';
   }
 };
 
@@ -83,10 +84,15 @@ export const MediaField: React.FC<MediaFieldProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [urlError, setUrlError] = useState<string | null>(null);
   const [dims, setDims] = useState<{ w: number; h: number } | null>(null);
+  const [uploadedName, setUploadedName] = useState<string | null>(null);
+  const [broken, setBroken] = useState(false);
   const abort = useRef<AbortController | null>(null);
   const kind = value ? kindOfUrl(value) ?? (rules.kinds.includes('image') ? 'image' : rules.kinds[0]) : null;
 
-  useEffect(() => setDims(null), [value]);
+  useEffect(() => {
+    setDims(null);
+    setBroken(false);
+  }, [value]);
   useEffect(() => () => abort.current?.abort(), []);
 
   const upload = async (file: File) => {
@@ -103,6 +109,7 @@ export const MediaField: React.FC<MediaFieldProps> = ({
       const body = kindOf(file) === 'image' ? await resizeImageFile(file, maxDimension) : file;
       setProgress({ name: file.name, fraction: 0, stage: 'upload' });
       const url = await uploadFileWithProgress(body, file.name, category, (fraction) => setProgress({ name: file.name, fraction, stage: 'upload' }), controller.signal);
+      setUploadedName(file.name);
       onChange(url);
     } catch (err) {
       if (!(err as { aborted?: boolean }).aborted) setError((err as Error).message);
@@ -149,7 +156,12 @@ export const MediaField: React.FC<MediaFieldProps> = ({
           ) : value ? (
             <div className={`flex flex-col gap-3 rounded-sm border bg-card p-3 sm:flex-row sm:items-center ${dragging ? 'border-primary' : 'border-field'}`}>
               <div className={`${kind === 'audio' ? 'hidden' : `${THUMB[aspect]} shrink-0 overflow-hidden rounded-xs bg-paper-2 ${checker ? CHECKER : ''}`}`}>
-                {kind === 'video' ? (
+                {broken ? (
+                  <span className="flex h-full w-full flex-col items-center justify-center gap-1 p-2 text-center text-xs text-ink-soft">
+                    <AlertCircle className="h-4 w-4" aria-hidden="true" />
+                    Gambar tidak bisa dimuat
+                  </span>
+                ) : kind === 'video' ? (
                   <video src={value} muted playsInline preload="metadata" className="h-full w-full object-cover" />
                 ) : (
                   <img
@@ -157,6 +169,7 @@ export const MediaField: React.FC<MediaFieldProps> = ({
                     alt=""
                     referrerPolicy="no-referrer"
                     onLoad={(e) => setDims({ w: e.currentTarget.naturalWidth, h: e.currentTarget.naturalHeight })}
+                    onError={() => setBroken(true)}
                     className={`h-full w-full ${checker ? 'object-contain' : 'object-cover'}`}
                   />
                 )}
@@ -164,10 +177,12 @@ export const MediaField: React.FC<MediaFieldProps> = ({
               <div className="min-w-0 flex-1">
                 <p className="flex items-center gap-1.5 truncate text-sm font-semibold">
                   {kind === 'audio' ? <Music className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" /> : kind === 'video' ? <Film className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" /> : <ImageIcon className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />}
-                  <span className="truncate">{fileNameOf(value)}</span>
+                  <span className="truncate">{uploadedName ?? sourceOf(value)}</span>
                 </p>
-                <p className="mt-0.5 text-xs text-ink-soft">{dims ? `${dims.w} × ${dims.h} px` : kind === 'video' ? 'Video' : kind === 'audio' ? 'Audio' : 'Foto'}</p>
-                {kind === 'audio' && <audio src={value} controls preload="none" className="mt-2 h-10 w-full" aria-label={`Dengarkan ${label}`} />}
+                <p className="mt-0.5 text-xs text-ink-soft">
+                  {[kind === 'video' ? 'Video' : kind === 'audio' ? 'Audio' : 'Foto', uploadedName ? sourceOf(value) : null, dims ? `${dims.w} × ${dims.h} px` : null].filter(Boolean).join(' · ')}
+                </p>
+                {kind === 'audio' && <audio src={value} controls preload="metadata" className="mt-2 h-10 w-full" aria-label={`Dengarkan ${label}`} />}
                 {lowRes && (
                   <p role="status" className="mt-1.5 flex items-start gap-1.5 text-xs font-medium text-prada-ink">
                     <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />

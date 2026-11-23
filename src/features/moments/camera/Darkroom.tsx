@@ -4,7 +4,9 @@ import { EDIT_FIELDS, LOOK_GROUPS, NO_EDITS, lookById, type Edits, type Look } f
 import {
   DUST_VARIANTS,
   LEAK_VARIANTS,
+  aspectOf,
   downscale,
+  isStoryAspect,
   placeCrop,
   renderPhoto,
   rotatedSize,
@@ -62,6 +64,8 @@ export const Darkroom: React.FC<DarkroomProps> = ({
   const [dragging, setDragging] = useState(false);
   const pointers = useRef(new Map<number, { x: number; y: number }>());
   const pinch = useRef<number | null>(null);
+  const aspect = aspectOf(recipe.frame, eventFrame);
+  const storyEvent = recipe.frame === 'event' && isStoryAspect(aspect);
   const previewSrc = useMemo(() => downscale(source, 1400), [source]);
   const thumbSrc = useMemo(() => downscale(source, 220), [source]);
 
@@ -76,6 +80,12 @@ export const Darkroom: React.FC<DarkroomProps> = ({
     });
     return () => cancelAnimationFrame(id);
   }, [previewSrc, recipe, eventFrame, dragging]);
+
+  // The frame chips scroll sideways; bring the chosen one into view when the panel opens, so it is not hidden off to the right.
+  useEffect(() => {
+    if (panel !== 'frame') return;
+    document.querySelector<HTMLElement>('.cam-chips [aria-checked="true"]')?.scrollIntoView({ inline: 'center', block: 'nearest' });
+  }, [panel, recipe.frame]);
 
   // --- Gestures: one finger pans, two fingers zoom, a wheel zooms. ---
   const onPointerDown = (e: React.PointerEvent) => {
@@ -201,7 +211,7 @@ export const Darkroom: React.FC<DarkroomProps> = ({
         <div
           ref={boxRef}
           className="cam-window cam-darkroom"
-          style={{ width: 'min(100%, 30rem, calc((100dvh - 20rem) * 0.8))' }}
+          style={{ width: `min(100%, 30rem, calc((100dvh - 20rem) * ${aspect}))`, aspectRatio: String(aspect) }}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
@@ -302,10 +312,11 @@ export const Darkroom: React.FC<DarkroomProps> = ({
                   onClick={() => set('frame', f.id)}
                   className="cam-chip"
                 >
-                  {f.label}
+                  {f.id === 'event' && eventFrame && isStoryAspect(aspectOf('event', eventFrame)) ? 'Bingkai acara · Story 9:16' : f.label}
                 </button>
               ))}
             </div>
+            {storyEvent && <p className="cam-hint mt-2">Fotonya jadi 9:16, ukuran pas untuk Story Instagram. Geser dan cubit untuk mengatur posisi.</p>}
             {recipe.frame.endsWith('caption') && <p className="cam-hint mt-2">Teks di bawah foto diambil dari keterangan.</p>}
           </div>
         )}

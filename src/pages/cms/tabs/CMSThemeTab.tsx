@@ -11,7 +11,7 @@ import { Field, Input, Textarea } from '../../../components/ui/Field.js';
 import { PhoneField } from '../../../components/ui/fields.js';
 import { MediaField } from '../../../components/cms/MediaField.js';
 import { parsePhone } from '@shared/phone';
-import { required, useFormErrors } from '../../../components/cms/useFormErrors.js';
+import { useFormErrors } from '../../../components/cms/useFormErrors.js';
 import { ErrorState, LoadingState } from '../../../components/ui/StateView.js';
 import type { ThemeSettings } from '@shared/types';
 

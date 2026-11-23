@@ -131,7 +131,8 @@ export const CMSEventsTab: React.FC = () => {
             <TimeRangeFields
               start={text('startTime')}
               end={text('endTime')}
-              error={errors.startTime || errors.endTime}
+              startError={errors.startTime}
+              endError={errors.endTime}
               onChange={(s, e2) => {
                 setDraft((d) => (d ? { ...d, startTime: s, endTime: e2 } : d));
                 clear('startTime');

@@ -34,6 +34,13 @@ Pilih di CMS, menu **Template & musik**. Semua template membaca data yang sama (
 
 Foto yang tampil di template selalu foto pasangan dari menu Mempelai, Kisah, dan Galeri. Alamat lengkap dan amplop digital tetap hanya terbuka untuk tamu yang memasukkan kode undangan.
 
+## Formulir CMS
+
+- **Unggah berkas:** semua kolom foto, video, dan lagu memakai dropzone: tarik berkas atau pilih dari perangkat (juga lewat papan ketik), dengan progres dan tombol batal, pratinjau foto, video, dan audio, serta pesan yang jelas untuk jenis atau ukuran yang salah. Foto dikecilkan otomatis. Peringatan muncul bila resolusi foto terlalu rendah. Lagu latar kini diunggah sebagai berkas (MP3 atau M4A, maks. 15 MB); tautan dari situs lain tetap bisa dipakai. Unggah banyak di Galeri menampilkan miniatur dan progres tiap berkas.
+- **Telepon:** papan angka di HP, hanya karakter nomor yang diterima, dirapikan ke `0812-3456-7890` saat kolom ditinggalkan, dan baris "Terbaca sebagai +62 …" memberi tahu bila salah ketik. Server memeriksa dan merapikan nomor juga. Nomor WhatsApp tujuan tersimpan sebagai `62812…` untuk tautan `wa.me`.
+- **Kolom lain:** Instagram (tautan profil ditempel dirapikan), tanggal dan jam acara dengan pemilih bawaan peramban dan zona waktu, tautan Google Maps (kode sematkan lengkap dipotong ke `src`), nomor rekening (angka, saran nama bank), tahun kisah, kata sandi dengan tombol tampilkan, peringatan Caps Lock, dan indikator kekuatan.
+- **Validasi:** pesan ada di bawah kolom yang salah, kolom diberi garis merah, fokus pindah ke kolom pertama yang salah, dan penghitung karakter muncul di kolom bertajuk panjang.
+
 ## Daftar tamu di CMS
 
 - **Kirim undangan:** tombol *Kirim WA* per tamu, atau *Kirim berurutan* yang menyiapkan tamu satu per satu (hanya yang punya nomor dan belum terkirim), menandainya terkirim, lalu lanjut ke tamu berikutnya. Isi pesan bisa diubah lewat tombol *Pesan* dengan penanda `{nama}`, `{kode}`, `{link}`, `{mempelai}`; tersimpan di perangkat yang dipakai.
@@ -70,7 +77,7 @@ Kamera sekali pakai yang jalan di peramban HP tamu, tanpa aplikasi. Diatur di CM
 - **Masuk:** dari tautan undangan, atau dari kartu QR di meja (CMS > Photo Moments > Kartu QR untuk meja). Siapa yang boleh memotret: tamu berkode undangan, atau siapa saja yang menulis nama. Opsi *Tamu undangan wajib check-in dulu* (mati secara bawaan) menahan tamu berkode sampai kehadirannya tercatat, di meja penerima tamu atau lewat konfirmasi di HP mereka. Aturan ini juga diperiksa di server.
 - **Kartu QR (PDF):** di CMS, Photo Moments, *Kartu QR untuk meja*: pilih gaya (Nusantara dengan preset warnanya, Gulungan Kenangan, Bilik Foto, Cozy Home, atau Layar Perak; bawaannya mengikuti template aktif) dan ukuran kertas A4, A5, atau A6, lalu *Unduh PDF*. Resolusi 300 dpi, dan QR bisa diklik di pembaca PDF. Font diambil dari Google Fonts saat PDF dibuat, jadi butuh internet.
 - **Jepret:** kamera depan atau belakang, atau ambil dari galeri HP (juga jalan keluar bila kamera diblokir). Hasil otomatis 4:5 dan masih bisa digeser, di-zoom, dan diputar.
-- **Kamar gelap:** 20 look film (Terang, Kalem, Hangat, Nyeleneh) dengan slider kekuatan, lalu bisa ditumpuk: debu (5 taburan, ketuk lagi untuk ganti), light bleed (16 variasi), grain, 9 setelan manual, cap tanggal oranye, dan bingkai (putih, hitam, dua dengan teks keterangan, atau bingkai acara).
+- **Kamar gelap:** 20 look film (Terang, Kalem, Hangat, Nyeleneh) dengan slider kekuatan, lalu bisa ditumpuk: debu (5 taburan, ketuk lagi untuk ganti), light bleed (16 variasi), grain, 9 setelan manual, cap tanggal oranye, dan bingkai (putih, hitam, dua dengan teks keterangan, atau bingkai acara). **Bingkai acara berukuran 9:16 (1080 × 1920 px), pas untuk Story Instagram**: di viewfinder tamu bisa beralih dari 4:5 ke 9:16, dan foto dengan bingkai itu ikut berbentuk 9:16. Bingkai 4:5 lama tetap berfungsi dan menghasilkan foto 4:5.
 - **Kirim:** foto masuk antrean di HP dan terkirim di belakang layar dengan bar progres; tamu langsung bisa jepret lagi. Tanpa sinyal, foto tersimpan di HP dan terkirim sendiri saat sinyal kembali. Ukuran asli disimpan untuk diunduh, salinan kecil untuk galeri.
 - **Galeri:** reaksi, komentar, simpan ukuran asli. Penghitung frame seperti kamera sekali pakai (bawaan 15 per tamu).
 - **Layar besar:** `/photo-moments/layar` untuk proyektor di lokasi: slideshow foto terbaru dengan QR untuk ikut memotret.

@@ -45,7 +45,7 @@ Modal berisi nama, kategori, kursi, meja, **QR dan kode 4 karakter**, status had
 
 ### 1.8. Kamera tamu (Photo Moments), `/photo-moments`
 - **Akses:** tamu berkode; atau siapa saja yang mengetik nama (mode untuk QR di meja). Bila *wajib check-in* aktif, tamu berkode harus tercatat hadir dulu; halaman menawarkan konfirmasi dari HP.
-- **Memotret:** kamera depan atau belakang, atau pilih dari galeri HP; hasil 4:5 yang bisa digeser, di-zoom, diputar. 20 look film (Terang, Kalem, Hangat, Nyeleneh) dengan kekuatan; debu, light bleed, grain, 9 setelan manual, cap tanggal, dan bingkai (putih, hitam, dua dengan teks, bingkai acara).
+- **Memotret:** kamera depan atau belakang, atau pilih dari galeri HP; hasil 4:5 yang bisa digeser, di-zoom, diputar. 20 look film (Terang, Kalem, Hangat, Nyeleneh) dengan kekuatan; debu, light bleed, grain, 9 setelan manual, cap tanggal, dan bingkai (putih, hitam, dua dengan teks, bingkai acara 9:16).
 - **Mengirim:** foto masuk antrean di HP (ukuran asli dan salinan feed), terkirim di belakang layar dengan progres, dan menunggu sinyal bila offline. Jatah foto per tamu seperti kamera sekali pakai (bawaan 15).
 - **Galeri bersama:** feed, reaksi (6 emoji), komentar, unduh ukuran asli sesuai aturan, tab *Foto saya*.
 - **Layar besar**, `/photo-moments/layar`: slideshow foto terbaru dengan QR untuk proyektor.
@@ -107,6 +107,8 @@ Satu QR untuk seluruh acara (`/photo-moments`) dalam gaya salah satu template (b
 | Wajib check-in untuk kamera | Mati bawaan; berlaku untuk tamu berkode, juga di mode "Siapa saja" |
 | Jatah foto | 1 sampai 50 per tamu (bawaan 15), dihitung per kode (atau per nama bila tanpa kode); pengecekan dan penyimpanan atomik |
 | Foto | Satu berkas hanya untuk satu foto; harus berkas nyata di folder `moments` |
+| Bentuk foto | 4:5. Dengan bingkai acara berukuran 9:16 (1080 × 1920 px) fotonya 9:16, pas untuk Story Instagram; bingkai 4:5 lama menghasilkan 4:5. Teks pada bingkai tetap di luar 250 px teratas dan 340 px terbawah |
+| Telepon dan Instagram | Nomor diperiksa dan dirapikan di CMS dan di server (`0812-3456-7890`); nomor WhatsApp tujuan disimpan sebagai `62812…`; Instagram disimpan sebagai nama pengguna saja |
 | Reaksi | 6 emoji yang ditawarkan; jumlah tidak pernah negatif |
 | Kamera ditutup | Foto baru ditolak; foto yang sudah masuk tetap aman; komentar tetap bisa |
 | Pesan suara | Hanya berkas yang disimpan server; data URL lama ditolak |

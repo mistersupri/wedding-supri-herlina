@@ -1,7 +1,7 @@
 import React, { useId } from 'react';
 
 const CONTROL =
-  'w-full rounded-xs border border-field bg-card px-3.5 text-[15px] text-ink placeholder:text-ink-soft/70 focus:border-primary focus:outline-2 focus:outline-offset-0 focus:outline-primary disabled:cursor-not-allowed disabled:bg-paper-2 disabled:text-ink-soft';
+  'w-full rounded-xs border border-field bg-card px-3.5 text-[15px] text-ink placeholder:text-ink-soft/70 focus:border-primary focus:outline-2 focus:outline-offset-0 focus:outline-primary aria-invalid:border-no aria-invalid:focus:border-no aria-invalid:focus:outline-no disabled:cursor-not-allowed disabled:bg-paper-2 disabled:text-ink-soft';
 
 interface FieldProps {
   label: string;

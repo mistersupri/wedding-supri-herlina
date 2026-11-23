@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Film, X } from 'lucide-react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { cmsApi, uploadFileWithProgress } from '../../../lib/api.js';
 import { formatBytes, kindOf, type FileRules, type MediaKind } from '../../../lib/files.js';
 import { queryKeys } from '../../../lib/queryKeys.js';
