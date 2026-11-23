@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ArrowRight, CalendarPlus, Camera, Check, Lock, MapPin, Pause, Play, QrCode, Settings2, X } from 'lucide-react';
+import { CalendarPlus, Camera, Check, Lock, MapPin, Pause, Play, QrCode, Settings2, X } from 'lucide-react';
 import { useInvitation } from '../../InvitationContext.js';
 import { useGuestbook } from '../../hooks/useGuestbook.js';
 import { useCountdown } from '../../../../hooks/useCountdown.js';
@@ -165,13 +165,15 @@ const Nav: React.FC = () => {
 const Greeting: React.FC = () => (
   <section id="salam" className="lp-salam">
     <img className="lp-corner-tl" src={cornerTl} alt="" aria-hidden="true" />
-    <Reveal>
+    <div>
       <Ornament />
-      <p className="lp-salam-title">Assalamu’alaikum Warahmatullahi Wabarakatuh</p>
-      <p className="lp-salam-body">
+      <p className="lp-salam-title" data-anim="rise" style={{ '--d': '0.15s' } as React.CSSProperties}>
+        Assalamu’alaikum Warahmatullahi Wabarakatuh
+      </p>
+      <p className="lp-salam-body" data-anim="rise" style={{ '--d': '0.35s' } as React.CSSProperties}>
         Dengan memohon rahmat dan ridho Allah SWT, kami mengundang Bapak/Ibu/Saudara/i untuk hadir dan berbagi kebahagiaan di hari pernikahan kami.
       </p>
-    </Reveal>
+    </div>
   </section>
 );
 
@@ -180,13 +182,19 @@ const Quote: React.FC = () => {
   if (!inv.quoteText) return null;
   return (
     <section className="lp-quote">
-      <Reveal className="lp-quote-in">
+      <div className="lp-quote-in">
         <span className="lp-vrule" data-anim="draw-y" aria-hidden="true" />
         <blockquote>
-          <p>“{inv.quoteText}”</p>
-          {inv.quoteSource && <footer>{inv.quoteSource}</footer>}
+          <p data-anim="rise" style={{ '--d': '0.4s' } as React.CSSProperties}>
+            “{inv.quoteText}”
+          </p>
+          {inv.quoteSource && (
+            <footer data-anim="rise" style={{ '--d': '0.8s' } as React.CSSProperties}>
+              {inv.quoteSource}
+            </footer>
+          )}
         </blockquote>
-      </Reveal>
+      </div>
       <img className="lp-quote-sprig" src={sprigB} alt="" aria-hidden="true" loading="lazy" />
     </section>
   );
@@ -318,8 +326,8 @@ const Countdown: React.FC = () => {
         <p className="lp-sr" role="timer">
           {left.isPast ? 'Acara sedang berlangsung.' : `${left.days} hari ${left.hours} jam ${left.minutes} menit lagi`}
         </p>
-        {units.map(([v, l]) => (
-          <div key={l} className="lp-count-dial" aria-hidden="true">
+        {units.map(([v, l], i) => (
+          <div key={l} className="lp-count-dial" data-anim="pop" style={{ '--d': `${i * 0.14}s` } as React.CSSProperties} aria-hidden="true">
             <b key={v} className="lp-tick">{pad2(v)}</b>
             <small>{l}</small>
           </div>
@@ -340,7 +348,7 @@ const Events: React.FC = () => {
       </h2>
       <div className="lp-events-row">
         <Reveal className="lp-bigdate">
-          <b>{Number(d.day)}</b>
+          <b data-anim="pop">{Number(d.day)}</b>
           <p>
             <span aria-hidden="true" />
             {d.monthName.toUpperCase()} {d.year}
@@ -424,7 +432,7 @@ const Gallery: React.FC = () => {
       <h2 id="galeri-title" className="lp-h2" data-anim="track">
         Galeri
       </h2>
-      <p className="lp-sub">Kenangan indah di hari yang istimewa</p>
+      <p className="lp-sub" data-anim="rise" style={{ '--d': '0.25s' } as React.CSSProperties}>Kenangan indah di hari yang istimewa</p>
       <ul className="lp-polaroids">
         {shown.map((p, i) => (
           <li key={p.id} data-anim="drop" style={{ '--d': `${(i % 4) * 0.12}s` } as React.CSSProperties}>
@@ -472,7 +480,7 @@ const Gifts: React.FC = () => {
       <h3 className="lp-card-title">Amplop Digital</h3>
       <p className="lp-card-hint">Doa restu Anda adalah hadiah terindah. Bila ingin berbagi tanda kasih:</p>
       {inv.giftInfo.map((g) => (
-        <div key={g.id} className="lp-account">
+        <div key={g.id} className="lp-account" data-anim="rise">
           <p className="lp-account-bank">{g.bankName}</p>
           <p className="lp-account-num">{g.accountNumber || 'Pindai kode QR'}</p>
           <p className="lp-account-name">a.n. {g.accountHolder}</p>
@@ -502,26 +510,13 @@ const Rsvp: React.FC = () => {
   const { guest, invitation: inv } = useInvitation();
   return (
     <section id="rsvp" className="lp-rsvp" aria-labelledby="rsvp-title">
-      {guest && (
-        <div className="lp-info-card">
-          <div className="lp-info-col lp-code-col">
-            <h3 className="lp-card-title">Kode Undangan Anda</h3>
-            <p className="lp-codebox">{guest.slug}</p>
-            <p className="lp-card-hint">
-              Simpan kode ini. Kode dipakai untuk membuka alamat, amplop digital, dan kartu tamu.
-              {guest.pax > 0 && ` Dialokasikan ${guest.pax} kursi.`}
-            </p>
-          </div>
-          {inv.giftInfo.length > 0 && (
-            <>
-              <span className="lp-vrule" data-anim="draw-y" aria-hidden="true" />
-              <Gifts />
-            </>
-          )}
+      {guest && inv.giftInfo.length > 0 && (
+        <div className="lp-info-card" data-anim="rise">
+          <Gifts />
         </div>
       )}
-      <div className="lp-rsvp-card">
-        <h2 id="rsvp-title" className="lp-card-main">
+      <div className="lp-rsvp-card" data-anim="rise">
+        <h2 id="rsvp-title" className="lp-card-main" data-anim="track">
           {guest ? 'Konfirmasi Kehadiran' : 'Buka Undangan'}
         </h2>
         <Ornament />
@@ -547,7 +542,7 @@ const Wishes: React.FC = () => {
       <h2 id="ucapan-title" className="lp-h2 lp-h2-sm" data-anim="track">
         Buku Tamu
       </h2>
-      <p className="lp-sub">{wishes.length ? `${wishes.length} ucapan & doa` : 'Ucapan & doa dari para tamu'}</p>
+      <p className="lp-sub" data-anim="rise" style={{ '--d': '0.25s' } as React.CSSProperties}>{wishes.length ? `${wishes.length} ucapan & doa` : 'Ucapan & doa dari para tamu'}</p>
       {isLoading ? (
         <p className="lp-muted-center">Memuat ucapan…</p>
       ) : isError ? (
@@ -610,24 +605,6 @@ const Wishes: React.FC = () => {
   );
 };
 
-const GuestCamera: React.FC = () => {
-  const { photoMomentsHref } = useInvitation();
-  if (!photoMomentsHref) return null;
-  return (
-    <section className="lp-camera" aria-labelledby="kamera-title">
-      <Reveal className="lp-camera-card">
-        <h2 id="kamera-title" className="lp-card-main">
-          Kamera Tamu
-        </h2>
-        <p>Di hari H, ikut abadikan momen lewat kamera di ponsel Anda. Setiap jepretan langsung masuk ke galeri bersama.</p>
-        <a className="lp-btn-gold" href={photoMomentsHref}>
-          <Camera size={16} aria-hidden="true" /> Buka kamera tamu
-        </a>
-      </Reveal>
-    </section>
-  );
-};
-
 /* ------------------------------------------------------------------ Credits */
 
 /** Closing credits on cream paper: the lines rise one after another when the footer comes into view. */
@@ -665,7 +642,7 @@ const Credits: React.FC = () => {
             ))}
           </div>
         ))}
-        <p className="lp-thanks lp-rollrow" style={step(rows.length)}>
+        <p className="lp-thanks lp-rollrow lp-write" style={step(rows.length)}>
           Terima Kasih
         </p>
         <p className="lp-farewell lp-rollrow" style={step(rows.length + 1)}>
@@ -712,7 +689,6 @@ const LayarTemplate: React.FC = () => {
             </div>
             <Rsvp />
             <Wishes />
-            <GuestCamera />
           </main>
           <Credits />
         </>

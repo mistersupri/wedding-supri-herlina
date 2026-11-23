@@ -1733,8 +1733,8 @@ input.lp-code {
 }
 .lp .lp-rollrow {
   opacity: 0;
-  transform: translateY(90px);
-  transition: opacity 0.9s ease var(--d, 0s), transform 1.3s cubic-bezier(0.22, 1, 0.36, 1) var(--d, 0s);
+  transform: translateY(160px);
+  transition: opacity 1s ease var(--d, 0s), transform 1.8s cubic-bezier(0.22, 1, 0.36, 1) var(--d, 0s);
 }
 .lp .lp-footer-in.is-in .lp-rollrow {
   opacity: 1;
@@ -1980,4 +1980,33 @@ input.lp-code {
 }
 .lp .lp-quote-sprig {
   aspect-ratio: 145 / 215;
+}
+
+/* Footer credits: each line climbs in from below; the thank-you is written out left to right. */
+.lp .lp-write.lp-rollrow {
+  clip-path: inset(0 100% 0 0);
+  transition: opacity 1s ease var(--d, 0s), transform 1.8s cubic-bezier(0.22, 1, 0.36, 1) var(--d, 0s), clip-path 2.2s cubic-bezier(0.65, 0, 0.35, 1) calc(var(--d, 0s) + 0.5s);
+}
+.lp .lp-footer-in.is-in .lp-write.lp-rollrow {
+  clip-path: inset(0 0 0 0);
+}
+.lp .lp-credit-role {
+  position: relative;
+}
+.lp .lp-footer-in.is-in .lp-credit-role::after {
+  content: '';
+  display: block;
+  width: 36px;
+  height: 1px;
+  margin: 6px auto 0;
+  background: var(--gold);
+  animation: lp-grow 1.4s ease both;
+}
+@keyframes lp-grow {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
 }
