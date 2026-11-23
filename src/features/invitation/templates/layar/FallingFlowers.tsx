@@ -38,7 +38,7 @@ export const FallingFlowers: React.FC<{ run: boolean; count?: number }> = ({ run
   const [alive, setAlive] = useState(true);
   const petals = useMemo<Petal[]>(() => {
     const r = rng(20261120);
-    const scale = typeof window !== 'undefined' && window.innerWidth < 768 ? 0.75 : 1.25;
+    const scale = typeof window !== 'undefined' && window.innerWidth < 768 ? 0.5 : 0.62;
     return Array.from({ length: count }, (_, i) => ({
       src: SPRITES[i % SPRITES.length],
       left: r() * 100,
