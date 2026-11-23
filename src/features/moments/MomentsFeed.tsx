@@ -1,3 +1,4 @@
+import { PhotoThumb } from '../../components/ui/PhotoThumb.js';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, Camera, MessageCircle } from 'lucide-react';
 import { formatTime } from '../../lib/format.js';
@@ -129,7 +130,7 @@ export const MomentsFeed: React.FC<MomentsFeedProps> = ({ identity, config, coup
             detail={`Setiap tamu punya ${settings.framesPerGuest} frame. Jepret suasana acara dan kirim ke galeri.`}
           />
         ) : (
-          <ul className="grid grid-cols-2 gap-2 sm:gap-3">
+          <ul className="grid grid-cols-2 items-start gap-2 sm:gap-3">
             {items.map((photo, i) => {
               const mine = m.myReactions[photo.id];
               const count = totalReactions(photo);
@@ -139,9 +140,9 @@ export const MomentsFeed: React.FC<MomentsFeedProps> = ({ identity, config, coup
                     type="button"
                     onClick={() => setOpenIndex(i)}
                     aria-label={`Buka foto dari ${photo.guestName}`}
-                    className="block aspect-[4/5] w-full overflow-hidden rounded-xs bg-deep-2"
+                    className="block w-full overflow-hidden rounded-xs bg-deep-2"
                   >
-                    <img src={photo.photoUrl} alt="" loading="lazy" className="h-full w-full object-cover" />
+                    <PhotoThumb src={photo.photoUrl} />
                   </button>
                   {photo.approved === false && (
                     <span className="absolute top-1.5 left-1.5 rounded-xs bg-deep/85 px-2 py-1 text-xs font-semibold">Menunggu dicek</span>

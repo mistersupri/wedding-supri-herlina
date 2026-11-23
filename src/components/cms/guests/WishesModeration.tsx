@@ -70,7 +70,7 @@ export const WishesModeration: React.FC = () => {
         <label className="relative flex-1">
           <span className="sr-only">Cari ucapan</span>
           <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-ink-soft" aria-hidden="true" />
-          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Cari nama atau isi ucapan" className="pl-9" />
+          <Input value={search} onChange={(e) => setSearch(e.target.value)} type="search" inputMode="search" enterKeyHint="search" autoComplete="off" placeholder="Cari nama atau isi ucapan" className="pl-9" />
         </label>
         <Button variant="secondary" onClick={() => cmsApi.exportWishes().catch((e: Error) => notify(e.message, 'error'))}>
           Ekspor CSV

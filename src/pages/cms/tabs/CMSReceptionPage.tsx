@@ -303,7 +303,7 @@ export const CMSReceptionPage: React.FC = () => {
             <Input
               value={listSearch}
               onChange={(e) => setListSearch(e.target.value)}
-              placeholder="Cari nama, kode, meja"
+              type="search" inputMode="search" enterKeyHint="search" autoComplete="off" placeholder="Cari nama, kode, meja"
               className="pl-9"
             />
           </label>

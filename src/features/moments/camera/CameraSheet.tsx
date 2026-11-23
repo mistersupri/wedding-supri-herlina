@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { useDialogBehaviour } from '../../../components/ui/Modal.js';
 import { useTemplateFonts } from '../../invitation/templates/shared/kit.js';
 import { availableLooks } from '../film/looks.js';
-import { loadImage, newRecipe, renderPhoto, toBlob, type Recipe } from '../film/render.js';
+import { aspectOf, isStoryAspect, loadImage, newRecipe, renderPhoto, toBlob, type Recipe } from '../film/render.js';
 import { enqueue } from '../upload/queue.js';
 import { Darkroom } from './Darkroom.js';
 import { Viewfinder } from './Viewfinder.js';
@@ -20,6 +20,8 @@ interface CameraSheetProps {
 }
 
 const ORIGINAL_MAX = 2400;
+/** A Story is 1080 x 1920; a little extra width keeps the full-size copy sharp without an enormous file. */
+const STORY_ORIGINAL_MAX = 1440;
 const FEED_WIDTH = 1080;
 
 /**
@@ -35,6 +37,7 @@ export const CameraSheet: React.FC<CameraSheetProps> = ({ identity, config, rema
   const [recipe, setRecipe] = useState<Recipe>(() => newRecipe(defaultLook));
   const [eventFrame, setEventFrame] = useState<HTMLImageElement | null>(null);
   const [sending, setSending] = useState(false);
+  const [story, setStory] = useState(false);
   const [note, setNote] = useState('');
   useDialogBehaviour(true, onClose, panelRef);
   // The date stamp uses the same LCD face as the film theme.
@@ -47,6 +50,13 @@ export const CameraSheet: React.FC<CameraSheetProps> = ({ identity, config, rema
       .then(setEventFrame)
       .catch(() => setEventFrame(null));
   }, [config.frame]);
+
+  // A Story-shaped event frame lets the guest shoot for Instagram Stories: the viewfinder switches to 9:16 and the photo gets that frame.
+  const storyFrame = Boolean(eventFrame && isStoryAspect(aspectOf('event', eventFrame)));
+  const takeShot = (shot: HTMLCanvasElement | HTMLImageElement) => {
+    setSource(shot);
+    setRecipe((r) => ({ ...r, frame: story && storyFrame ? 'event' : r.frame === 'event' ? 'none' : r.frame }));
+  };
 
   const retake = () => {
     setSource(null);
@@ -61,9 +71,11 @@ export const CameraSheet: React.FC<CameraSheetProps> = ({ identity, config, rema
       await document.fonts?.load('40px VT323').catch(() => undefined);
       const w = 'naturalWidth' in source ? source.naturalWidth : source.width;
       const h = 'naturalHeight' in source ? source.naturalHeight : source.height;
-      // Full size: as sharp as the source allows for a 4:5 crop, capped for upload size.
-      const cropWidth = Math.min(w, (h * 4) / 5);
-      const width = Math.round(Math.max(FEED_WIDTH, Math.min(ORIGINAL_MAX, cropWidth / recipe.crop.zoom)));
+      // Full size: as sharp as the source allows for this shape (4:5, or 9:16 for a Story frame), capped for upload size.
+      const aspect = aspectOf(recipe.frame, eventFrame);
+      const cropWidth = Math.min(w, h * aspect);
+      const cap = isStoryAspect(aspect) ? STORY_ORIGINAL_MAX : ORIGINAL_MAX;
+      const width = Math.round(Math.max(FEED_WIDTH, Math.min(cap, cropWidth / recipe.crop.zoom)));
       const original = await toBlob(renderPhoto(source, recipe, { width, eventFrame }), 0.92);
       const preview = await toBlob(renderPhoto(source, recipe, { width: FEED_WIDTH, eventFrame }), 0.85);
       await enqueue({ identity, caption: recipe.caption.trim(), look: recipe.look, original, preview });
@@ -95,7 +107,7 @@ export const CameraSheet: React.FC<CameraSheetProps> = ({ identity, config, rema
           onClose={onClose}
         />
       ) : (
-        <Viewfinder remaining={remaining} onShot={setSource} onClose={onClose} />
+        <Viewfinder remaining={remaining} onShot={takeShot} onClose={onClose} story={story && storyFrame} onStoryChange={storyFrame ? setStory : undefined} />
       )}
       {note && (
         <p role="status" className="cam-toast">

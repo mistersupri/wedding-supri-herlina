@@ -110,6 +110,26 @@
   position: absolute;
   right: 10px;
 }
+.cam-ratio-toggle {
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  /* 44px tap target without a bigger pill: the hit area extends past the visible badge. */
+  min-height: 28px;
+}
+.cam-ratio-toggle::after {
+  content: '';
+  inset: -10px;
+  position: absolute;
+}
+.cam-ratio-toggle:focus-visible {
+  outline: 2px solid var(--cam-accent);
+  outline-offset: 2px;
+}
+.cam-ratio-toggle[aria-pressed='true'] {
+  background: var(--cam-accent);
+  color: #000;
+}
 .cam-flash {
   animation: cam-flash 0.18s ease-out forwards;
   background: #fff;

@@ -3,6 +3,7 @@ import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.js';
 import { Button } from '../../components/ui/Button.js';
 import { Field, Input } from '../../components/ui/Field.js';
+import { PasswordField } from '../../components/ui/fields.js';
 import { BrandLogo } from '../../components/ui/BrandLogo.js';
 
 export const CMSLoginPage: React.FC = () => {
@@ -37,21 +38,22 @@ export const CMSLoginPage: React.FC = () => {
         <h1 className="mt-4 font-display text-3xl">Masuk ke CMS</h1>
         <p className="mt-1 text-[15px] text-ink-soft">Kelola isi undangan, daftar tamu, dan penerimaan tamu.</p>
         <form onSubmit={submit} className="mt-6 space-y-4">
-          <Field label="Username">
-            {(p) => <Input {...p} required autoComplete="username" value={username} onChange={(e) => setUsername(e.target.value)} />}
-          </Field>
-          <Field label="Kata sandi" error={error}>
+          <Field label="Nama pengguna">
             {(p) => (
               <Input
                 {...p}
                 required
-                type="password"
-                autoComplete="current-password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                autoFocus
+                autoComplete="username"
+                autoCapitalize="none"
+                spellCheck={false}
+                enterKeyHint="next"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
               />
             )}
           </Field>
+          <PasswordField label="Kata sandi" autoComplete="current-password" value={password} onChange={setPassword} error={error} />
           <Button type="submit" loading={busy} className="w-full">
             Masuk
           </Button>

@@ -1,4 +1,6 @@
 import { HttpError } from '../http/http.js';
+import { whatsappDigits } from '../../shared/phone.js';
+import { cleanInstagram, isInstagramHandle } from '../../shared/handles.js';
 import { isTemplateId } from '../../shared/templates.js';
 import type { InvitationRepository } from '../repositories/invitationRepository.js';
 import type { OrderedRepository } from '../repositories/contentRepositories.js';
@@ -81,6 +83,13 @@ export function invitationService(d: Deps) {
     },
 
     async saveCouple(input: Partial<CoupleProfile>): Promise<CoupleProfile> {
+      for (const key of ['groomInstagram', 'brideInstagram'] as const) {
+        if (typeof input[key] === 'string') {
+          const handle = cleanInstagram(input[key]!);
+          if (handle && !isInstagramHandle(handle)) throw new HttpError(400, 'Nama Instagram hanya boleh berisi huruf, angka, titik, dan garis bawah.');
+          input[key] = handle;
+        }
+      }
       return pick(await d.invitation.update(pick(input, COUPLE_KEYS)), COUPLE_KEYS) as CoupleProfile;
     },
 
@@ -91,6 +100,11 @@ export function invitationService(d: Deps) {
     async saveTheme(input: Partial<ThemeSettings>): Promise<ThemeSettings> {
       if (input.themeColor && !THEMES.includes(input.themeColor)) throw new HttpError(400, 'Preset warna tidak dikenal.');
       if (input.templateId && !isTemplateId(input.templateId)) throw new HttpError(400, 'Template tidak dikenal.');
+      if (typeof input.whatsappNumber === 'string' && input.whatsappNumber.trim()) {
+        const digits = whatsappDigits(input.whatsappNumber);
+        if (!digits) throw new HttpError(400, 'Nomor WhatsApp tidak valid. Contoh: 0812-3456-7890 atau 6281234567890.');
+        input.whatsappNumber = digits;
+      }
       for (const key of ['weddingDate', 'countdownTarget'] as const) {
         if (input[key] && Number.isNaN(new Date(input[key]!).getTime())) throw new HttpError(400, 'Tanggal tidak valid.');
       }

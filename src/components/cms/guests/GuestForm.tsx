@@ -1,5 +1,9 @@
 import React, { useState } from 'react';
+import { parsePhone } from '@shared/phone';
+import { checkInstagram, cleanInstagram } from '../../../lib/inputs.js';
 import { Checkbox, Field, Input, Select, Textarea } from '../../ui/Field.js';
+import { InstagramField, PhoneField } from '../../ui/fields.js';
+import { required, useFormErrors } from '../useFormErrors.js';
 import type { InvitedGuest, InvitedGuestInput } from '@shared/types';
 
 export const GUEST_CATEGORIES = ['Keluarga', 'Sahabat', 'VIP', 'Rekan Kerja', 'Umum'];
@@ -32,19 +36,49 @@ export const GuestForm: React.FC<{ id: string; initial: InvitedGuestInput; onSub
   onSubmit,
 }) => {
   const [form, setForm] = useState(initial);
-  const set = <K extends keyof InvitedGuestInput>(key: K, value: InvitedGuestInput[K]) => setForm((f) => ({ ...f, [key]: value }));
+  const { errors, clear, validate, formRef } = useFormErrors<'name' | 'phone' | 'instagram' | 'pax'>();
+  const set = <K extends keyof InvitedGuestInput>(key: K, value: InvitedGuestInput[K]) => {
+    setForm((f) => ({ ...f, [key]: value }));
+    if (key in errors) clear(key as 'name');
+  };
 
   return (
     <form
       id={id}
+      ref={formRef}
+      noValidate
       className="grid gap-4 sm:grid-cols-2"
       onSubmit={(e) => {
         e.preventDefault();
-        onSubmit({ ...form, name: form.name.trim() });
+        const phone = (form.phone || '').trim();
+        const ok = validate({
+          name: required(form.name, 'Nama'),
+          phone: phone && !parsePhone(phone) ? 'Nomor belum benar. Contoh: 0812-3456-7890.' : null,
+          instagram: checkInstagram(form.instagram || ''),
+          pax: !form.pax || form.pax < 1 || form.pax > 20 ? 'Isi 1 sampai 20 kursi.' : null,
+        });
+        if (ok) onSubmit({ ...form, name: form.name.trim() });
       }}
     >
-      <Field label="Nama di undangan" hint="Ditulis persis seperti di sampul, contoh: Bpk. Budi & Keluarga" className="sm:col-span-2">
-        {(p) => <Input {...p} required value={form.name} onChange={(e) => set('name', e.target.value)} />}
+      <Field
+        label="Nama di undangan"
+        hint="Ditulis persis seperti di sampul, contoh: Bpk. Budi & Keluarga"
+        error={errors.name}
+        counter={{ value: form.name.length, max: 120 }}
+        className="sm:col-span-2"
+      >
+        {(p) => (
+          <Input
+            {...p}
+            required
+            maxLength={120}
+            autoComplete="off"
+            autoCapitalize="words"
+            enterKeyHint="next"
+            value={form.name}
+            onChange={(e) => set('name', e.target.value)}
+          />
+        )}
       </Field>
       <Field label="Kategori">
         {(p) => (
@@ -55,32 +89,30 @@ export const GuestForm: React.FC<{ id: string; initial: InvitedGuestInput; onSub
           </Select>
         )}
       </Field>
-      <Field label="Jumlah kursi">
+      <Field label="Jumlah kursi" error={errors.pax} hint="Batas jumlah orang yang bisa dicatat hadir.">
         {(p) => (
           <Input
             {...p}
             type="number"
+            inputMode="numeric"
             min={1}
             max={20}
+            step={1}
             required
             value={form.pax}
-            onChange={(e) => set('pax', Number(e.target.value) || 1)}
+            onChange={(e) => set('pax', Number(e.target.value) || 0)}
           />
         )}
       </Field>
-      <Field label="Nomor WhatsApp" aside="opsional">
+      <PhoneField optional value={form.phone || ''} onChange={(v) => set('phone', v)} error={errors.phone} />
+      <Field label="Meja" aside="opsional">
         {(p) => (
-          <Input {...p} inputMode="tel" value={form.phone} onChange={(e) => set('phone', e.target.value)} placeholder="08123456789" />
+          <Input {...p} maxLength={40} autoComplete="off" value={form.tableNumber} onChange={(e) => set('tableNumber', e.target.value)} placeholder="Meja A2" />
         )}
       </Field>
-      <Field label="Meja" aside="opsional">
-        {(p) => <Input {...p} value={form.tableNumber} onChange={(e) => set('tableNumber', e.target.value)} placeholder="Meja A2" />}
-      </Field>
-      <Field label="Instagram" aside="opsional" className="sm:col-span-2">
-        {(p) => <Input {...p} value={form.instagram} onChange={(e) => set('instagram', e.target.value)} placeholder="@nama" />}
-      </Field>
-      <Field label="Catatan internal" aside="opsional" className="sm:col-span-2">
-        {(p) => <Textarea {...p} rows={2} value={form.customNote} onChange={(e) => set('customNote', e.target.value)} />}
+      <InstagramField className="sm:col-span-2" value={form.instagram || ''} onChange={(v) => set('instagram', v)} error={errors.instagram} />
+      <Field label="Catatan internal" aside="opsional" counter={{ value: (form.customNote || '').length, max: 500 }} hint="Hanya terlihat oleh admin." className="sm:col-span-2">
+        {(p) => <Textarea {...p} rows={2} maxLength={500} value={form.customNote} onChange={(e) => set('customNote', e.target.value)} />}
       </Field>
       <Checkbox
         className="sm:col-span-2"
@@ -94,24 +126,35 @@ export const GuestForm: React.FC<{ id: string; initial: InvitedGuestInput; onSub
 
 /**
  * One guest per line: Nama, Kategori, Kursi, Telepon, Meja, Catatan, Instagram.
- * Only the name is required; missing columns fall back to defaults.
+ * Only the name is required; missing columns fall back to defaults. Numbers and Instagram names are tidied,
+ * and anything that cannot be read is reported in `issues` (and left blank) instead of failing the whole list.
  */
-export function parseGuestLines(text: string): InvitedGuestInput[] {
-  return text
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line) => {
-      const [name, category, pax, phone, tableNumber, customNote, instagram] = line.split(/\t|,/).map((p) => p.trim());
-      return {
-        name,
-        category: category || 'Umum',
-        pax: Number(pax) || 2,
-        phone: phone || '',
-        tableNumber: tableNumber || '',
-        customNote: customNote || '',
-        instagram: instagram || '',
-      };
-    })
-    .filter((g) => g.name);
+export function parseGuestLinesWithIssues(text: string): { guests: InvitedGuestInput[]; issues: string[] } {
+  const issues: string[] = [];
+  const guests: InvitedGuestInput[] = [];
+  text.split('\n').forEach((raw, i) => {
+    const line = raw.trim();
+    if (!line) return;
+    const [name, category, pax, phone, tableNumber, customNote, instagram] = line.split(/\t|,/).map((p) => p.trim());
+    if (!name) return;
+    const parsed = phone ? parsePhone(phone) : null;
+    if (phone && !parsed) issues.push(`Baris ${i + 1} (${name}): nomor "${phone}" tidak terbaca, dikosongkan.`);
+    const handle = instagram ? cleanInstagram(instagram) : '';
+    const badHandle = handle && checkInstagram(handle);
+    if (badHandle) issues.push(`Baris ${i + 1} (${name}): Instagram "${instagram}" tidak valid, dikosongkan.`);
+    const seats = Number(pax);
+    if (pax && !(seats >= 1 && seats <= 50)) issues.push(`Baris ${i + 1} (${name}): jumlah kursi "${pax}" tidak valid, dipakai 2.`);
+    guests.push({
+      name,
+      category: category || 'Umum',
+      pax: seats >= 1 && seats <= 50 ? Math.round(seats) : 2,
+      phone: parsed ? parsed.display : '',
+      tableNumber: tableNumber || '',
+      customNote: customNote || '',
+      instagram: badHandle ? '' : handle,
+    });
+  });
+  return { guests, issues };
 }
+
+export const parseGuestLines = (text: string) => parseGuestLinesWithIssues(text).guests;

@@ -6,6 +6,10 @@ interface ViewfinderProps {
   remaining: number;
   onShot: (source: HTMLCanvasElement | HTMLImageElement) => void;
   onClose: () => void;
+  /** The guide is 9:16 (a Story) instead of 4:5. */
+  story?: boolean;
+  /** Present when the couple's event frame is Story-shaped: lets the guest switch the guide. */
+  onStoryChange?: (story: boolean) => void;
 }
 
 /** Grab the current video frame at full resolution, mirrored for the selfie camera like the preview. */
@@ -23,11 +27,12 @@ function grab(video: HTMLVideoElement, mirror: boolean) {
 }
 
 /**
- * The live camera. The 4:5 guide shows exactly what the photo will hold; anything outside is cropped,
+ * The live camera. The guide (4:5, or 9:16 for a Story) shows what the photo will hold; anything outside is cropped,
  * and the darkroom can still nudge it. When the camera is blocked or missing, the phone's gallery
  * is the way in.
  */
-export const Viewfinder: React.FC<ViewfinderProps> = ({ remaining, onShot, onClose }) => {
+export const Viewfinder: React.FC<ViewfinderProps> = ({ remaining, onShot, onClose, story = false, onStoryChange }) => {
+  const ratio = story ? 9 / 16 : 4 / 5;
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -104,7 +109,7 @@ export const Viewfinder: React.FC<ViewfinderProps> = ({ remaining, onShot, onClo
       </div>
 
       <div className="flex min-h-0 flex-1 items-center justify-center px-3">
-        <div className="cam-window" style={{ width: 'min(100%, 30rem, calc((100dvh - 14rem) * 0.8))' }}>
+        <div className="cam-window" style={{ width: `min(100%, 30rem, calc((100dvh - 14rem) * ${ratio}))`, aspectRatio: String(ratio) }}>
           <video
             ref={videoRef}
             playsInline
@@ -113,9 +118,21 @@ export const Viewfinder: React.FC<ViewfinderProps> = ({ remaining, onShot, onClo
             className={`h-full w-full object-cover ${facing === 'user' ? '-scale-x-100' : ''}`}
           />
           <span className="cam-thirds" aria-hidden="true" />
-          <span className="cam-ratio" aria-hidden="true">
-            4:5
-          </span>
+          {onStoryChange ? (
+            <button
+              type="button"
+              className="cam-ratio cam-ratio-toggle"
+              aria-pressed={story}
+              aria-label={story ? 'Rasio 9:16 untuk Story Instagram, ketuk untuk 4:5' : 'Rasio 4:5, ketuk untuk 9:16 Story Instagram'}
+              onClick={() => onStoryChange(!story)}
+            >
+              {story ? '9:16 Story' : '4:5'}
+            </button>
+          ) : (
+            <span className="cam-ratio" aria-hidden="true">
+              {story ? '9:16' : '4:5'}
+            </span>
+          )}
           {flash && <span className="cam-flash" aria-hidden="true" />}
           {state === 'blocked' && (
             <div className="cam-blocked">

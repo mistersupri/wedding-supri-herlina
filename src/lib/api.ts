@@ -398,6 +398,48 @@ export async function uploadFile(file: File, category: UploadCategory): Promise<
   return json.url as string;
 }
 
+/**
+ * Admin upload with progress. `onProgress` gets 0..1 while the bytes go up. Refreshes an expired session
+ * once and sends the file again. `signal` cancels the transfer.
+ */
+export function uploadFileWithProgress(file: Blob, name: string, category: UploadCategory, onProgress: (fraction: number) => void, signal?: AbortSignal): Promise<string> {
+  const send = (token: string | null) =>
+    new Promise<{ status: number; json: Json }>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', `${API}/upload${query({ category })}`);
+      if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+      xhr.upload.onprogress = (e) => e.lengthComputable && onProgress(e.loaded / e.total);
+      xhr.onload = () => {
+        let json: Json = {};
+        try {
+          json = JSON.parse(xhr.responseText);
+        } catch {
+          // Not JSON (a proxy error page): the status below says what happened.
+        }
+        resolve({ status: xhr.status, json });
+      };
+      xhr.onerror = () => reject(unreachable());
+      xhr.onabort = () => reject(Object.assign(new ApiError('Unggahan dibatalkan.'), { aborted: true }));
+      signal?.addEventListener('abort', () => xhr.abort(), { once: true });
+      const body = new FormData();
+      body.append('file', file, name);
+      xhr.send(body);
+    });
+
+  return (async () => {
+    let res = await send(getAccessToken());
+    if (res.status === 401) {
+      const token = await refreshAuthToken();
+      if (!token) throw new ApiError('Sesi berakhir. Silakan masuk lagi.');
+      res = await send(token);
+    }
+    if (res.status < 200 || res.status >= 300 || !res.json.url) {
+      throw Object.assign(new ApiError(res.json.message || `Unggahan gagal (${res.status}).`), { offline: [502, 503, 504].includes(res.status), status: res.status });
+    }
+    return res.json.url as string;
+  })();
+}
+
 export async function uploadFiles(files: File[], category: UploadCategory) {
   const body = new FormData();
   files.forEach((f) => body.append('files', f));

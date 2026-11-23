@@ -1,5 +1,5 @@
 /**
- * Turns a source photo plus the guest's choices (a "recipe") into the final 4:5 picture.
+ * Turns a source photo plus the guest's choices (a "recipe") into the final picture: 4:5, or 9:16 with a Story-sized event frame.
  * Every effect is drawn from seeded randomness and sizes relative to the canvas, so the small live
  * preview and the full-size upload come out the same.
  */
@@ -35,6 +35,22 @@ export interface Recipe {
 export const DUST_VARIANTS = 5;
 export const LEAK_VARIANTS = 16;
 export const ASPECT = 4 / 5;
+/** An Instagram Story. */
+export const STORY_ASPECT = 9 / 16;
+
+/**
+ * Width over height of the finished photo. Every style is 4:5 except the event frame, which sets the shape
+ * of the picture itself: a 9:16 frame gives a Story-sized photo, and an older 4:5 frame keeps 4:5.
+ * Anything in between is clamped so the picture never gets taller than 9:16 or wider than 4:5.
+ */
+export function aspectOf(frame: FrameStyle, eventFrame?: { naturalWidth: number; naturalHeight: number } | null): number {
+  if (frame === 'event' && eventFrame?.naturalWidth && eventFrame.naturalHeight) {
+    return Math.min(ASPECT, Math.max(STORY_ASPECT, eventFrame.naturalWidth / eventFrame.naturalHeight));
+  }
+  return ASPECT;
+}
+
+export const isStoryAspect = (aspect: number) => Math.abs(aspect - STORY_ASPECT) < 0.01;
 
 export const newRecipe = (look = 'none'): Recipe => ({
   crop: { zoom: 1, x: 0, y: 0, rotation: 0 },
@@ -258,17 +274,17 @@ export interface RenderOptions {
   fast?: boolean;
 }
 
-/** Render `recipe` applied to `source` into a canvas `width` px wide (4:5). */
+/** Render `recipe` applied to `source` into a canvas `width` px wide, at the shape `aspectOf` gives. */
 export function renderPhoto(source: HTMLCanvasElement | HTMLImageElement, recipe: Recipe, opts: RenderOptions, target?: HTMLCanvasElement) {
+  const frame = recipe.frame === 'event' && !opts.eventFrame ? 'none' : recipe.frame;
   const W = Math.round(opts.width);
-  const H = Math.round(W / ASPECT);
+  const H = Math.round(W / aspectOf(frame, opts.eventFrame));
   const canvas = target ?? document.createElement('canvas');
   if (canvas.width !== W) canvas.width = W;
   if (canvas.height !== H) canvas.height = H;
   const ctx = canvas.getContext('2d', { willReadFrequently: !opts.fast })!;
   ctx.globalCompositeOperation = 'source-over';
 
-  const frame = recipe.frame === 'event' && !opts.eventFrame ? 'none' : recipe.frame;
   const r = frameLayout(frame, W, H);
   const dark = frame.startsWith('black');
   ctx.fillStyle = dark ? '#111110' : '#fbfaf6';

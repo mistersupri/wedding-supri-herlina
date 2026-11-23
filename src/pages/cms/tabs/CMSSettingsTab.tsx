@@ -5,7 +5,7 @@ import { useAuth } from '../../../context/AuthContext.js';
 import { PageHeader, Panel } from '../../../components/cms/CmsPage.js';
 import { useToast } from '../../../components/cms/Toast.js';
 import { Button } from '../../../components/ui/Button.js';
-import { Field, Input } from '../../../components/ui/Field.js';
+import { PasswordField } from '../../../components/ui/fields.js';
 import { ConfirmDialog } from '../../../components/ui/Modal.js';
 
 export const CMSSettingsTab: React.FC = () => {
@@ -16,6 +16,7 @@ export const CMSSettingsTab: React.FC = () => {
   const [next, setNext] = useState('');
   const [confirm, setConfirm] = useState('');
   const [mismatch, setMismatch] = useState<string | null>(null);
+  const [problem, setProblem] = useState<string | null>(null);
   const [resetOpen, setResetOpen] = useState(false);
   const isEnvAdmin = user?.id === 'adm_env_01';
 
@@ -71,53 +72,36 @@ export const CMSSettingsTab: React.FC = () => {
           ) : (
             <form
               className="space-y-4"
+              noValidate
               onSubmit={(e) => {
                 e.preventDefault();
-                if (next !== confirm) {
-                  setMismatch('Konfirmasi tidak sama dengan kata sandi baru.');
-                  return;
-                }
+                if (!current) return setProblem('Isi kata sandi saat ini.');
+                if (next.length < 6) return setProblem('Kata sandi baru minimal 6 karakter.');
+                if (next === current) return setProblem('Kata sandi baru harus berbeda dari yang lama.');
+                if (next !== confirm) return setMismatch('Konfirmasi tidak sama dengan kata sandi baru.');
+                setProblem(null);
                 setMismatch(null);
                 password.mutate();
               }}
             >
-              <Field label="Kata sandi saat ini">
-                {(p) => (
-                  <Input
-                    {...p}
-                    type="password"
-                    required
-                    autoComplete="current-password"
-                    value={current}
-                    onChange={(e) => setCurrent(e.target.value)}
-                  />
-                )}
-              </Field>
-              <Field label="Kata sandi baru" hint="Minimal 6 karakter.">
-                {(p) => (
-                  <Input
-                    {...p}
-                    type="password"
-                    required
-                    minLength={6}
-                    autoComplete="new-password"
-                    value={next}
-                    onChange={(e) => setNext(e.target.value)}
-                  />
-                )}
-              </Field>
-              <Field label="Ulangi kata sandi baru" error={mismatch}>
-                {(p) => (
-                  <Input
-                    {...p}
-                    type="password"
-                    required
-                    autoComplete="new-password"
-                    value={confirm}
-                    onChange={(e) => setConfirm(e.target.value)}
-                  />
-                )}
-              </Field>
+              <PasswordField label="Kata sandi saat ini" autoComplete="current-password" value={current} onChange={(v) => { setCurrent(v); setProblem(null); }} error={problem === 'Isi kata sandi saat ini.' ? problem : null} />
+              <PasswordField
+                label="Kata sandi baru"
+                autoComplete="new-password"
+                strength
+                minLength={6}
+                value={next}
+                onChange={(v) => { setNext(v); setProblem(null); }}
+                hint="Minimal 6 karakter. Campur huruf besar, kecil, dan angka agar lebih kuat."
+                error={problem && problem !== 'Isi kata sandi saat ini.' ? problem : null}
+              />
+              <PasswordField
+                label="Ulangi kata sandi baru"
+                autoComplete="new-password"
+                value={confirm}
+                onChange={(v) => { setConfirm(v); setMismatch(null); }}
+                error={mismatch ?? (confirm && next && confirm !== next ? 'Belum sama dengan kata sandi baru.' : null)}
+              />
               <Button type="submit" loading={password.isPending}>
                 Simpan kata sandi
               </Button>

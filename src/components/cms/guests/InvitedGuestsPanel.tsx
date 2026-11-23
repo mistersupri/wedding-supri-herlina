@@ -10,7 +10,7 @@ import { useCopy } from '../../../hooks/useCopy.js';
 import { Pagination, Stat, usePagination } from '../CmsPage.js';
 import { useToast } from '../Toast.js';
 import { InviteQueueModal, InviteTemplateModal } from './InviteSender.js';
-import { GUEST_CATEGORIES, GuestForm, emptyGuest, guestToInput, parseGuestLines } from './GuestForm.js';
+import { GUEST_CATEGORIES, GuestForm, emptyGuest, guestToInput, parseGuestLinesWithIssues } from './GuestForm.js';
 import { Button } from '../../ui/Button.js';
 import { Field, Input, Select, Textarea } from '../../ui/Field.js';
 import { ConfirmDialog, Modal } from '../../ui/Modal.js';
@@ -93,7 +93,7 @@ export const InvitedGuestsPanel: React.FC = () => {
     onError,
   });
 
-  const parsed = parseGuestLines(importText);
+  const { guests: parsed, issues } = useMemo(() => parseGuestLinesWithIssues(importText), [importText]);
 
   return (
     <div>
@@ -118,7 +118,7 @@ export const InvitedGuestsPanel: React.FC = () => {
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Cari nama, kode, telepon, meja"
+              type="search" inputMode="search" enterKeyHint="search" autoComplete="off" placeholder="Cari nama, kode, telepon, meja"
               className="pl-9"
             />
           </label>
@@ -309,10 +309,24 @@ export const InvitedGuestsPanel: React.FC = () => {
               value={importText}
               onChange={(e) => setImportText(e.target.value)}
               className="font-mono text-sm"
-              placeholder={'Budi Santoso, VIP, 2, 0812345678, Meja A1\nSiti Aminah & Suami, Sahabat, 2'}
+              placeholder={'Budi Santoso, VIP, 2, 0812-3456-7890, Meja A1\nSiti Aminah & Suami, Sahabat, 2'}
+              spellCheck={false}
             />
           )}
         </Field>
+        {importText.trim() && (
+          <div className="mt-3 text-sm" role="status" aria-live="polite">
+            <p className={parsed.length ? 'font-semibold text-ok' : 'font-semibold text-no'}>{parsed.length ? `${parsed.length} tamu terbaca` : 'Belum ada tamu yang terbaca'}</p>
+            {issues.length > 0 && (
+              <ul className="mt-1.5 list-disc space-y-0.5 pl-5 text-prada-ink">
+                {issues.slice(0, 5).map((m) => (
+                  <li key={m}>{m}</li>
+                ))}
+                {issues.length > 5 && <li>dan {issues.length - 5} catatan lain.</li>}
+              </ul>
+            )}
+          </div>
+        )}
       </Modal>
 
       <ConfirmDialog

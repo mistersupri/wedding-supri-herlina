@@ -1,5 +1,7 @@
 import crypto from 'crypto';
 import { HttpError, badRequest, notFound } from '../http/http.js';
+import { parsePhone } from '../../shared/phone.js';
+import { cleanInstagram, isInstagramHandle } from '../../shared/handles.js';
 import type { invitedGuestRepository } from '../repositories/guestRepositories.js';
 import type { InvitedGuest, InvitedGuestInput, PresensiStats, PublicGuest } from '../../shared/types.js';
 
@@ -25,6 +27,21 @@ function randomSlug(taken: Set<string>): string {
   throw new HttpError(409, 'Kode undangan 4 karakter sudah habis terpakai.');
 }
 
+/** A phone number as stored: tidied (0812-3456-7890). Empty stays empty; a number that cannot be read is an error. */
+function phoneValue(raw: unknown): string {
+  const text = typeof raw === 'string' ? raw.trim() : '';
+  if (!text) return '';
+  const parsed = parsePhone(text);
+  if (!parsed) throw badRequest('Nomor telepon tidak valid. Contoh: 0812-3456-7890 atau +62 812 3456 7890.');
+  return parsed.display;
+}
+
+function instagramValue(raw: unknown): string {
+  const handle = typeof raw === 'string' ? cleanInstagram(raw) : '';
+  if (handle && !isInstagramHandle(handle)) throw badRequest('Nama Instagram hanya boleh berisi huruf, angka, titik, dan garis bawah.');
+  return handle;
+}
+
 const isUniqueViolation = (err: unknown) => (err as { code?: string })?.code === 'P2002';
 const text = (v: unknown, max: number) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
 const wholeNumber = (v: unknown, min: number, max: number) => {
@@ -40,8 +57,8 @@ function editableFields(patch: Record<string, unknown>) {
     if (!name) throw badRequest('Nama tamu wajib diisi.');
     out.name = name;
   }
-  if (patch.phone !== undefined) out.phone = text(patch.phone, 40);
-  if (patch.instagram !== undefined) out.instagram = text(patch.instagram, 60);
+  if (patch.phone !== undefined) out.phone = phoneValue(patch.phone);
+  if (patch.instagram !== undefined) out.instagram = instagramValue(patch.instagram);
   if (patch.category !== undefined) out.category = text(patch.category, 40) || 'Umum';
   if (patch.pax !== undefined) out.pax = wholeNumber(patch.pax, 1, 50) ?? 2;
   if (patch.tableNumber !== undefined) out.tableNumber = text(patch.tableNumber, 40);
@@ -51,14 +68,24 @@ function editableFields(patch: Record<string, unknown>) {
   return out;
 }
 
-const cleanInput = (input: InvitedGuestInput) => ({
-  name: input.name.trim(),
-  phone: input.phone?.trim() || '',
-  instagram: input.instagram?.trim() || '',
-  category: input.category || 'Umum',
-  pax: Math.max(1, Number(input.pax) || 2),
-  tableNumber: input.tableNumber?.trim() || '',
-  customNote: input.customNote?.trim() || '',
+/** Run a field cleaner; for a bulk import an unreadable value is dropped instead of failing the whole list. */
+const orBlank = (lenient: boolean, fn: () => string) => {
+  try {
+    return fn();
+  } catch (err) {
+    if (lenient) return '';
+    throw err;
+  }
+};
+
+const cleanInput = (input: InvitedGuestInput, lenient = false) => ({
+  name: input.name.trim().slice(0, 120),
+  phone: orBlank(lenient, () => phoneValue(input.phone)),
+  instagram: orBlank(lenient, () => instagramValue(input.instagram)),
+  category: text(input.category, 40) || 'Umum',
+  pax: Math.min(50, Math.max(1, Number(input.pax) || 2)),
+  tableNumber: text(input.tableNumber, 40),
+  customNote: text(input.customNote, 500),
   invitationSent: Boolean(input.invitationSent),
   invitationSentAt: input.invitationSent ? new Date().toISOString() : null,
 });
@@ -130,11 +157,12 @@ export function guestService(repo: ReturnType<typeof invitedGuestRepository>) {
       const created: InvitedGuest[] = [];
       for (const input of inputs.filter((g) => g.name?.trim())) {
         let guest: InvitedGuest | undefined;
+        const cleaned = cleanInput(input, true);
         for (let attempt = 0; attempt < 5 && !guest; attempt++) {
           const slug = randomSlug(taken);
           taken.add(slug);
           try {
-            guest = await repo.create({ ...cleanInput(input), slug });
+            guest = await repo.create({ ...cleaned, slug });
           } catch (err) {
             if (!isUniqueViolation(err)) throw err;
           }
