@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useReducedMotion } from 'motion/react';
 import f1 from './assets/orchid-1.webp';
 import f2 from './assets/orchid-2.webp';
 import f3 from './assets/orchid-3.webp';
@@ -34,7 +33,6 @@ interface Petal {
  * click-through layer; it unmounts itself when the last flower has landed off screen.
  */
 export const FallingFlowers: React.FC<{ run: boolean; count?: number }> = ({ run, count = 45 }) => {
-  const reduce = useReducedMotion();
   const [alive, setAlive] = useState(true);
   const petals = useMemo<Petal[]>(() => {
     const r = rng(20261120);
@@ -58,7 +56,7 @@ export const FallingFlowers: React.FC<{ run: boolean; count?: number }> = ({ run
     return () => window.clearTimeout(t);
   }, [run, petals]);
 
-  if (!run || !alive || reduce) return null;
+  if (!run || !alive) return null;
   return (
     <div className="lp-flowers" aria-hidden="true">
       {petals.map((p, i) => (

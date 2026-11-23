@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pause, Play } from 'lucide-react';
-import { useReducedMotion } from 'motion/react';
 import { dateParts } from '../../../../lib/format.js';
 import { useInvitation } from '../../InvitationContext.js';
 import { usePhotoPool } from '../shared/kit.js';
@@ -34,10 +33,9 @@ function useSlides(): Slide[] {
 /** Full-screen opening scene: the couple's video or photos, names at the foot, the guest's greeting and controls. */
 export const LayarHero: React.FC = () => {
   const { invitation: inv, isOpen, displayName, isCheckingGuest } = useInvitation();
-  const reduce = useReducedMotion();
   const slides = useSlides();
   const [index, setIndex] = useState(0);
-  const [paused, setPaused] = useState(Boolean(reduce));
+  const [paused, setPaused] = useState(false);
   const [inView, setInView] = useState(true);
   const root = useRef<HTMLElement>(null);
   const videos = useRef<Record<string, HTMLVideoElement | null>>({});

@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { useReducedMotion } from 'motion/react';
 import { dateParts } from '../../../../lib/format.js';
 import { useInvitation } from '../../InvitationContext.js';
 import poster from './assets/cover-poster.webp';
@@ -19,7 +18,6 @@ type Phase = 'closed' | 'playing' | 'fading' | 'gone';
  */
 export const LayarCover: React.FC<{ onOpened?: () => void }> = ({ onOpened }) => {
   const { invitation, isOpen, open, displayName, isCheckingGuest } = useInvitation();
-  const reduce = useReducedMotion();
   const [phase, setPhase] = useState<Phase>(isOpen ? 'gone' : 'closed');
   const [src, setSrc] = useState<string>();
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -27,7 +25,6 @@ export const LayarCover: React.FC<{ onOpened?: () => void }> = ({ onOpened }) =>
 
   // The clip is fetched as a whole file (not streamed with Range requests) so the service worker can keep it for offline.
   useEffect(() => {
-    if (reduce) return;
     let url = '';
     let cancelled = false;
     fetch(COVER_VIDEO)
@@ -42,7 +39,7 @@ export const LayarCover: React.FC<{ onOpened?: () => void }> = ({ onOpened }) =>
       cancelled = true;
       if (url) URL.revokeObjectURL(url);
     };
-  }, [reduce]);
+  }, []);
 
   const covered = phase !== 'gone';
   useEffect(() => {
@@ -66,7 +63,7 @@ export const LayarCover: React.FC<{ onOpened?: () => void }> = ({ onOpened }) =>
     if (phase !== 'closed') return;
     open();
     const v = videoRef.current;
-    if (reduce || !v || !src) {
+    if (!v || !src) {
       finish();
       return;
     }

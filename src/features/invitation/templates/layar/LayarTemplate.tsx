@@ -1,5 +1,4 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { useReducedMotion } from 'motion/react';
 import { ArrowRight, CalendarPlus, Camera, Check, Lock, MapPin, Pause, Play, QrCode, Settings2, X } from 'lucide-react';
 import { useInvitation } from '../../InvitationContext.js';
 import { useGuestbook } from '../../hooks/useGuestbook.js';
@@ -49,14 +48,13 @@ function splitParents(text: string): [string, string] {
 /** The last part of an address ("Jl. Sudirman 1, Jakarta Selatan" -> "Jakarta Selatan"); empty until a guest unlocks it. */
 const cityOf = (address: string) => address.split(',').map((s) => s.trim()).filter(Boolean).pop() || '';
 
-const Ornament: React.FC<{ className?: string }> = ({ className = '' }) => <img className={`lp-ornament ${className}`} src={divider} alt="" aria-hidden="true" loading="lazy" />;
+const Ornament: React.FC<{ className?: string }> = ({ className = '' }) => <img className={`lp-ornament ${className}`} data-anim="draw-x" src={divider} alt="" aria-hidden="true" loading="lazy" />;
 
 /** Writes how far a section has travelled through the viewport (0..1) as `--p` on it. `through` = the section is taller than the screen (sticky stage). */
 function useScrollProgress(ref: React.RefObject<HTMLElement | null>, sticky = false) {
-  const reduce = useReducedMotion();
   useEffect(() => {
     const el = ref.current;
-    if (!el || reduce) return;
+    if (!el) return;
     let raf = 0;
     const update = () => {
       raf = 0;
@@ -74,7 +72,41 @@ function useScrollProgress(ref: React.RefObject<HTMLElement | null>, sticky = fa
       window.removeEventListener('scroll', onScroll);
       window.removeEventListener('resize', onScroll);
     };
-  }, [ref, reduce, sticky]);
+  }, [ref, sticky]);
+}
+
+/** Adds `is-in` to every `[data-anim]` inside the page as it scrolls into view (also to ones that mount later). */
+function useScrollAnimations(ref: React.RefObject<HTMLElement | null>, enabled: boolean) {
+  useEffect(() => {
+    const root = ref.current;
+    if (!root || !enabled) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (e.isIntersecting) {
+            e.target.classList.add('is-in');
+            io.unobserve(e.target);
+          }
+        }
+      },
+      { threshold: 0.18, rootMargin: '0px 0px -6% 0px' },
+    );
+    const seen = new WeakSet<Element>();
+    const scan = () =>
+      root.querySelectorAll('[data-anim]:not(.is-in)').forEach((el) => {
+        if (!seen.has(el)) {
+          seen.add(el);
+          io.observe(el);
+        }
+      });
+    scan();
+    const mo = new MutationObserver(scan);
+    mo.observe(root, { childList: true, subtree: true });
+    return () => {
+      io.disconnect();
+      mo.disconnect();
+    };
+  }, [ref, enabled]);
 }
 
 /* ------------------------------------------------------------------ Nav */
@@ -146,7 +178,7 @@ const Quote: React.FC = () => {
   return (
     <section className="lp-quote">
       <Reveal className="lp-quote-in">
-        <span className="lp-vrule" aria-hidden="true" />
+        <span className="lp-vrule" data-anim="draw-y" aria-hidden="true" />
         <blockquote>
           <p>“{inv.quoteText}”</p>
           {inv.quoteSource && <footer>{inv.quoteSource}</footer>}
@@ -204,7 +236,7 @@ const Story: React.FC = () => {
       ) : (
         <Reveal className="lp-story-pair">
           <p>{FALLBACK_STORY[0]}</p>
-          <span className="lp-vrule" aria-hidden="true" />
+          <span className="lp-vrule" data-anim="draw-y" aria-hidden="true" />
           <p>{FALLBACK_STORY[1]}</p>
         </Reveal>
       )}
@@ -223,8 +255,8 @@ const Couple: React.FC = () => {
   return (
     <section className="lp-couple-sec" aria-labelledby="mempelai-title">
       <div className="lp-swag-head">
-        <img src={swagTop} alt="" aria-hidden="true" loading="lazy" />
-        <h2 id="mempelai-title" className="lp-h2">
+        <img className="lp-swag" data-anim="drop" src={swagTop} alt="" aria-hidden="true" loading="lazy" />
+        <h2 id="mempelai-title" className="lp-h2" data-anim="track">
           Mempelai
         </h2>
         <Ornament />
@@ -235,12 +267,12 @@ const Couple: React.FC = () => {
           return (
             <React.Fragment key={p.full}>
               {i === 1 && (
-                <span className="lp-amp" aria-hidden="true">
+                <span className="lp-amp" data-anim="pop" aria-hidden="true">
                   &amp;
                 </span>
               )}
               <Reveal className="lp-person" delay={i * 0.1}>
-                <div className="lp-photo-frame" style={{ transform: `rotate(${p.tilt}deg)` }}>
+                <div className="lp-photo-frame" data-anim="develop" style={{ transform: `rotate(${p.tilt}deg)` }}>
                   {p.photo && <img src={p.photo} alt={p.full} loading="lazy" referrerPolicy="no-referrer" />}
                 </div>
                 <h3 className="lp-person-name">{p.full}</h3>
@@ -278,19 +310,19 @@ const Countdown: React.FC = () => {
   ];
   return (
     <section className="lp-count" aria-label="Hitung mundur">
-      <span className="lp-hrule" aria-hidden="true" />
+      <span className="lp-hrule" data-anim="draw-x" aria-hidden="true" />
       <div className="lp-count-row">
         <p className="lp-sr" role="timer">
           {left.isPast ? 'Acara sedang berlangsung.' : `${left.days} hari ${left.hours} jam ${left.minutes} menit lagi`}
         </p>
         {units.map(([v, l]) => (
           <div key={l} className="lp-count-dial" aria-hidden="true">
-            <b>{pad2(v)}</b>
+            <b key={v} className="lp-tick">{pad2(v)}</b>
             <small>{l}</small>
           </div>
         ))}
       </div>
-      <span className="lp-hrule" aria-hidden="true" />
+      <span className="lp-hrule" data-anim="draw-x" aria-hidden="true" />
     </section>
   );
 };
@@ -313,7 +345,7 @@ const Events: React.FC = () => {
         </Reveal>
         {inv.events.map((e, i) => (
           <Reveal key={e.id} className="lp-event" delay={i * 0.08}>
-            <img className="lp-event-rings" src={rings} alt="" aria-hidden="true" loading="lazy" />
+            <img className="lp-event-rings" data-anim="pop" src={rings} alt="" aria-hidden="true" loading="lazy" />
             <h3>{e.title}</h3>
             <p className="lp-event-time">Pukul {timeRange(e)}</p>
             {e.date && <p className="lp-event-date">{e.date}</p>}
@@ -385,14 +417,14 @@ const Gallery: React.FC = () => {
   const shown = all ? items : items.slice(0, 8);
   return (
     <section id="galeri" className="lp-gallery" aria-labelledby="galeri-title">
-      <img className="lp-garland" src={garland} alt="" aria-hidden="true" loading="lazy" />
-      <h2 id="galeri-title" className="lp-h2">
+      <img className="lp-garland" data-anim="pop" src={garland} alt="" aria-hidden="true" loading="lazy" />
+      <h2 id="galeri-title" className="lp-h2" data-anim="track">
         Galeri
       </h2>
       <p className="lp-sub">Kenangan indah di hari yang istimewa</p>
       <ul className="lp-polaroids">
         {shown.map((p, i) => (
-          <Reveal as="li" key={p.id} delay={(i % 4) * 0.05}>
+          <li key={p.id} data-anim="drop" style={{ '--d': `${(i % 4) * 0.12}s` } as React.CSSProperties}>
             <button type="button" className="lp-polaroid" style={{ transform: `rotate(${TILTS[i % TILTS.length]}deg)` }} onClick={() => setOpen(i)} aria-label={`Buka foto: ${p.title}`}>
               {p.mediaType === 'VIDEO' ? (
                 <>
@@ -406,7 +438,7 @@ const Gallery: React.FC = () => {
               )}
               <span className="lp-polaroid-cap">{p.title}</span>
             </button>
-          </Reveal>
+          </li>
         ))}
       </ul>
       <div className="lp-center">
@@ -479,7 +511,7 @@ const Rsvp: React.FC = () => {
           </div>
           {inv.giftInfo.length > 0 && (
             <>
-              <span className="lp-vrule" aria-hidden="true" />
+              <span className="lp-vrule" data-anim="draw-y" aria-hidden="true" />
               <Gifts />
             </>
           )}
@@ -509,7 +541,7 @@ const Wishes: React.FC = () => {
   const mono = `${inv.groomShortName.charAt(0)}&${inv.brideShortName.charAt(0)}`.toUpperCase();
   return (
     <section className="lp-wishes" aria-labelledby="ucapan-title">
-      <h2 id="ucapan-title" className="lp-h2 lp-h2-sm">
+      <h2 id="ucapan-title" className="lp-h2 lp-h2-sm" data-anim="track">
         Buku Tamu
       </h2>
       <p className="lp-sub">{wishes.length ? `${wishes.length} ucapan & doa` : 'Ucapan & doa dari para tamu'}</p>
@@ -527,10 +559,10 @@ const Wishes: React.FC = () => {
       ) : (
         <>
           <ul className="lp-feed">
-            {wishes.slice(0, limit).map((w) => {
+            {wishes.slice(0, limit).map((w, i) => {
               const st = STATUS[w.attendanceStatus] ?? STATUS.RAGU;
               return (
-                <li key={w.id} className="lp-wish">
+                <li key={w.id} className="lp-wish" data-anim="rise" style={{ '--d': `${(i % 5) * 0.08}s` } as React.CSSProperties}>
                   <span className="lp-avatar" aria-hidden="true">
                     {initials(w.guestName)}
                   </span>
@@ -597,7 +629,6 @@ const GuestCamera: React.FC = () => {
 
 const Credits: React.FC = () => {
   const { invitation: inv, displayName, guest, isAdmin } = useInvitation();
-  const reduce = useReducedMotion();
   const ref = useRef<HTMLElement>(null);
   useScrollProgress(ref, true);
   const people = (s: string) =>
@@ -616,7 +647,7 @@ const Credits: React.FC = () => {
     ['Tamu kehormatan', [displayName]],
   ];
   return (
-    <footer ref={ref} className={`lp-roll ${reduce ? 'is-static' : ''}`} aria-label="Penutup">
+    <footer ref={ref} className="lp-roll" aria-label="Penutup">
       <div className="lp-roll-stage">
         <div className="lp-roll-list">
           {rows.map(([role, names]) => (
@@ -652,9 +683,11 @@ const Credits: React.FC = () => {
 const LayarTemplate: React.FC = () => {
   const { isOpen } = useInvitation();
   const [shower, setShower] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
   useTemplateFonts(FONTS);
+  useScrollAnimations(rootRef, isOpen);
   return (
-    <div className="lp" style={{ '--ribbon': `url(${filmRibbon})` } as React.CSSProperties}>
+    <div className="lp" ref={rootRef} style={{ '--ribbon': `url(${filmRibbon})` } as React.CSSProperties}>
       <LayarCover onOpened={() => setShower(true)} />
       {isOpen && (
         <>
