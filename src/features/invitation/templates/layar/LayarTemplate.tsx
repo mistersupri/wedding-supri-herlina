@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { useReducedMotion } from 'motion/react';
 import { ArrowRight, CalendarPlus, Camera, Check, Lock, MapPin, Pause, Play, QrCode, Settings2, X } from 'lucide-react';
 import { useInvitation } from '../../InvitationContext.js';
 import { useGuestbook } from '../../hooks/useGuestbook.js';
@@ -12,15 +13,12 @@ import { GalleryLightbox } from '../../../../components/wedding/GalleryLightbox.
 import { GiftQrDialog, timeRange, useTemplateFonts, usePhotoPool } from '../shared/kit.js';
 import { TemplateRsvp } from '../shared/TemplateRsvp.js';
 import { LayarCover } from './LayarCover.js';
+import { LayarHero } from './LayarHero.js';
 import { FallingFlowers } from './FallingFlowers.js';
 import type { GiftAccount } from '@shared/types';
 import swagTop from './assets/swag-top.webp';
-import swagBottom from './assets/swag-bottom.webp';
 import cornerTl from './assets/corner-tl.webp';
-import cornerLeft from './assets/corner-left.webp';
-import cornerBr from './assets/corner-br.webp';
 import sprigB from './assets/sprig-b.webp';
-import sprigD from './assets/sprig-d.webp';
 import rings from './assets/rings.webp';
 import garland from './assets/garland.webp';
 import divider from './assets/divider.webp';
@@ -53,10 +51,36 @@ const cityOf = (address: string) => address.split(',').map((s) => s.trim()).filt
 
 const Ornament: React.FC<{ className?: string }> = ({ className = '' }) => <img className={`lp-ornament ${className}`} src={divider} alt="" aria-hidden="true" loading="lazy" />;
 
+/** Writes how far a section has travelled through the viewport (0..1) as `--p` on it. `through` = the section is taller than the screen (sticky stage). */
+function useScrollProgress(ref: React.RefObject<HTMLElement | null>, sticky = false) {
+  const reduce = useReducedMotion();
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || reduce) return;
+    let raf = 0;
+    const update = () => {
+      raf = 0;
+      const r = el.getBoundingClientRect();
+      const vh = window.innerHeight;
+      const p = sticky ? -r.top / Math.max(1, r.height - vh) : (vh - r.top) / (vh + r.height);
+      el.style.setProperty('--p', Math.min(1, Math.max(0, p)).toFixed(4));
+    };
+    const onScroll = () => (raf ||= requestAnimationFrame(update));
+    update();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', onScroll);
+    };
+  }, [ref, reduce, sticky]);
+}
+
 /* ------------------------------------------------------------------ Nav */
 
 const Nav: React.FC = () => {
-  const { music, guest, showPass, photoMomentsHref } = useInvitation();
+  const { invitation, music, guest, showPass, photoMomentsHref } = useInvitation();
   const active = useActiveSection(NAV.slice(1).map((n) => n.id));
   const [stuck, setStuck] = useState(false);
   useEffect(() => {
@@ -67,7 +91,9 @@ const Nav: React.FC = () => {
   }, []);
   return (
     <nav className={`lp-nav ${stuck ? 'is-stuck' : ''}`} aria-label="Navigasi undangan">
-      <span className="lp-nav-spacer" aria-hidden="true" />
+      <a className="lp-brand" href="#top" onClick={(e) => (e.preventDefault(), scrollToId('top'))}>
+        {invitation.groomShortName} <em>&amp;</em> {invitation.brideShortName}
+      </a>
       <ul className="lp-nav-links">
         {NAV.map((n) => (
           <li key={n.id}>
@@ -79,13 +105,13 @@ const Nav: React.FC = () => {
       </ul>
       <div className="lp-nav-actions">
         {guest && (
-          <button type="button" className="lp-nav-btn lp-hide-md" onClick={() => showPass()}>
-            <QrCode size={14} aria-hidden="true" /> Kartu tamu
+          <button type="button" className="lp-nav-btn" onClick={() => showPass()} aria-label="Kartu tamu">
+            <QrCode size={16} aria-hidden="true" /> <span className="lp-lbl">Kartu tamu</span>
           </button>
         )}
         {photoMomentsHref && (
-          <a className="lp-nav-btn lp-hide-md" href={photoMomentsHref}>
-            <Camera size={14} aria-hidden="true" /> Kamera
+          <a className="lp-nav-btn" href={photoMomentsHref} aria-label="Kamera">
+            <Camera size={16} aria-hidden="true" /> <span className="lp-lbl">Kamera</span>
           </a>
         )}
         {music.available && (
@@ -99,81 +125,11 @@ const Nav: React.FC = () => {
   );
 };
 
-/** Floating controls on phones, where the nav has no room for them. */
-const Dock: React.FC = () => {
-  const { guest, showPass, photoMomentsHref } = useInvitation();
-  if (!guest && !photoMomentsHref) return null;
-  return (
-    <nav className="lp-dock" aria-label="Kontrol undangan">
-      {guest && (
-        <button type="button" onClick={() => showPass()}>
-          <QrCode size={16} aria-hidden="true" /> Kartu tamu
-        </button>
-      )}
-      {photoMomentsHref && (
-        <a href={photoMomentsHref}>
-          <Camera size={16} aria-hidden="true" /> Kamera
-        </a>
-      )}
-    </nav>
-  );
-};
-
-/* ------------------------------------------------------------------ Header & hero */
-
-const Header: React.FC = () => {
-  const { invitation: inv, guest } = useInvitation();
-  const d = dateParts(inv.weddingDate);
-  const city = guest ? cityOf(inv.events[0]?.address ?? '') : '';
-  return (
-    <header className="lp-header" id="top">
-      <img className="lp-corner-tl" src={cornerTl} alt="" aria-hidden="true" />
-      <Reveal className="lp-header-in">
-        <p className="lp-datebar">
-          <span aria-hidden="true" />
-          <time dateTime={inv.weddingDate}>
-            {Number(d.day)} {d.monthName.toUpperCase()} {d.year}
-          </time>
-          <span aria-hidden="true" />
-        </p>
-        <h1 className="lp-names">
-          {inv.groomShortName} <em>&amp;</em> {inv.brideShortName}
-        </h1>
-        {city && <p className="lp-place">{city.toUpperCase()} · INDONESIA</p>}
-      </Reveal>
-    </header>
-  );
-};
-
-const Hero: React.FC = () => {
-  const { invitation: inv, displayName, isCheckingGuest } = useInvitation();
-  const photo = usePhotoPool(inv);
-  const video = inv.heroMediaType === 'VIDEO' && inv.heroVideoUrl ? inv.heroVideoUrl : '';
-  return (
-    <section className="lp-hero" aria-label="Sampul">
-      {video ? (
-        <video src={video} poster={inv.heroImage} muted loop autoPlay playsInline aria-label="Video prewedding" />
-      ) : (
-        <img src={inv.heroImage || photo(0)} alt={`Foto ${inv.groomShortName} dan ${inv.brideShortName}`} referrerPolicy="no-referrer" />
-      )}
-      <div className="lp-hero-shade" aria-hidden="true" />
-      <div className="lp-hero-cta">
-        <p className="lp-to">
-          Kepada Yth.
-          <small>Bapak/Ibu/Saudara/i</small>
-        </p>
-        <p className="lp-guest-pill">{isCheckingGuest ? 'Memeriksa undangan…' : displayName}</p>
-        <p className="lp-eyebrow">Undangan Pernikahan</p>
-        <button type="button" className="lp-btn-ghost" onClick={() => scrollToId('salam')}>
-          Buka Undangan <ArrowRight size={16} aria-hidden="true" />
-        </button>
-      </div>
-    </section>
-  );
-};
+/* ------------------------------------------------------------------ Greeting & quote */
 
 const Greeting: React.FC = () => (
   <section id="salam" className="lp-salam">
+    <img className="lp-corner-tl" src={cornerTl} alt="" aria-hidden="true" />
     <Reveal>
       <Ornament />
       <p className="lp-salam-title">Assalamu’alaikum Warahmatullahi Wabarakatuh</p>
@@ -206,15 +162,16 @@ const Quote: React.FC = () => {
 const FilmStrip: React.FC = () => {
   const { invitation: inv } = useInvitation();
   const photo = usePhotoPool(inv);
-  const frames = [0, 1, 2, 3, 4].map((i) => photo(i)).filter(Boolean);
-  if (!frames.length) return null;
-  const shown = frames.length >= 5 ? frames : Array.from({ length: 5 }, (_, i) => frames[i % frames.length]);
+  const ref = useRef<HTMLElement>(null);
+  useScrollProgress(ref);
+  if (!photo(0)) return null;
+  const frames = Array.from({ length: 10 }, (_, i) => photo(i));
   return (
-    <section className="lp-filmwrap" aria-hidden="true">
+    <section ref={ref} className="lp-filmwrap" aria-hidden="true">
       <div className="lp-film">
         <span className="lp-holes" />
-        <div className="lp-film-frames">
-          {shown.map((src, i) => (
+        <div className="lp-film-track">
+          {frames.map((src, i) => (
             <img key={i} src={src} alt="" loading="lazy" referrerPolicy="no-referrer" />
           ))}
         </div>
@@ -636,31 +593,57 @@ const GuestCamera: React.FC = () => {
   );
 };
 
-/* ------------------------------------------------------------------ Footer */
+/* ------------------------------------------------------------------ Credit roll */
 
-const Footer: React.FC = () => {
-  const { invitation: inv, isAdmin } = useInvitation();
+const Credits: React.FC = () => {
+  const { invitation: inv, displayName, guest, isAdmin } = useInvitation();
+  const reduce = useReducedMotion();
+  const ref = useRef<HTMLElement>(null);
+  useScrollProgress(ref, true);
+  const people = (s: string) =>
+    s
+      .replace(/^\s*(putra|putri)\b.*?\bdari\s+/i, '')
+      .split(/\s+&\s+|\n/)
+      .map((x) => x.trim())
+      .filter(Boolean);
+  const venues = guest ? [...new Set(inv.events.map((e) => e.venueName).filter(Boolean))] : [];
+  const rows: [string, string[]][] = [
+    ['Dibintangi oleh', [inv.groomName, inv.brideName]],
+    ['Orang tua mempelai pria', people(inv.groomParents)],
+    ['Orang tua mempelai wanita', people(inv.brideParents)],
+    ...(venues.length ? ([['Lokasi', venues]] as [string, string[]][]) : []),
+    ...(inv.musicTitle ? ([['Musik pengiring', [inv.musicTitle]]] as [string, string[]][]) : []),
+    ['Tamu kehormatan', [displayName]],
+  ];
   return (
-    <footer className="lp-footer">
-      <img className="lp-corner-bl" src={cornerLeft} alt="" aria-hidden="true" loading="lazy" />
-      <img className="lp-corner-br" src={cornerBr} alt="" aria-hidden="true" loading="lazy" />
-      <img className="lp-swag-bottom" src={swagBottom} alt="" aria-hidden="true" loading="lazy" />
-      <Reveal className="lp-footer-in">
-        <p className="lp-thanks">Terima Kasih</p>
-        <Ornament />
-        <p className="lp-farewell">
-          Merupakan suatu kehormatan dan kebahagiaan bagi kami apabila Bapak/Ibu/Saudara/i berkenan hadir dan memberikan doa restu.
-        </p>
-        <p className="lp-sign">
-          {inv.groomShortName} &amp; {inv.brideShortName}
-        </p>
-        <img className="lp-sprig-d" src={sprigD} alt="" aria-hidden="true" loading="lazy" />
-        {isAdmin && (
-          <a className="lp-textlink lp-admin" href="/cms/overview">
-            <Settings2 size={14} aria-hidden="true" /> Kelola undangan di CMS
-          </a>
-        )}
-      </Reveal>
+    <footer ref={ref} className={`lp-roll ${reduce ? 'is-static' : ''}`} aria-label="Penutup">
+      <div className="lp-roll-stage">
+        <div className="lp-roll-list">
+          {rows.map(([role, names]) => (
+            <div key={role} className="lp-credit">
+              <p className="lp-credit-role">{role}</p>
+              {names.map((n) => (
+                <p key={n} className="lp-credit-name">
+                  {n}
+                </p>
+              ))}
+            </div>
+          ))}
+          <p className="lp-thanks">Terima Kasih</p>
+          <p className="lp-farewell">
+            Merupakan suatu kehormatan dan kebahagiaan bagi kami apabila Bapak/Ibu/Saudara/i berkenan hadir dan memberikan doa restu.
+          </p>
+          <p className="lp-sign">
+            {inv.groomShortName} &amp; {inv.brideShortName}
+          </p>
+          <p className="lp-tamat">Tamat.</p>
+          {isAdmin && (
+            <a className="lp-admin" href="/cms/overview">
+              <Settings2 size={14} aria-hidden="true" /> Kelola undangan di CMS
+            </a>
+          )}
+        </div>
+      </div>
     </footer>
   );
 };
@@ -676,9 +659,8 @@ const LayarTemplate: React.FC = () => {
       {isOpen && (
         <>
           <Nav />
-          <Header />
           <main>
-            <Hero />
+            <LayarHero />
             <Greeting />
             <Quote />
             <FilmStrip />
@@ -694,8 +676,7 @@ const LayarTemplate: React.FC = () => {
             <Wishes />
             <GuestCamera />
           </main>
-          <Footer />
-          <Dock />
+          <Credits />
         </>
       )}
       <FallingFlowers run={shower} />
