@@ -1518,7 +1518,7 @@ input.lp-code {
   animation-name: lp-fall;
   animation-timing-function: linear;
   animation-fill-mode: both;
-  filter: drop-shadow(0 4px 6px rgba(59, 46, 37, 0.2));
+  filter: drop-shadow(0 1px 1px rgba(59, 46, 37, 0.25));
 }
 @keyframes lp-fall {
   0% {

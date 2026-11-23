@@ -33,16 +33,15 @@ interface Petal {
  * Orchids drifting down the screen once the invitation opens. Pure CSS animation on a fixed,
  * click-through layer; it unmounts itself when the last flower has landed off screen.
  */
-export const FallingFlowers: React.FC<{ run: boolean; count?: number }> = ({ run, count = 26 }) => {
+export const FallingFlowers: React.FC<{ run: boolean; count?: number }> = ({ run, count = 45 }) => {
   const reduce = useReducedMotion();
   const [alive, setAlive] = useState(true);
   const petals = useMemo<Petal[]>(() => {
     const r = rng(20261120);
-    const scale = typeof window !== 'undefined' && window.innerWidth < 768 ? 0.5 : 0.62;
     return Array.from({ length: count }, (_, i) => ({
       src: SPRITES[i % SPRITES.length],
       left: r() * 100,
-      size: (46 + r() * 70) * scale,
+      size: 5 + r() * 5,
       delay: r() * 5.5,
       fall: 7 + r() * 5,
       sway: 28 + r() * 70,

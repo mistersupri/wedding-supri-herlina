@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowRight, Pause, Play } from 'lucide-react';
+import { Pause, Play } from 'lucide-react';
 import { useReducedMotion } from 'motion/react';
 import { dateParts } from '../../../../lib/format.js';
 import { useInvitation } from '../../InvitationContext.js';
@@ -112,9 +112,6 @@ export const LayarHero: React.FC = () => {
               <small>Bapak/Ibu/Saudara/i</small>
             </p>
             <p className="lp-guest-pill">{isCheckingGuest ? 'Memeriksa undangan…' : displayName}</p>
-            <button type="button" className="lp-btn-ghost" onClick={() => document.getElementById('salam')?.scrollIntoView({ behavior: 'smooth' })}>
-              Buka Undangan <ArrowRight size={16} aria-hidden="true" />
-            </button>
           </div>
           <div className="lp-hero-ctrl">
             {hasVideo && (
