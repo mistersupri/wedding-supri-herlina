@@ -17,6 +17,9 @@ import { FallingFlowers } from './FallingFlowers.js';
 import type { GiftAccount } from '@shared/types';
 import swagTop from './assets/swag-top.webp';
 import cornerTl from './assets/corner-tl.webp';
+import swagBottom from './assets/swag-bottom.webp';
+import cornerLeft from './assets/corner-left.webp';
+import cornerBr from './assets/corner-br.webp';
 import sprigB from './assets/sprig-b.webp';
 import rings from './assets/rings.webp';
 import garland from './assets/garland.webp';
@@ -625,12 +628,11 @@ const GuestCamera: React.FC = () => {
   );
 };
 
-/* ------------------------------------------------------------------ Credit roll */
+/* ------------------------------------------------------------------ Credits */
 
+/** Closing credits on cream paper: the lines rise one after another when the footer comes into view. */
 const Credits: React.FC = () => {
   const { invitation: inv, displayName, guest, isAdmin } = useInvitation();
-  const ref = useRef<HTMLElement>(null);
-  useScrollProgress(ref, true);
   const people = (s: string) =>
     s
       .replace(/^\s*(putra|putri)\b.*?\bdari\s+/i, '')
@@ -646,34 +648,37 @@ const Credits: React.FC = () => {
     ...(inv.musicTitle ? ([['Musik pengiring', [inv.musicTitle]]] as [string, string[]][]) : []),
     ['Tamu kehormatan', [displayName]],
   ];
+  const step = (i: number) => ({ '--d': `${i * 0.28}s` }) as React.CSSProperties;
   return (
-    <footer ref={ref} className="lp-roll" aria-label="Penutup">
-      <div className="lp-roll-stage">
-        <div className="lp-roll-list">
-          {rows.map(([role, names]) => (
-            <div key={role} className="lp-credit">
-              <p className="lp-credit-role">{role}</p>
-              {names.map((n) => (
-                <p key={n} className="lp-credit-name">
-                  {n}
-                </p>
-              ))}
-            </div>
-          ))}
-          <p className="lp-thanks">Terima Kasih</p>
-          <p className="lp-farewell">
-            Merupakan suatu kehormatan dan kebahagiaan bagi kami apabila Bapak/Ibu/Saudara/i berkenan hadir dan memberikan doa restu.
-          </p>
-          <p className="lp-sign">
-            {inv.groomShortName} &amp; {inv.brideShortName}
-          </p>
-          <p className="lp-tamat">Tamat.</p>
-          {isAdmin && (
-            <a className="lp-admin" href="/cms/overview">
-              <Settings2 size={14} aria-hidden="true" /> Kelola undangan di CMS
-            </a>
-          )}
-        </div>
+    <footer className="lp-footer" aria-label="Penutup">
+      <img className="lp-corner-bl" src={cornerLeft} alt="" aria-hidden="true" loading="lazy" />
+      <img className="lp-corner-br" src={cornerBr} alt="" aria-hidden="true" loading="lazy" />
+      <img className="lp-swag-bottom" data-anim="drop" src={swagBottom} alt="" aria-hidden="true" loading="lazy" />
+      <div className="lp-footer-in" data-anim="stage">
+        {rows.map(([role, names], i) => (
+          <div key={role} className="lp-credit lp-rollrow" style={step(i)}>
+            <p className="lp-credit-role">{role}</p>
+            {names.map((n) => (
+              <p key={n} className="lp-credit-name">
+                {n}
+              </p>
+            ))}
+          </div>
+        ))}
+        <p className="lp-thanks lp-rollrow" style={step(rows.length)}>
+          Terima Kasih
+        </p>
+        <p className="lp-farewell lp-rollrow" style={step(rows.length + 1)}>
+          Merupakan suatu kehormatan dan kebahagiaan bagi kami apabila Bapak/Ibu/Saudara/i berkenan hadir dan memberikan doa restu.
+        </p>
+        <p className="lp-sign lp-rollrow" style={step(rows.length + 2)}>
+          {inv.groomShortName} &amp; {inv.brideShortName}
+        </p>
+        {isAdmin && (
+          <a className="lp-admin" href="/cms/overview">
+            <Settings2 size={14} aria-hidden="true" /> Kelola undangan di CMS
+          </a>
+        )}
       </div>
     </footer>
   );
