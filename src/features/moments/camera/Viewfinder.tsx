@@ -139,7 +139,7 @@ export const Viewfinder: React.FC<ViewfinderProps> = ({ remaining, onShot, onClo
       </div>
 
       <div className="flex min-h-0 flex-1 items-center justify-center px-3">
-        <div className="cam-window" style={{ width: `min(100%, 30rem, calc((100dvh - 14rem) * ${ratio}))`, aspectRatio: String(ratio) }}>
+        <div className="cam-window" style={{ width: `min(100%, 30rem, calc((100dvh - ${layout > 1 ? 21 : 18}rem) * ${ratio}))`, aspectRatio: String(ratio) }}>
           <video
             ref={videoRef}
             playsInline

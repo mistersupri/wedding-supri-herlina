@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ChevronLeft, ChevronRight, Search, X } from 'lucide-react';
+import { CheckCheck, ChevronLeft, ChevronRight, Copy, ExternalLink, FileSpreadsheet, FileText, Hash, MessageCircle, MessageSquareText, Pencil, Plus, Search, Send, Tag, Trash2, Undo2, Upload, Users, X } from 'lucide-react';
 import { cmsApi, publicApi } from '../../../lib/api.js';
 import { queryKeys } from '../../../lib/queryKeys.js';
 import { coupleNames, guestInvitationUrl } from '../../../lib/format.js';
@@ -17,7 +17,7 @@ import { Button, IconButton } from '../../ui/Button.js';
 import { Field, Input, Select } from '../../ui/Field.js';
 import { ConfirmDialog, Modal } from '../../ui/Modal.js';
 import { Chip } from '../../ui/StatusChip.js';
-import { EmptyState, ErrorState, LoadingState } from '../../ui/StateView.js';
+import { EmptyState, ErrorState, LoadingState, Spinner } from '../../ui/StateView.js';
 import type { GuestBulkAction, GuestListQuery, InvitedGuest, InvitedGuestInput } from '@shared/types';
 
 const PAGE_SIZES = [15, 30, 50, 100];
@@ -32,6 +32,20 @@ async function fetchAllMatching(q: GuestListQuery) {
     if (out.length >= res.total || res.data.length === 0) return out;
   }
 }
+
+/** Secondary toolbar action: an icon with its name for screen readers and a tooltip, so six of them fit one row on a phone. */
+const ToolButton: React.FC<{ icon: React.ReactNode; label: string; onClick: () => void; loading?: boolean }> = ({ icon, label, onClick, loading }) => (
+  <button
+    type="button"
+    aria-label={label}
+    title={label}
+    disabled={loading}
+    onClick={onClick}
+    className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-sm border border-field bg-card text-ink transition-colors hover:bg-paper-2 disabled:opacity-55"
+  >
+    {loading ? <Spinner className="h-4 w-4" /> : icon}
+  </button>
+);
 
 export const InvitedGuestsPanel: React.FC = () => {
   const client = useQueryClient();
@@ -216,8 +230,8 @@ export const InvitedGuestsPanel: React.FC = () => {
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:flex">
             <label>
               <span className="sr-only">Kategori</span>
-              <Select value={category} onChange={(e) => setCategory(e.target.value)}>
-                <option value="ALL">Semua kategori</option>
+              <Select value={category} onChange={(e) => setCategory(e.target.value)} className={category !== 'ALL' ? '!border-primary' : ''}>
+                <option value="ALL">Kategori</option>
                 {categories.map((c) => (
                   <option key={c}>{c}</option>
                 ))}
@@ -225,16 +239,16 @@ export const InvitedGuestsPanel: React.FC = () => {
             </label>
             <label>
               <span className="sr-only">Status kirim</span>
-              <Select value={sent} onChange={(e) => setSent(e.target.value as typeof sent)}>
-                <option value="ALL">Semua pengiriman</option>
+              <Select value={sent} onChange={(e) => setSent(e.target.value as typeof sent)} className={sent !== 'ALL' ? '!border-primary' : ''}>
+                <option value="ALL">Pengiriman</option>
                 <option value="UNSENT">Belum dikirim</option>
                 <option value="SENT">Sudah dikirim</option>
               </Select>
             </label>
             <label>
               <span className="sr-only">Status kehadiran</span>
-              <Select value={attendance} onChange={(e) => setAttendance(e.target.value as typeof attendance)}>
-                <option value="ALL">Semua kehadiran</option>
+              <Select value={attendance} onChange={(e) => setAttendance(e.target.value as typeof attendance)} className={attendance !== 'ALL' ? '!border-primary' : ''}>
+                <option value="ALL">Kehadiran</option>
                 <option value="CHECKED_IN">Sudah hadir</option>
                 <option value="NOT_CHECKED_IN">Belum hadir</option>
               </Select>
@@ -250,61 +264,64 @@ export const InvitedGuestsPanel: React.FC = () => {
             </label>
           </div>
         </div>
-        <div className="flex flex-wrap gap-2 lg:justify-end">
-          <Button variant="secondary" onClick={() => setTemplateOpen(true)}>
-            Pesan
+        <div className="flex flex-wrap items-center gap-1.5 md:justify-end">
+          <ToolButton icon={<MessageSquareText className="h-5 w-5" />} label="Pesan undangan" onClick={() => setTemplateOpen(true)} />
+          <ToolButton icon={<Send className="h-5 w-5" />} label="Kirim berurutan" loading={busy} onClick={openQueue} />
+          <ToolButton icon={<FileSpreadsheet className="h-5 w-5" />} label="Ekspor Excel" loading={busy} onClick={exportXlsx} />
+          <ToolButton icon={<FileText className="h-5 w-5" />} label="Ekspor CSV" onClick={() => cmsApi.exportGuests().catch((e: Error) => notify(e.message, 'error'))} />
+          <ToolButton icon={<Upload className="h-5 w-5" />} label="Impor Excel / daftar" onClick={() => setImportOpen(true)} />
+          <Button onClick={() => setEditing({ guest: null })} className="order-first mb-1 w-full whitespace-nowrap md:order-last md:mb-0 md:ml-2 md:w-auto">
+            <Plus className="h-4 w-4" aria-hidden="true" /> Tambah tamu
           </Button>
-          <Button variant="secondary" loading={busy} onClick={openQueue}>
-            Kirim berurutan
-          </Button>
-          <Button variant="secondary" loading={busy} onClick={exportXlsx}>
-            Ekspor Excel
-          </Button>
-          <Button variant="secondary" onClick={() => cmsApi.exportGuests().catch((e: Error) => notify(e.message, 'error'))}>
-            Ekspor CSV
-          </Button>
-          <Button variant="secondary" onClick={() => setImportOpen(true)}>
-            Impor Excel / daftar
-          </Button>
-          <Button onClick={() => setEditing({ guest: null })}>Tambah tamu</Button>
         </div>
       </div>
 
       {selected.size > 0 && (
-        <div role="region" aria-label="Aksi untuk tamu terpilih" className="sticky top-2 z-10 mt-4 flex flex-wrap items-center gap-2 rounded-md border border-primary bg-card p-3 shadow-md">
-          <p className="mr-auto text-sm font-semibold">
-            {selected.size} tamu dipilih
-            {!allMatchingSelected && total > selected.size && (
-              <button type="button" className="ml-2 font-normal text-primary underline underline-offset-4" onClick={() => setSelected(new Set(result?.ids))}>
-                Pilih semua {total} yang cocok
-              </button>
-            )}
-          </p>
-          <Button size="sm" variant="secondary" loading={bulk.isPending} onClick={() => bulk.mutate({ action: 'sent', value: true })}>
-            Tandai terkirim
-          </Button>
-          <Button size="sm" variant="secondary" loading={bulk.isPending} onClick={() => bulk.mutate({ action: 'sent', value: false })}>
-            Tandai belum
-          </Button>
-          <Button size="sm" variant="secondary" onClick={() => setBulkEdit({ kind: 'category', value: categories[0] ?? 'Umum' })}>
-            Ubah kategori
-          </Button>
-          <Button size="sm" variant="secondary" onClick={() => setBulkEdit({ kind: 'pax', value: '2' })}>
-            Ubah kursi
-          </Button>
-          <Button size="sm" variant="secondary" onClick={() => setBulkEdit({ kind: 'table', value: '' })}>
-            Atur meja
-          </Button>
-          <Button size="sm" variant="ghost" className="text-no" onClick={() => setBulkDelete(true)}>
-            Hapus
-          </Button>
-          <IconButton label="Batalkan pilihan" onClick={() => setSelected(new Set())}>
-            <X className="h-4 w-4" />
-          </IconButton>
+        <div
+          role="region"
+          aria-label="Aksi untuk tamu terpilih"
+          className="fixed inset-x-0 bottom-0 z-30 border-t border-primary bg-card px-3 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-[0_-6px_20px_rgb(0_0_0/0.12)] md:sticky md:top-2 md:bottom-auto md:mt-4 md:flex md:items-center md:gap-3 md:rounded-md md:border md:px-3 md:py-2 md:shadow-md"
+        >
+          <div className="flex items-center justify-between gap-2 md:flex-1">
+            <p className="min-w-0 pl-1 text-sm font-semibold">
+              {selected.size} tamu dipilih
+              {!allMatchingSelected && total > selected.size && (
+                <button type="button" className="ml-2 font-normal whitespace-nowrap text-primary underline underline-offset-4" onClick={() => setSelected(new Set(result?.ids))}>
+                  Pilih semua {total}
+                </button>
+              )}
+            </p>
+            <IconButton label="Batalkan pilihan" onClick={() => setSelected(new Set())} className="-mr-1 md:!hidden">
+              <X className="h-5 w-5" />
+            </IconButton>
+          </div>
+          <div className="flex items-center justify-around md:justify-end md:gap-1">
+            <IconButton label="Tandai terkirim" disabled={bulk.isPending} onClick={() => bulk.mutate({ action: 'sent', value: true })}>
+              <CheckCheck className="h-5 w-5" />
+            </IconButton>
+            <IconButton label="Tandai belum terkirim" disabled={bulk.isPending} onClick={() => bulk.mutate({ action: 'sent', value: false })}>
+              <Undo2 className="h-5 w-5" />
+            </IconButton>
+            <IconButton label="Ubah kategori" onClick={() => setBulkEdit({ kind: 'category', value: categories[0] ?? 'Umum' })}>
+              <Tag className="h-5 w-5" />
+            </IconButton>
+            <IconButton label="Ubah jumlah kursi" onClick={() => setBulkEdit({ kind: 'pax', value: '2' })}>
+              <Users className="h-5 w-5" />
+            </IconButton>
+            <IconButton label="Atur nomor meja" onClick={() => setBulkEdit({ kind: 'table', value: '' })}>
+              <Hash className="h-5 w-5" />
+            </IconButton>
+            <IconButton label="Hapus tamu terpilih" tone="danger" onClick={() => setBulkDelete(true)}>
+              <Trash2 className="h-5 w-5" />
+            </IconButton>
+            <IconButton label="Batalkan pilihan" onClick={() => setSelected(new Set())} className="max-md:!hidden">
+              <X className="h-5 w-5" />
+            </IconButton>
+          </div>
         </div>
       )}
 
-      <div className="mt-4 overflow-hidden rounded-md border border-line bg-card">
+      <div className={`mt-4 overflow-hidden rounded-md border border-line bg-card ${selected.size > 0 ? 'mb-20 md:mb-0' : ''}`}>
         {query.isLoading ? (
           <LoadingState label="Memuat daftar tamu..." />
         ) : query.isError ? (
@@ -333,61 +350,64 @@ export const InvitedGuestsPanel: React.FC = () => {
               {guests.map((g) => {
                 const wa = waLink(g);
                 return (
-                  <li key={g.id} className={`grid gap-3 p-4 md:grid-cols-[auto_1fr_auto] md:items-center ${selected.has(g.id) ? 'bg-paper-2' : ''}`}>
-                    <label className="flex min-h-11 min-w-11 items-center justify-center">
+                  <li key={g.id} className={`grid grid-cols-[auto_1fr] items-center gap-x-1 gap-y-1 p-3 pr-4 md:grid-cols-[auto_1fr_auto] md:gap-x-3 md:p-4 ${selected.has(g.id) ? 'bg-paper-2' : ''}`}>
+                    <label className="flex h-11 w-11 items-center justify-center">
                       <span className="sr-only">Pilih {g.name}</span>
                       <input type="checkbox" className="h-5 w-5 accent-[var(--primary)]" checked={selected.has(g.id)} onChange={() => toggle(g.id)} />
                     </label>
                     <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
                         <p className="font-semibold break-words">{g.name}</p>
                         <span className="display-numeral rounded-xs bg-paper-2 px-1.5 text-sm tracking-widest">{g.slug}</span>
                         {g.isCheckedIn && <Chip tone="ok">Hadir</Chip>}
                       </div>
-                      <p className="mt-0.5 text-sm text-ink-soft">
+                      <p className="mt-0.5 text-sm break-words text-ink-soft">
                         {g.category} · {g.pax} kursi{g.tableNumber ? ` · ${g.tableNumber}` : ''}
                         {g.phone ? ` · ${g.phone}` : ''}
                       </p>
                     </div>
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <label className="mr-1 flex min-h-11 items-center gap-2 text-sm">
-                        <input
-                          type="checkbox"
-                          className="h-5 w-5 accent-[var(--primary)]"
-                          checked={Boolean(g.invitationSent)}
-                          onChange={(e) => markSent.mutate({ ids: [g.id], value: e.target.checked })}
-                        />
-                        Terkirim
-                      </label>
+                    <div className="col-span-2 flex items-center justify-end gap-0.5 md:col-span-1">
+                      <IconButton
+                        label={g.invitationSent ? 'Sudah terkirim, ketuk untuk batalkan' : 'Tandai terkirim'}
+                        aria-pressed={Boolean(g.invitationSent)}
+                        className={g.invitationSent ? '!bg-ok-bg !text-ok' : ''}
+                        onClick={() => markSent.mutate({ ids: [g.id], value: !g.invitationSent })}
+                      >
+                        <CheckCheck className="h-5 w-5" />
+                      </IconButton>
                       {wa ? (
                         <a
                           href={wa}
                           target="_blank"
                           rel="noreferrer"
+                          aria-label={`Kirim WhatsApp ke ${g.name}`}
+                          title="Kirim WhatsApp"
                           onClick={() => !g.invitationSent && markSent.mutate({ ids: [g.id], value: true })}
-                          className="inline-flex min-h-11 items-center rounded-sm bg-primary px-3.5 text-[13px] font-semibold text-on-primary hover:bg-primary-hover"
+                          className="inline-flex h-11 w-11 items-center justify-center rounded-sm bg-primary text-on-primary hover:bg-primary-hover"
                         >
-                          Kirim WA
+                          <MessageCircle className="h-5 w-5" />
                         </a>
                       ) : (
-                        <Button variant="secondary" size="sm" onClick={() => copy(inviteMessage(g), g.id)}>
-                          {copied === g.id ? 'Pesan tersalin' : 'Salin pesan'}
-                        </Button>
+                        <IconButton label={copied === g.id ? 'Pesan tersalin' : 'Salin pesan undangan'} onClick={() => copy(inviteMessage(g), g.id)}>
+                          {copied === g.id ? <CheckCheck className="h-5 w-5" /> : <Copy className="h-5 w-5" />}
+                        </IconButton>
                       )}
                       <a
                         href={guestInvitationUrl(g)}
                         target="_blank"
                         rel="noreferrer"
-                        className="inline-flex min-h-11 items-center rounded-sm px-3 text-[13px] font-semibold hover:bg-paper-2"
+                        aria-label={`Buka undangan ${g.name}`}
+                        title="Buka undangan"
+                        className="inline-flex h-11 w-11 items-center justify-center rounded-sm text-ink-soft hover:bg-paper-2 hover:text-ink"
                       >
-                        Buka
+                        <ExternalLink className="h-5 w-5" />
                       </a>
-                      <Button variant="ghost" size="sm" onClick={() => setEditing({ guest: g })}>
-                        Ubah
-                      </Button>
-                      <Button variant="ghost" size="sm" className="text-no" onClick={() => setToDelete(g)}>
-                        Hapus
-                      </Button>
+                      <IconButton label={`Ubah ${g.name}`} onClick={() => setEditing({ guest: g })}>
+                        <Pencil className="h-5 w-5" />
+                      </IconButton>
+                      <IconButton label={`Hapus ${g.name}`} tone="danger" onClick={() => setToDelete(g)}>
+                        <Trash2 className="h-5 w-5" />
+                      </IconButton>
                     </div>
                   </li>
                 );
@@ -398,17 +418,17 @@ export const InvitedGuestsPanel: React.FC = () => {
       </div>
 
       {total > 0 && (
-        <nav aria-label="Halaman tamu" className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-ink-soft">
+        <nav aria-label="Halaman tamu" className={`mt-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 text-sm text-ink-soft ${selected.size > 0 ? 'mb-20 md:mb-0' : ''}`}>
           <p>
-            {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, total)} dari {total} tamu
+            {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, total)} dari {total}
           </p>
-          <div className="flex items-center gap-2">
-            <label className="flex items-center gap-2">
-              Per halaman
-              <Select value={pageSize} onChange={(e) => setPageSize(Number(e.target.value))} className="!min-h-9 !w-auto !py-1">
+          <div className="flex items-center gap-1">
+            <label>
+              <span className="sr-only">Tamu per halaman</span>
+              <Select value={pageSize} onChange={(e) => setPageSize(Number(e.target.value))} className="!min-h-11 !w-auto !py-1">
                 {PAGE_SIZES.map((n) => (
                   <option key={n} value={n}>
-                    {n}
+                    {n} / hal
                   </option>
                 ))}
               </Select>
@@ -417,16 +437,17 @@ export const InvitedGuestsPanel: React.FC = () => {
               <ChevronLeft className="h-5 w-5" />
             </IconButton>
             <label className="flex items-center gap-1">
-              <span className="sr-only">Halaman</span>
+              <span className="sr-only">Nomor halaman</span>
               <Input
                 type="number"
                 min={1}
                 max={pages}
+                inputMode="numeric"
                 value={page}
                 onChange={(e) => setPage(Math.min(pages, Math.max(1, Number(e.target.value) || 1)))}
-                className="!min-h-9 !w-16 !px-2 !py-1 text-center"
+                className="!min-h-11 !w-14 !px-1 text-center"
               />
-              / {pages}
+              <span aria-hidden="true">/ {pages}</span>
             </label>
             <IconButton label="Halaman berikutnya" disabled={page >= pages} onClick={() => setPage(page + 1)}>
               <ChevronRight className="h-5 w-5" />
