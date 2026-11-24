@@ -1295,8 +1295,8 @@ input.lp-code {
   height: var(--sh);
   overflow: hidden;
 }
-.lp-envelope-img,
-.lp-envelope-video {
+.lp .lp-envelope-img,
+.lp .lp-envelope-video {
   position: absolute;
   left: 50%;
   top: 50%;
