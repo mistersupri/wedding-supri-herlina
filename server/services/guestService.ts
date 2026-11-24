@@ -3,7 +3,7 @@ import { HttpError, badRequest, notFound } from '../http/http.js';
 import { parsePhone } from '../../shared/phone.js';
 import { cleanInstagram, isInstagramHandle } from '../../shared/handles.js';
 import type { invitedGuestRepository } from '../repositories/guestRepositories.js';
-import type { InvitedGuest, InvitedGuestInput, PresensiStats, PublicGuest } from '../../shared/types.js';
+import type { GuestBulkAction, GuestListPage, GuestListQuery, InvitedGuest, InvitedGuestInput, PresensiStats, PublicGuest } from '../../shared/types.js';
 
 const SLUG_ALPHABET = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
 
@@ -135,6 +135,64 @@ export function guestService(repo: ReturnType<typeof invitedGuestRepository>) {
       return stats(await repo.list());
     },
 
+    /** One page of the CMS guest list, with filters, sorting and the ids of everything that matched. */
+    async page(query: GuestListQuery = {}): Promise<GuestListPage> {
+      const all = await repo.list();
+      const q = (query.search || '').trim().toLowerCase();
+      const category = query.category && query.category !== 'ALL' ? query.category.toLowerCase() : '';
+      const matched = all.filter(
+        (g) =>
+          (!category || g.category.toLowerCase() === category) &&
+          (!query.sent || query.sent === 'ALL' || (query.sent === 'SENT') === Boolean(g.invitationSent)) &&
+          (!query.attendance || query.attendance === 'ALL' || (query.attendance === 'CHECKED_IN') === g.isCheckedIn) &&
+          (!q || [g.name, g.slug, g.phone, g.tableNumber, g.category, g.instagram].some((v) => (v || '').toLowerCase().includes(q))),
+      );
+      const by = (f: (g: InvitedGuest) => string) => (a: InvitedGuest, b: InvitedGuest) => f(a).localeCompare(f(b), 'id', { sensitivity: 'base' });
+      if (query.sort === 'NEWEST') matched.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+      else if (query.sort === 'CODE') matched.sort(by((g) => g.slug));
+      else if (query.sort === 'CATEGORY') matched.sort(by((g) => `${g.category} ${g.name}`));
+      else matched.sort(by((g) => g.name));
+      const pageSize = Math.min(200, Math.max(5, Math.round(Number(query.pageSize)) || 15));
+      const pages = Math.max(1, Math.ceil(matched.length / pageSize));
+      const page = Math.min(pages, Math.max(1, Math.round(Number(query.page)) || 1));
+      return {
+        data: matched.slice((page - 1) * pageSize, page * pageSize),
+        total: matched.length,
+        page,
+        pageSize,
+        ids: matched.map((g) => g.id),
+        categories: [...new Set(all.map((g) => g.category))].sort((a, b) => a.localeCompare(b, 'id')),
+        sentCount: all.filter((g) => g.invitationSent).length,
+        stats: stats(all),
+      };
+    },
+
+    /** One action on many guests at once (selected rows). Returns how many were changed. */
+    async bulk(ids: string[], op: GuestBulkAction) {
+      if (!Array.isArray(ids) || ids.length === 0) throw badRequest('Tidak ada tamu yang dipilih.');
+      const unique = [...new Set(ids.filter((i) => typeof i === 'string'))].slice(0, 5000);
+      switch (op?.action) {
+        case 'delete':
+          return { count: await repo.removeMany(unique) };
+        case 'sent':
+          return { count: await repo.markSent(unique, Boolean(op.value)) };
+        case 'category': {
+          const value = text(op.value, 40);
+          if (!value) throw badRequest('Kategori wajib diisi.');
+          return { count: await repo.updateMany(unique, { category: value }) };
+        }
+        case 'pax': {
+          const pax = wholeNumber(op.value, 1, 50);
+          if (pax === undefined) throw badRequest('Jumlah kursi tidak valid.');
+          return { count: await repo.updateMany(unique, { pax }) };
+        }
+        case 'table':
+          return { count: await repo.updateMany(unique, { tableNumber: text(op.value, 40) }) };
+        default:
+          throw badRequest('Aksi tidak dikenal.');
+      }
+    },
+
     async create(input: InvitedGuestInput) {
       if (!input.name?.trim()) throw badRequest('Nama tamu wajib diisi.');
       const requested = input.slug?.trim().toUpperCase() || '';
@@ -151,11 +209,20 @@ export function guestService(repo: ReturnType<typeof invitedGuestRepository>) {
       throw new HttpError(409, 'Gagal membuat kode undangan unik. Coba lagi.');
     },
 
-    async createMany(inputs: InvitedGuestInput[]) {
+    async createMany(inputs: InvitedGuestInput[], options: { skipDuplicates?: boolean } = {}) {
       if (!Array.isArray(inputs) || inputs.length === 0) throw badRequest('Daftar tamu kosong.');
+      if (inputs.length > 2000) throw badRequest('Maksimal 2000 tamu sekali impor.');
       const taken = await repo.slugs();
       const created: InvitedGuest[] = [];
+      // Same name and phone number as someone already on the list (or earlier in this import) counts as a repeat.
+      const keyOf = (g: { name: string; phone?: string }) => `${g.name.trim().toLowerCase()}|${(parsePhone(g.phone || '')?.display ?? g.phone ?? '').replace(/\D/g, '')}`;
+      const seen = options.skipDuplicates ? new Set((await repo.list()).map(keyOf)) : null;
       for (const input of inputs.filter((g) => g.name?.trim())) {
+        if (seen) {
+          const key = keyOf({ name: input.name, phone: input.phone });
+          if (seen.has(key)) continue;
+          seen.add(key);
+        }
         let guest: InvitedGuest | undefined;
         const cleaned = cleanInput(input, true);
         for (let attempt = 0; attempt < 5 && !guest; attempt++) {

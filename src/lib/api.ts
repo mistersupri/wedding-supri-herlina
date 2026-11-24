@@ -12,6 +12,9 @@ import type {
   GalleryPhoto,
   GiftAccount,
   GuestAccessVerification,
+  GuestBulkAction,
+  GuestListPage,
+  GuestListQuery,
   GuestWish,
   InvitationData,
   InvitedGuest,
@@ -321,7 +324,14 @@ export const cmsApi = {
       return { data: json.data || [], stats: json.stats };
     },
     create: (input: InvitedGuestInput) => adminData<InvitedGuest>('/cms/invited-guests', jsonInit('POST', input)),
-    createMany: (guests: InvitedGuestInput[]) => adminData<InvitedGuest[]>('/cms/invited-guests/batch', jsonInit('POST', { guests })),
+    /** One page of the list, filtered and sorted on the server. */
+    page: async (q: GuestListQuery): Promise<GuestListPage> =>
+      (await adminRequest(`/cms/invited-guests${query({ ...q, page: q.page ?? 1 })}`)) as unknown as GuestListPage,
+    bulk: (ids: string[], op: GuestBulkAction) => adminData<{ count: number }>('/cms/invited-guests/bulk', jsonInit('POST', { ids, ...op })),
+    createMany: (guests: InvitedGuestInput[], skipDuplicates = false) =>
+      adminRequest('/cms/invited-guests/batch', jsonInit('POST', { guests, skipDuplicates })).then(
+        (json) => ({ created: json.data as InvitedGuest[], skipped: Number(json.skipped) || 0, message: String(json.message || '') }),
+      ),
     update: (id: string, patch: Partial<InvitedGuest>) => adminData<InvitedGuest>(`/cms/invited-guests/${id}`, jsonInit('PUT', patch)),
     remove: async (id: string) => {
       await adminRequest(`/cms/invited-guests/${id}`, { method: 'DELETE' });

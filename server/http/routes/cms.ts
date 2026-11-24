@@ -185,13 +185,36 @@ export function cmsRoutes(s: Services): Router {
   // --- Invited guests & check-in ---
   router.get(
     '/cms/invited-guests',
-    route((req) => s.guests.list(String(req.query.filter || 'ALL'), String(req.query.search || '')), 'Gagal memuat daftar tamu.'),
+    route((req) => {
+      // With `page` the list is paged and filtered on the server; without it, the whole list (reception desk).
+      if (req.query.page === undefined) return s.guests.list(String(req.query.filter || 'ALL'), String(req.query.search || ''));
+      const q = req.query;
+      return s.guests.page({
+        page: Number(q.page),
+        pageSize: Number(q.pageSize),
+        search: String(q.search || ''),
+        category: String(q.category || 'ALL'),
+        sent: String(q.sent || 'ALL') as 'ALL',
+        attendance: String(q.attendance || 'ALL') as 'ALL',
+        sort: String(q.sort || 'NAME') as 'NAME',
+      });
+    }, 'Gagal memuat daftar tamu.'),
+  );
+  router.post(
+    '/cms/invited-guests/bulk',
+    route(async (req) => {
+      const { ids, ...op } = req.body || {};
+      const data = await s.guests.bulk(ids, op);
+      return { message: `${data.count} tamu diperbarui.`, data };
+    }, 'Gagal memproses tamu terpilih.'),
   );
   router.post(
     '/cms/invited-guests/batch',
     route(async (req, res) => {
-      const data = await s.guests.createMany(req.body?.guests);
-      res.status(201).json({ success: true, message: `${data.length} tamu ditambahkan.`, data });
+      const total = Array.isArray(req.body?.guests) ? req.body.guests.filter((g: { name?: string }) => g?.name?.trim()).length : 0;
+      const data = await s.guests.createMany(req.body?.guests, { skipDuplicates: Boolean(req.body?.skipDuplicates) });
+      const skipped = total - data.length;
+      res.status(201).json({ success: true, message: `${data.length} tamu ditambahkan${skipped > 0 ? `, ${skipped} dilewati karena sudah ada` : ''}.`, data, skipped });
     }, 'Gagal mengimpor tamu.'),
   );
   router.post(

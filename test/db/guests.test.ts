@@ -103,3 +103,60 @@ describe('phone and Instagram', () => {
     expect(made.map((m) => m.phone)).toEqual(['0812-3456-7890', '', '']);
   });
 });
+
+describe('large guest lists', () => {
+  const seed = () =>
+    guests().createMany([
+      ...Array.from({ length: 37 }, (_, i) => ({ name: `Tamu ${String(i).padStart(2, '0')}`, category: i % 2 ? 'Keluarga' : 'Teman', phone: `0812-0000-${1000 + i}` })),
+      { name: 'Zahra VIP', category: 'VIP', pax: 4 },
+    ]);
+
+  it('pages, filters, searches and sorts on the server', async () => {
+    await seed();
+    const first = await guests().page({ page: 1, pageSize: 10 });
+    expect(first).toMatchObject({ total: 38, page: 1, pageSize: 10 });
+    expect(first.data).toHaveLength(10);
+    expect(first.ids).toHaveLength(38);
+    expect(first.categories).toEqual(['Keluarga', 'Teman', 'VIP']);
+    expect((await guests().page({ page: 4, pageSize: 10 })).data).toHaveLength(8);
+    expect((await guests().page({ page: 99, pageSize: 10 })).page).toBe(4);
+    expect((await guests().page({ category: 'vip' })).data.map((g) => g.name)).toEqual(['Zahra VIP']);
+    expect((await guests().page({ search: '1005' })).total).toBe(1);
+    expect((await guests().page({ sort: 'NAME', pageSize: 5 })).data[0].name).toBe('Tamu 00');
+    const [one] = (await guests().page({ search: 'Tamu 03' })).data;
+    await guests().checkIn({ id: one.id }, {});
+    expect((await guests().page({ attendance: 'CHECKED_IN' })).total).toBe(1);
+    await guests().markSent([one.id], true);
+    expect((await guests().page({ sent: 'SENT' })).total).toBe(1);
+    expect((await guests().page({ sent: 'UNSENT' })).total).toBe(37);
+  });
+
+  it('applies one action to many selected guests', async () => {
+    await seed();
+    const { ids } = await guests().page({ category: 'Teman' });
+    expect(await guests().bulk(ids, { action: 'sent', value: true })).toEqual({ count: ids.length });
+    expect((await guests().page({ sent: 'SENT' })).total).toBe(ids.length);
+    await guests().bulk(ids, { action: 'category', value: 'Kantor' });
+    expect((await guests().page({ category: 'Kantor' })).total).toBe(ids.length);
+    await guests().bulk(ids, { action: 'pax', value: 3 });
+    await guests().bulk(ids, { action: 'table', value: 'B2' });
+    expect((await guests().page({ category: 'Kantor' })).data[0]).toMatchObject({ pax: 3, tableNumber: 'B2' });
+    expect(await guests().bulk(ids, { action: 'delete' })).toEqual({ count: ids.length });
+    expect((await guests().page({})).total).toBe(38 - ids.length);
+    await expect(guests().bulk([], { action: 'delete' })).rejects.toMatchObject({ status: 400 });
+    await expect(guests().bulk(['x'], { action: 'category', value: ' ' })).rejects.toMatchObject({ status: 400 });
+  });
+
+  it('skips repeats on import when asked', async () => {
+    await guests().create({ name: 'Budi Santoso', phone: '0812-3456-7890' });
+    const rows = [
+      { name: 'budi santoso', phone: '+62 812 3456 7890' },
+      { name: 'Budi Santoso', phone: '0899-1111-2222' },
+      { name: 'Sari', phone: '' },
+      { name: 'Sari', phone: '' },
+    ];
+    const created = await guests().createMany(rows, { skipDuplicates: true });
+    expect(created.map((g) => g.name)).toEqual(['Budi Santoso', 'Sari']);
+    expect((await guests().createMany(rows)).length).toBe(4);
+  });
+});

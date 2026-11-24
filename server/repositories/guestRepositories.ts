@@ -174,6 +174,12 @@ export function invitedGuestRepository(db: Db) {
     async remove(id: string) {
       return (await orNull(db.invitedGuest.delete({ where: { id } }))) !== null;
     },
+    async removeMany(ids: string[]): Promise<number> {
+      return (await db.invitedGuest.deleteMany({ where: { id: { in: ids } } })).count;
+    },
+    async updateMany(ids: string[], patch: InvitedWrite): Promise<number> {
+      return (await db.invitedGuest.updateMany({ where: { id: { in: ids } }, data: invitedData(patch) })).count;
+    },
   };
 }
 

@@ -290,6 +290,38 @@ export interface CMSGeneralData {
   adminProfile?: AdminUser;
 }
 
+/** Filters and paging for the CMS guest list. `page` is 1-based. */
+export interface GuestListQuery {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+  category?: string;
+  sent?: 'ALL' | 'SENT' | 'UNSENT';
+  attendance?: 'ALL' | 'CHECKED_IN' | 'NOT_CHECKED_IN';
+  sort?: 'NAME' | 'NEWEST' | 'CODE' | 'CATEGORY';
+}
+
+export interface GuestListPage {
+  data: InvitedGuest[];
+  /** Guests matching the filters, across all pages. */
+  total: number;
+  page: number;
+  pageSize: number;
+  /** Ids of every guest matching the filters, so "select all N" works across pages. */
+  ids: string[];
+  /** Categories in use, for the filter list. */
+  categories: string[];
+  sentCount: number;
+  stats: PresensiStats;
+}
+
+export type GuestBulkAction =
+  | { action: 'delete' }
+  | { action: 'sent'; value: boolean }
+  | { action: 'category'; value: string }
+  | { action: 'pax'; value: number }
+  | { action: 'table'; value: string };
+
 export type InvitedGuestInput = Partial<
   Pick<InvitedGuest, 'slug' | 'phone' | 'instagram' | 'category' | 'pax' | 'tableNumber' | 'customNote' | 'invitationSent'>
 > & { name: string };

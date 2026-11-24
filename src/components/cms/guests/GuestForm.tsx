@@ -124,36 +124,73 @@ export const GuestForm: React.FC<{ id: string; initial: InvitedGuestInput; onSub
   );
 };
 
+/** Column titles the import understands (case and punctuation ignored), in the order of the template. */
+export const IMPORT_COLUMNS = [
+  { key: 'name', title: 'Nama', aliases: ['nama', 'name', 'nama tamu'] },
+  { key: 'category', title: 'Kategori', aliases: ['kategori', 'category', 'grup', 'group'] },
+  { key: 'pax', title: 'Kursi', aliases: ['kursi', 'pax', 'jumlah', 'jumlah kursi', 'seat', 'seats'] },
+  { key: 'phone', title: 'Telepon', aliases: ['telepon', 'telp', 'no telepon', 'nomor telepon', 'hp', 'no hp', 'nomor hp', 'wa', 'whatsapp', 'phone'] },
+  { key: 'tableNumber', title: 'Meja', aliases: ['meja', 'table', 'no meja', 'nomor meja'] },
+  { key: 'customNote', title: 'Catatan', aliases: ['catatan', 'note', 'notes', 'keterangan'] },
+  { key: 'instagram', title: 'Instagram', aliases: ['instagram', 'ig'] },
+] as const;
+type ImportKey = (typeof IMPORT_COLUMNS)[number]['key'];
+
+const norm = (v: string) => v.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+
 /**
- * One guest per line: Nama, Kategori, Kursi, Telepon, Meja, Catatan, Instagram.
- * Only the name is required; missing columns fall back to defaults. Numbers and Instagram names are tidied,
- * and anything that cannot be read is reported in `issues` (and left blank) instead of failing the whole list.
+ * Rows of cells (from a pasted list, a CSV or an Excel sheet) to guests. A first row of known column titles
+ * (Nama, Kategori, Kursi, Telepon, Meja, Catatan, Instagram, in any order) picks the columns; without titles the
+ * order is that of the template. Only the name is required. Numbers and Instagram names are tidied, and anything
+ * that cannot be read is reported in `issues` (and left blank) instead of failing the whole list.
  */
-export function parseGuestLinesWithIssues(text: string): { guests: InvitedGuestInput[]; issues: string[] } {
+export function parseGuestRows(rows: string[][]): { guests: InvitedGuestInput[]; issues: string[]; hasHeader: boolean } {
   const issues: string[] = [];
   const guests: InvitedGuestInput[] = [];
-  text.split('\n').forEach((raw, i) => {
-    const line = raw.trim();
-    if (!line) return;
-    const [name, category, pax, phone, tableNumber, customNote, instagram] = line.split(/\t|,/).map((p) => p.trim());
+  const titled = rows[0]?.map((c) => IMPORT_COLUMNS.find((col) => (col.aliases as readonly string[]).includes(norm(c)))?.key);
+  const hasHeader = Boolean(titled && titled.includes('name'));
+  const order: (ImportKey | undefined)[] = hasHeader ? titled! : IMPORT_COLUMNS.map((c) => c.key);
+  rows.forEach((cells, i) => {
+    if (hasHeader && i === 0) return;
+    const row = i + 1;
+    const get = (key: ImportKey) => {
+      const at = order.indexOf(key);
+      return at >= 0 ? (cells[at] ?? '').trim() : '';
+    };
+    const name = get('name');
     if (!name) return;
+    const phone = get('phone');
     const parsed = phone ? parsePhone(phone) : null;
-    if (phone && !parsed) issues.push(`Baris ${i + 1} (${name}): nomor "${phone}" tidak terbaca, dikosongkan.`);
+    if (phone && !parsed) issues.push(`Baris ${row} (${name}): nomor "${phone}" tidak terbaca, dikosongkan.`);
+    const instagram = get('instagram');
     const handle = instagram ? cleanInstagram(instagram) : '';
     const badHandle = handle && checkInstagram(handle);
-    if (badHandle) issues.push(`Baris ${i + 1} (${name}): Instagram "${instagram}" tidak valid, dikosongkan.`);
+    if (badHandle) issues.push(`Baris ${row} (${name}): Instagram "${instagram}" tidak valid, dikosongkan.`);
+    const pax = get('pax');
     const seats = Number(pax);
-    if (pax && !(seats >= 1 && seats <= 50)) issues.push(`Baris ${i + 1} (${name}): jumlah kursi "${pax}" tidak valid, dipakai 2.`);
+    if (pax && !(seats >= 1 && seats <= 50)) issues.push(`Baris ${row} (${name}): jumlah kursi "${pax}" tidak valid, dipakai 2.`);
     guests.push({
       name,
-      category: category || 'Umum',
+      category: get('category') || 'Umum',
       pax: seats >= 1 && seats <= 50 ? Math.round(seats) : 2,
       phone: parsed ? parsed.display : '',
-      tableNumber: tableNumber || '',
-      customNote: customNote || '',
+      tableNumber: get('tableNumber'),
+      customNote: get('customNote'),
       instagram: badHandle ? '' : handle,
     });
   });
+  return { guests, issues, hasHeader };
+}
+
+/** One guest per line, columns separated by comma or tab (what pasting from a spreadsheet gives). */
+export function parseGuestLinesWithIssues(text: string): { guests: InvitedGuestInput[]; issues: string[] } {
+  const { guests, issues } = parseGuestRows(
+    text
+      .split('\n')
+      .map((l) => l.trim())
+      .filter(Boolean)
+      .map((l) => l.split(/\t|,/).map((p) => p.trim())),
+  );
   return { guests, issues };
 }
 
