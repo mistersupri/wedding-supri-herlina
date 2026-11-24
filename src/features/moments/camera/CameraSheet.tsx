@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { useDialogBehaviour } from '../../../components/ui/Modal.js';
 import { useTemplateFonts } from '../../invitation/templates/shared/kit.js';
 import { availableLooks } from '../film/looks.js';
+import { collageSpec, composeCollage, cropToCell, type CollageLayout } from '../film/collage.js';
 import { aspectOf, isStoryAspect, loadImage, newRecipe, renderPhoto, toBlob, type Recipe } from '../film/render.js';
 import { enqueue } from '../upload/queue.js';
 import { Darkroom } from './Darkroom.js';
@@ -39,6 +40,8 @@ export const CameraSheet: React.FC<CameraSheetProps> = ({ identity, config, rema
   const [sending, setSending] = useState(false);
   const [story, setStory] = useState(false);
   const [note, setNote] = useState('');
+  const [layout, setLayout] = useState<CollageLayout>(1);
+  const [shots, setShots] = useState<{ canvas: HTMLCanvasElement; thumb: string }[]>([]);
   useDialogBehaviour(true, onClose, panelRef);
   // The date stamp uses the same LCD face as the film theme.
   useTemplateFonts('family=VT323');
@@ -58,8 +61,32 @@ export const CameraSheet: React.FC<CameraSheetProps> = ({ identity, config, rema
     setRecipe((r) => ({ ...r, frame: story && storyFrame ? 'event' : r.frame === 'event' ? 'none' : r.frame }));
   };
 
+  // Photo-strip: each shot is cropped to its cell; once the last one is in, the finished sheet goes to the darkroom like a single photo.
+  const sheet = collageSpec(layout, story && storyFrame);
+  const changeLayout = (next: CollageLayout) => {
+    setLayout(next);
+    setShots([]);
+  };
+  const changeStory = (value: boolean) => {
+    setStory(value);
+    setShots([]);
+  };
+  const collect = (shot: HTMLCanvasElement | HTMLImageElement) => {
+    if (layout === 1) return takeShot(shot);
+    const cropped = cropToCell(shot, sheet.cells[shots.length]);
+    const thumb = document.createElement('canvas');
+    thumb.width = 72;
+    thumb.height = Math.round(72 / sheet.cellRatio);
+    thumb.getContext('2d')!.drawImage(cropped, 0, 0, thumb.width, thumb.height);
+    const next = [...shots, { canvas: cropped, thumb: thumb.toDataURL('image/jpeg', 0.6) }];
+    if (next.length < layout) return setShots(next);
+    setShots([]);
+    takeShot(composeCollage(sheet, next.map((s) => s.canvas)));
+  };
+
   const retake = () => {
     setSource(null);
+    setShots([]);
     // Keep the look and effects for the next shot, like film loaded in a camera; reset framing only.
     setRecipe((r) => ({ ...r, crop: { zoom: 1, x: 0, y: 0, rotation: 0 }, caption: '' }));
   };
@@ -107,7 +134,14 @@ export const CameraSheet: React.FC<CameraSheetProps> = ({ identity, config, rema
           onClose={onClose}
         />
       ) : (
-        <Viewfinder remaining={remaining} onShot={takeShot} onClose={onClose} story={story && storyFrame} onStoryChange={storyFrame ? setStory : undefined} />
+        <Viewfinder
+          remaining={remaining}
+          onShot={collect}
+          onClose={onClose}
+          story={story && storyFrame}
+          onStoryChange={storyFrame ? changeStory : undefined}
+          collage={{ layout, onLayout: changeLayout, cellRatio: sheet.cellRatio, taken: shots.map((s) => s.thumb), onUndo: () => setShots((s) => s.slice(0, -1)) }}
+        />
       )}
       {note && (
         <p role="status" className="cam-toast">
