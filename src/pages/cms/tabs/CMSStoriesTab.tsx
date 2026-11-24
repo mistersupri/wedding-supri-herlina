@@ -119,6 +119,7 @@ export const CMSStoriesTab: React.FC = () => {
             <MediaField
               label="Foto (opsional)"
               aspect="portrait"
+              cropRatio={4 / 3}
               category="gallery"
               maxDimension={1400}
               minWidth={600}

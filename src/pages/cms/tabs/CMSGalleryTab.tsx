@@ -348,6 +348,7 @@ export const CMSGalleryTab: React.FC = () => {
                 category="gallery"
                 allowVideo
                 aspect="square"
+                cropRatio={4 / 5}
                 minWidth={800}
                 value={draft.url || ''}
                 onChange={(url) => set('url', url)}

@@ -5,6 +5,7 @@ import { resizeImageFile } from '../../lib/image.js';
 import { checkFile, kindOf, kindOfUrl, type FileRules, type MediaKind } from '../../lib/files.js';
 import { checkUrl } from '../../lib/inputs.js';
 import { DropSurface, FileDropzone } from '../ui/FileDropzone.js';
+import { ImageCropper } from './ImageCropper.js';
 import { Input } from '../ui/Field.js';
 import type { UploadCategory } from '@shared/types';
 
@@ -29,7 +30,13 @@ interface MediaFieldProps {
   checker?: boolean;
   /** Hide the "paste a link" option. */
   noUrl?: boolean;
+  /** Offer to crop photos before they are uploaded (on by default). */
+  crop?: boolean;
+  /** Starting shape of the crop window, width over height. Defaults to the shape of the preview. */
+  cropRatio?: number;
 }
+
+const CROP_OF: Record<Aspect, number> = { portrait: 3 / 4, landscape: 16 / 9, square: 1, story: 9 / 16 };
 
 const THUMB: Record<Aspect, string> = {
   portrait: 'aspect-[3/4] w-28',
@@ -76,6 +83,8 @@ export const MediaField: React.FC<MediaFieldProps> = ({
   minWidth,
   checker,
   noUrl,
+  crop = true,
+  cropRatio,
 }) => {
   const id = useId();
   const rules: FileRules = { kinds: kinds ?? (allowVideo ? ['image', 'video'] : ['image']), maxMB };
@@ -86,6 +95,7 @@ export const MediaField: React.FC<MediaFieldProps> = ({
   const [dims, setDims] = useState<{ w: number; h: number } | null>(null);
   const [uploadedName, setUploadedName] = useState<string | null>(null);
   const [broken, setBroken] = useState(false);
+  const [cropping, setCropping] = useState<File | null>(null);
   const abort = useRef<AbortController | null>(null);
   const kind = value ? kindOfUrl(value) ?? (rules.kinds.includes('image') ? 'image' : rules.kinds[0]) : null;
 
@@ -95,12 +105,20 @@ export const MediaField: React.FC<MediaFieldProps> = ({
   }, [value]);
   useEffect(() => () => abort.current?.abort(), []);
 
-  const upload = async (file: File) => {
+  /** A photo goes through the cropper first; everything else uploads straight away. */
+  const pick = (file: File) => {
     const problem = checkFile(file, rules);
     if (problem) {
       setError(problem);
       return;
     }
+    setError(null);
+    const croppable = crop && kindOf(file) === 'image' && !/gif|svg/.test(file.type);
+    if (croppable) setCropping(file);
+    else void upload(file);
+  };
+
+  const upload = async (file: File) => {
     setError(null);
     const controller = new AbortController();
     abort.current = controller;
@@ -128,7 +146,7 @@ export const MediaField: React.FC<MediaFieldProps> = ({
         {label}
       </span>
 
-      <FileDropzone rules={rules} disabled={busy} onFiles={(files) => upload(files[0])} onRejected={(m) => m.length && setError(m[0])} className="relative">
+      <FileDropzone rules={rules} disabled={busy} onFiles={(files) => pick(files[0])} onRejected={(m) => m.length && setError(m[0])} className="relative">
         {({ dragging, open }) =>
           busy ? (
             <div className="rounded-sm border border-field bg-card p-4" role="status">
@@ -209,6 +227,24 @@ export const MediaField: React.FC<MediaFieldProps> = ({
           )
         }
       </FileDropzone>
+
+      {cropping && (
+        <ImageCropper
+          file={cropping}
+          ratio={cropRatio ?? CROP_OF[aspect]}
+          maxDimension={maxDimension}
+          onConfirm={(cropped) => {
+            setCropping(null);
+            void upload(cropped);
+          }}
+          onSkip={() => {
+            const original = cropping;
+            setCropping(null);
+            void upload(original);
+          }}
+          onCancel={() => setCropping(null)}
+        />
+      )}
 
       {!noUrl && (
         <details className="group text-sm" open={Boolean(urlError)}>

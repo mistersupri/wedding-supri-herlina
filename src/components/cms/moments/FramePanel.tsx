@@ -139,6 +139,7 @@ export const FramePanel: React.FC = () => {
           category="general"
           aspect="story"
           checker
+          crop={false}
           maxDimension={2000}
           maxMB={{ image: 10 }}
           value={isCustom ? form.frameOverlayUrl : ''}
