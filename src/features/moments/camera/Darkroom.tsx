@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { CalendarDays, Crop, Film, Frame, RotateCcw, RotateCw, Sliders, Sparkles, Sun, Wind, X } from 'lucide-react';
+import { CalendarDays, Crop, Film, Frame, RefreshCcw, RotateCcw, RotateCw, Sliders, Sparkles, Sun, Wind, X } from 'lucide-react';
 import { EDIT_FIELDS, LOOK_GROUPS, NO_EDITS, lookById, type Edits, type Look } from '../film/looks.js';
 import {
   DUST_VARIANTS,
@@ -8,23 +8,14 @@ import {
   downscale,
   isStoryAspect,
   placeCrop,
+  recipeAspect,
   renderPhoto,
   rotatedSize,
-  type FrameStyle,
   type Recipe,
 } from '../film/render.js';
 import { FrameCounter } from './FrameCounter.js';
 
-type Panel = 'film' | 'grain' | 'edit' | 'frame' | 'crop' | null;
-
-const FRAMES: { id: FrameStyle; label: string }[] = [
-  { id: 'none', label: 'Tanpa bingkai' },
-  { id: 'white', label: 'Putih' },
-  { id: 'black', label: 'Hitam' },
-  { id: 'white-caption', label: 'Putih + teks' },
-  { id: 'black-caption', label: 'Hitam + teks' },
-  { id: 'event', label: 'Bingkai acara' },
-];
+type Panel = 'film' | 'dust' | 'leak' | 'grain' | 'edit' | 'crop' | null;
 
 interface DarkroomProps {
   source: HTMLCanvasElement | HTMLImageElement;
@@ -33,6 +24,8 @@ interface DarkroomProps {
   looks: Look[];
   eventFrame: HTMLImageElement | null;
   remaining: number;
+  /** Frames this picture will use up (a collage uses one per shot). */
+  cost: number;
   sending: boolean;
   onRetake: () => void;
   onSend: () => void;
@@ -52,6 +45,7 @@ export const Darkroom: React.FC<DarkroomProps> = ({
   looks,
   eventFrame,
   remaining,
+  cost,
   sending,
   onRetake,
   onSend,
@@ -64,8 +58,10 @@ export const Darkroom: React.FC<DarkroomProps> = ({
   const [dragging, setDragging] = useState(false);
   const pointers = useRef(new Map<number, { x: number; y: number }>());
   const pinch = useRef<number | null>(null);
-  const aspect = aspectOf(recipe.frame, eventFrame);
-  const storyEvent = recipe.frame === 'event' && isStoryAspect(aspect);
+  const aspect = recipeAspect(recipe, eventFrame);
+  const frameOn = recipe.frame === 'event' && Boolean(eventFrame);
+  // A collage sheet keeps the shape it was made in, so the event frame only fits when that shape matches it.
+  const frameFits = Boolean(eventFrame) && (recipe.aspect === undefined || Math.abs(recipe.aspect - aspectOf('event', eventFrame)) < 0.01);
   const previewSrc = useMemo(() => downscale(source, 1400), [source]);
   const thumbSrc = useMemo(() => downscale(source, 220), [source]);
 
@@ -80,12 +76,6 @@ export const Darkroom: React.FC<DarkroomProps> = ({
     });
     return () => cancelAnimationFrame(id);
   }, [previewSrc, recipe, eventFrame, dragging]);
-
-  // The frame chips scroll sideways; bring the chosen one into view when the panel opens, so it is not hidden off to the right.
-  useEffect(() => {
-    if (panel !== 'frame') return;
-    document.querySelector<HTMLElement>('.cam-chips [aria-checked="true"]')?.scrollIntoView({ inline: 'center', block: 'nearest' });
-  }, [panel, recipe.frame]);
 
   // --- Gestures: one finger pans, two fingers zoom, a wheel zooms. ---
   const onPointerDown = (e: React.PointerEvent) => {
@@ -132,10 +122,16 @@ export const Darkroom: React.FC<DarkroomProps> = ({
 
   const look = lookById(recipe.look);
   const edited = Object.values(recipe.edits).some(Boolean);
+  // Everything the filters touched: look, dust, light bleed, grain, edits and the date stamp. Position and frame stay.
+  const dirty = recipe.look !== 'none' || recipe.dust > 0 || recipe.leak > 0 || recipe.grain > 0 || recipe.stamp || edited;
+  const resetFilters = () => {
+    onChange((r) => ({ ...r, look: 'none', strength: 80, dust: 0, leak: 0, grain: 0, stamp: false, edits: { ...NO_EDITS } }));
+    setPanel('film');
+  };
   const set = <K extends keyof Recipe>(key: K, value: Recipe[K]) => onChange((r) => ({ ...r, [key]: value }));
   const toggle = (id: Exclude<Panel, null>) => setPanel((p) => (p === id ? null : id));
 
-  const tools: { id: string; label: string; icon: React.ReactNode; badge?: string; active: boolean; onClick: () => void }[] = [
+  const tools: { id: string; label: string; icon: React.ReactNode; badge?: string; active: boolean; disabled?: boolean; onClick: () => void }[] = [
     { id: 'retake', label: 'Ulang', icon: <RotateCcw />, active: false, onClick: onRetake },
     {
       id: 'film',
@@ -150,17 +146,16 @@ export const Darkroom: React.FC<DarkroomProps> = ({
       label: 'Debu',
       icon: <Wind />,
       badge: recipe.dust ? `${recipe.dust}/${DUST_VARIANTS}` : undefined,
-      active: Boolean(recipe.dust),
-      // Each tap scatters a different handful of dust; after the last one it turns off.
-      onClick: () => set('dust', (recipe.dust + 1) % (DUST_VARIANTS + 1)),
+      active: panel === 'dust',
+      onClick: () => toggle('dust'),
     },
     {
       id: 'leak',
       label: 'Bleed',
       icon: <Sun />,
       badge: recipe.leak ? `${recipe.leak}/${LEAK_VARIANTS}` : undefined,
-      active: Boolean(recipe.leak),
-      onClick: () => set('leak', (recipe.leak + 1) % (LEAK_VARIANTS + 1)),
+      active: panel === 'leak',
+      onClick: () => toggle('leak'),
     },
     {
       id: 'grain',
@@ -186,15 +181,8 @@ export const Darkroom: React.FC<DarkroomProps> = ({
       active: recipe.stamp,
       onClick: () => set('stamp', !recipe.stamp),
     },
-    {
-      id: 'frame',
-      label: 'Bingkai',
-      icon: <Frame />,
-      badge: recipe.frame === 'none' ? undefined : '•',
-      active: panel === 'frame',
-      onClick: () => toggle('frame'),
-    },
     { id: 'crop', label: 'Posisi', icon: <Crop />, active: panel === 'crop', onClick: () => toggle('crop') },
+    { id: 'reset', label: 'Reset', icon: <RefreshCcw />, active: false, disabled: !dirty, onClick: resetFilters },
   ];
 
   return (
@@ -204,14 +192,17 @@ export const Darkroom: React.FC<DarkroomProps> = ({
           <X className="h-6 w-6" />
         </button>
         <p className="cam-hint min-w-0 flex-1 truncate">Geser untuk atur posisi, cubit untuk zoom</p>
-        <FrameCounter remaining={remaining} />
+        <span className="flex items-center">
+          <FrameCounter remaining={remaining} />
+          {cost > 1 && <span className="cam-cost" title={`Foto ini memakai ${cost} frame`}>−{cost}</span>}
+        </span>
       </div>
 
       <div className="flex min-h-0 flex-1 items-center justify-center px-3">
         <div
           ref={boxRef}
           className="cam-window cam-darkroom"
-          style={{ width: `min(100%, 30rem, calc((100dvh - 20rem) * ${aspect}))`, aspectRatio: String(aspect) }}
+          style={{ width: `min(100%, 30rem, calc((100dvh - 25.5rem) * ${aspect}))`, aspectRatio: String(aspect) }}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
@@ -223,7 +214,24 @@ export const Darkroom: React.FC<DarkroomProps> = ({
         </div>
       </div>
 
-      <div className="mx-auto w-full max-w-xl px-3 pt-3">
+      <div className="mx-auto w-full max-w-xl px-3 pt-2">
+        {eventFrame && (
+          <button
+            type="button"
+            role="switch"
+            aria-checked={frameOn}
+            disabled={!frameFits}
+            className="cam-frame-row mb-2"
+            onClick={() => set('frame', frameOn ? 'none' : 'event')}
+          >
+            <span>
+              <Frame className="h-5 w-5" aria-hidden="true" />
+              Bingkai acara
+              {!frameFits && <small className="font-normal opacity-70"> · tidak cocok untuk kolase ini</small>}
+            </span>
+            <span className="cam-switch" aria-hidden="true" />
+          </button>
+        )}
         {panel === 'film' && (
           <div className="cam-panel">
             <div className="cam-looks no-scrollbar" role="radiogroup" aria-label="Look film">
@@ -255,6 +263,30 @@ export const Darkroom: React.FC<DarkroomProps> = ({
               </label>
             )}
           </div>
+        )}
+        {panel === 'dust' && (
+          <EffectPanel
+            label="Debu"
+            hint="Pilih satu. Ketuk lagi pilihan yang sama untuk mematikan."
+            count={DUST_VARIANTS}
+            value={recipe.dust}
+            source={thumbSrc}
+            recipe={recipe}
+            field="dust"
+            onPick={(v) => set('dust', v)}
+          />
+        )}
+        {panel === 'leak' && (
+          <EffectPanel
+            label="Bleed"
+            hint="Kebocoran cahaya film. Pilih satu."
+            count={LEAK_VARIANTS}
+            value={recipe.leak}
+            source={thumbSrc}
+            recipe={recipe}
+            field="leak"
+            onPick={(v) => set('leak', v)}
+          />
         )}
         {panel === 'grain' && (
           <div className="cam-panel">
@@ -298,26 +330,6 @@ export const Darkroom: React.FC<DarkroomProps> = ({
                 Kembalikan semua setelan
               </button>
             )}
-          </div>
-        )}
-        {panel === 'frame' && (
-          <div className="cam-panel">
-            <div className="cam-chips no-scrollbar" role="radiogroup" aria-label="Bingkai">
-              {FRAMES.filter((f) => f.id !== 'event' || eventFrame).map((f) => (
-                <button
-                  key={f.id}
-                  type="button"
-                  role="radio"
-                  aria-checked={recipe.frame === f.id}
-                  onClick={() => set('frame', f.id)}
-                  className="cam-chip"
-                >
-                  {f.id === 'event' && eventFrame && isStoryAspect(aspectOf('event', eventFrame)) ? 'Bingkai acara · Story 9:16' : f.label}
-                </button>
-              ))}
-            </div>
-            {storyEvent && <p className="cam-hint mt-2">Fotonya jadi 9:16, ukuran pas untuk Story Instagram. Geser dan cubit untuk mengatur posisi.</p>}
-            {recipe.frame.endsWith('caption') && <p className="cam-hint mt-2">Teks di bawah foto diambil dari keterangan.</p>}
           </div>
         )}
         {panel === 'crop' && (
@@ -364,7 +376,8 @@ export const Darkroom: React.FC<DarkroomProps> = ({
               key={t.id}
               type="button"
               className="cam-tool"
-              aria-pressed={t.id === 'retake' ? undefined : t.active}
+              aria-pressed={t.id === 'retake' || t.id === 'reset' ? undefined : t.active}
+              disabled={t.disabled}
               onClick={t.onClick}
             >
               <span className="cam-tool-icon" aria-hidden="true">
@@ -420,6 +433,56 @@ const LookThumb: React.FC<{ look: Look; source: HTMLCanvasElement; recipe: Recip
       <canvas ref={ref} aria-hidden="true" />
       <span className="cam-look-code">{look.code === '00' ? '' : look.code}</span>
       <span className="cam-look-name">{look.name}</span>
+    </button>
+  );
+};
+
+/** Variants of dust or light bleed rendered on the guest's own photo: tap one to apply it, tap it again to switch it off. */
+const EffectPanel: React.FC<{
+  label: string;
+  hint: string;
+  count: number;
+  value: number;
+  source: HTMLCanvasElement;
+  recipe: Recipe;
+  field: 'dust' | 'leak';
+  onPick: (value: number) => void;
+}> = ({ label, hint, count, value, source, recipe, field, onPick }) => (
+  <div className="cam-panel">
+    <div className="cam-looks no-scrollbar" role="radiogroup" aria-label={label}>
+      {Array.from({ length: count + 1 }, (_, i) => (
+        <EffectThumb key={i} index={i} source={source} recipe={recipe} field={field} active={value === i} onPick={() => onPick(value === i ? 0 : i)} />
+      ))}
+    </div>
+    <p className="cam-hint mt-1.5">{hint}</p>
+  </div>
+);
+
+const EffectThumb: React.FC<{ index: number; source: HTMLCanvasElement; recipe: Recipe; field: 'dust' | 'leak'; active: boolean; onPick: () => void }> = ({
+  index,
+  source,
+  recipe,
+  field,
+  active,
+  onPick,
+}) => {
+  const ref = useRef<HTMLCanvasElement>(null);
+  const { crop, look, strength, aspect } = recipe;
+  useEffect(() => {
+    if (!ref.current) return;
+    // The look chosen so far stays, so the preview is what the photo would become.
+    renderPhoto(
+      source,
+      { ...recipe, dust: 0, leak: 0, grain: 0, stamp: false, frame: 'none', edits: { ...NO_EDITS }, [field]: index },
+      { width: 120 },
+      ref.current,
+    );
+  }, [source, index, field, crop, look, strength, aspect]);
+  return (
+    <button type="button" role="radio" aria-checked={active} className="cam-look" onClick={onPick} aria-label={index === 0 ? 'Tanpa' : `Pilihan ${index}`}>
+      <canvas ref={ref} aria-hidden="true" />
+      <span className="cam-look-code">{index === 0 ? '' : String(index).padStart(2, '0')}</span>
+      <span className="cam-look-name">{index === 0 ? 'Tanpa' : `#${index}`}</span>
     </button>
   );
 };

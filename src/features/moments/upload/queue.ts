@@ -11,6 +11,8 @@ export interface UploadJob {
   identity: MomentIdentity;
   caption: string;
   look: string;
+  /** Frames of the guest's quota this picture uses (a collage: one per shot). */
+  frames?: number;
   original: Blob;
   preview: Blob;
   createdAt: number;
@@ -24,6 +26,8 @@ export interface JobState {
   id: string;
   status: 'waiting' | 'uploading' | 'retrying' | 'done' | 'rejected';
   progress: number;
+  /** Quota frames this job holds until it is registered. */
+  frames: number;
   error?: string;
   /** Small object URL for the progress list. */
   thumb: string;
@@ -127,6 +131,7 @@ async function register(job: UploadJob) {
       originalUrl: job.originalUrl,
       caption: job.caption,
       look: job.look,
+      frames: job.frames ?? 1,
     }),
   }).catch(() => {
     throw new HttpFailure('Sinyal terputus.', false);
@@ -215,6 +220,7 @@ function track(job: UploadJob) {
     id: job.id,
     status: job.rejected ? 'rejected' : 'waiting',
     progress: 0,
+    frames: job.frames ?? 1,
     error: job.rejected,
     thumb: URL.createObjectURL(job.preview),
   });

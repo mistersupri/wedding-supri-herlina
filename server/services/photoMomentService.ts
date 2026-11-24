@@ -113,13 +113,15 @@ export function photoMomentService(d: Deps) {
       return { data, total, page, limit, hasMore: page * limit < total, userCount: who ? await countFor(who) : 0 };
     },
 
-    async add(input: { guestName?: string; guestSlug?: string; photoUrl?: string; originalUrl?: string; caption?: string; look?: string }) {
+    async add(input: { guestName?: string; guestSlug?: string; photoUrl?: string; originalUrl?: string; caption?: string; look?: string; frames?: number }) {
       const settings = await d.settings.get();
       if (!settings.cameraOpen) throw new HttpError(403, 'Kamera tamu sudah ditutup. Foto yang sudah masuk tetap tersimpan.');
       const photoUrl = await assertStoredPhoto(input.photoUrl, 'Foto belum terunggah.');
       const originalUrl = input.originalUrl ? await assertStoredPhoto(input.originalUrl, 'Foto asli tidak valid.') : undefined;
       if (originalUrl === photoUrl) throw badRequest('Foto asli tidak valid.');
       const who = await identify(input, settings);
+      // A collage uses one frame per shot it holds.
+      const frames = Math.min(4, Math.max(1, Math.round(Number(input.frames)) || 1));
       // A file can belong to one photo only, so nobody can re-register another guest's upload as their own.
       if (await d.moments.urlInUse(originalUrl ? [photoUrl, originalUrl] : [photoUrl])) throw badRequest('Foto ini sudah tersimpan.');
       const created = await d.moments.createWithinQuota(who, settings.framesPerGuest, {
@@ -130,9 +132,10 @@ export function photoMomentService(d: Deps) {
         caption: clean(input.caption, 140),
         look: clean(input.look, 20) || undefined,
         approved: !settings.moderation,
+        frames,
       });
       if (!created) {
-        throw new HttpError(400, `Jatah ${settings.framesPerGuest} foto Anda sudah habis. Terima kasih sudah ikut mengabadikan.`);
+        throw new HttpError(400, frames > 1 ? `Sisa frame Anda tidak cukup untuk kolase ${frames} foto (jatah ${settings.framesPerGuest} frame).` : `Jatah ${settings.framesPerGuest} foto Anda sudah habis. Terima kasih sudah ikut mengabadikan.`);
       }
       return created;
     },

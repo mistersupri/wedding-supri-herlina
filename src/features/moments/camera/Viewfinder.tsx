@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Images, RefreshCcw, Undo2, X } from 'lucide-react';
+import { Frame, Images, RefreshCcw, Undo2, X } from 'lucide-react';
 import { COLLAGE_LAYOUTS, collageLabel, type CollageLayout } from '../film/collage.js';
 import { FrameCounter } from './FrameCounter.js';
 
@@ -9,8 +9,8 @@ interface ViewfinderProps {
   onClose: () => void;
   /** The guide is 9:16 (a Story) instead of 4:5. */
   story?: boolean;
-  /** Present when the couple's event frame is Story-shaped: lets the guest switch the guide. */
-  onStoryChange?: (story: boolean) => void;
+  /** Present when the couple has an event frame: whether it is used, and a switch to turn it off. */
+  frame?: { on: boolean; onChange: (on: boolean) => void };
   /** Photo-strip mode: how many shots make one picture, what has been taken so far, and the shape of each cell. */
   collage: {
     layout: CollageLayout;
@@ -60,7 +60,7 @@ function grab(video: HTMLVideoElement, mirror: boolean) {
  * and the darkroom can still nudge it. When the camera is blocked or missing, the phone's gallery
  * is the way in.
  */
-export const Viewfinder: React.FC<ViewfinderProps> = ({ remaining, onShot, onClose, story = false, onStoryChange, collage }) => {
+export const Viewfinder: React.FC<ViewfinderProps> = ({ remaining, onShot, onClose, story = false, frame, collage }) => {
   const { layout, taken } = collage;
   const ratio = layout === 1 ? (story ? 9 / 16 : 4 / 5) : collage.cellRatio;
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -139,7 +139,7 @@ export const Viewfinder: React.FC<ViewfinderProps> = ({ remaining, onShot, onClo
       </div>
 
       <div className="flex min-h-0 flex-1 items-center justify-center px-3">
-        <div className="cam-window" style={{ width: `min(100%, 30rem, calc((100dvh - ${layout > 1 ? 21 : 18}rem) * ${ratio}))`, aspectRatio: String(ratio) }}>
+        <div className="cam-window" style={{ width: `min(100%, 30rem, calc((100dvh - ${layout > 1 ? 23 : 18}rem) * ${ratio}))`, aspectRatio: String(ratio) }}>
           <video
             ref={videoRef}
             playsInline
@@ -148,24 +148,29 @@ export const Viewfinder: React.FC<ViewfinderProps> = ({ remaining, onShot, onClo
             className={`h-full w-full object-cover ${facing === 'user' ? '-scale-x-100' : ''}`}
           />
           <span className="cam-thirds" aria-hidden="true" />
-          {layout > 1 ? (
+          {layout > 1 && (
             <span className="cam-ratio" aria-live="polite">
               Foto {taken.length + 1} dari {layout}
             </span>
-          ) : onStoryChange ? (
-            <button
-              type="button"
-              className="cam-ratio cam-ratio-toggle"
-              aria-pressed={story}
-              aria-label={story ? 'Rasio 9:16 untuk Story Instagram, ketuk untuk 4:5' : 'Rasio 4:5, ketuk untuk 9:16 Story Instagram'}
-              onClick={() => onStoryChange(!story)}
-            >
-              {story ? '9:16 Story' : '4:5'}
-            </button>
-          ) : (
+          )}
+          {layout === 1 && (
             <span className="cam-ratio" aria-hidden="true">
               {story ? '9:16' : '4:5'}
             </span>
+          )}
+          {frame && (
+            <button
+              type="button"
+              role="switch"
+              aria-checked={frame.on}
+              aria-label="Pakai bingkai acara"
+              className="cam-frame-switch"
+              onClick={() => frame.onChange(!frame.on)}
+            >
+              <Frame className="h-4 w-4" aria-hidden="true" />
+              Bingkai
+              <span className="cam-switch" aria-hidden="true" />
+            </button>
           )}
           {flash && <span className="cam-flash" aria-hidden="true" />}
           {state === 'blocked' && (
@@ -191,8 +196,9 @@ export const Viewfinder: React.FC<ViewfinderProps> = ({ remaining, onShot, onClo
               type="button"
               role="radio"
               aria-checked={layout === n}
-              aria-label={collageLabel(n)}
-              title={collageLabel(n)}
+              aria-label={`${collageLabel(n)}, memakai ${n} frame`}
+              title={`${collageLabel(n)} · memakai ${n} frame`}
+              disabled={n > remaining}
               className={`cam-layout ${layout === n ? 'is-on' : ''}`}
               onClick={() => collage.onLayout(n)}
             >
@@ -200,6 +206,9 @@ export const Viewfinder: React.FC<ViewfinderProps> = ({ remaining, onShot, onClo
             </button>
           ))}
         </div>
+        {layout > 1 && (
+          <p className="cam-hint">Kolase ini memakai {layout} frame</p>
+        )}
         {layout > 1 && (
           <div className="flex min-h-10 items-center gap-1.5" aria-label="Foto yang sudah diambil">
             {Array.from({ length: layout }, (_, i) => (

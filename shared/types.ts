@@ -188,6 +188,8 @@ export interface PhotoMoment {
   originalUrl?: string;
   caption?: string;
   look?: string;
+  /** Frames of the guest's quota this picture used (a collage uses 2 to 4). */
+  frames?: number;
   /** False while waiting for the couple's review. */
   approved?: boolean;
   createdAt: string;

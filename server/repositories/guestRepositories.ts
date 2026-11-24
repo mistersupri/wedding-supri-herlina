@@ -243,11 +243,12 @@ export function photoMomentRepository(db: Db) {
     async all() {
       return (await db.photoMoment.findMany({ orderBy: { createdAt: 'desc' } })).map(toMoment);
     },
+    /** Frames used so far: a collage counts as many as the shots it holds. */
     async countBySlug(slug: string) {
-      return db.photoMoment.count({ where: { guestSlug: slug } });
+      return (await db.photoMoment.aggregate({ where: { guestSlug: slug }, _sum: { frames: true } }))._sum.frames ?? 0;
     },
     async countByName(name: string) {
-      return db.photoMoment.count({ where: { guestName: { equals: name.trim(), mode: 'insensitive' } } });
+      return (await db.photoMoment.aggregate({ where: { guestName: { equals: name.trim(), mode: 'insensitive' } }, _sum: { frames: true } }))._sum.frames ?? 0;
     },
     /** True when this uploaded file is already attached to a photo. */
     async urlInUse(urls: string[]) {
@@ -269,15 +270,15 @@ export function photoMomentRepository(db: Db) {
         caption: string;
         look?: string;
         approved: boolean;
+        frames: number;
       },
     ) {
       const lockKey = who.slug ? `moment:slug:${who.slug}` : `moment:name:${who.name.trim().toLowerCase()}`;
       return db.$transaction(async (tx) => {
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`;
-        const used = who.slug
-          ? await tx.photoMoment.count({ where: { guestSlug: who.slug } })
-          : await tx.photoMoment.count({ where: { guestName: { equals: who.name.trim(), mode: 'insensitive' } } });
-        if (used >= limit) return null;
+        const where = who.slug ? { guestSlug: who.slug } : { guestName: { equals: who.name.trim(), mode: 'insensitive' as const } };
+        const used = (await tx.photoMoment.aggregate({ where, _sum: { frames: true } }))._sum.frames ?? 0;
+        if (used + data.frames > limit) return null;
         return toMoment(await tx.photoMoment.create({ data }));
       });
     },

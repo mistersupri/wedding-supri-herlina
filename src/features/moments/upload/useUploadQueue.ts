@@ -11,8 +11,8 @@ export function useUploadQueue(onDone?: () => void) {
   useEffect(() => (onDone ? onUploaded(onDone) : undefined), [onDone]);
   return {
     jobs,
-    /** Photos taken but not yet registered: they still count against the guest's frames. */
-    pending: jobs.filter((j) => j.status !== 'done' && j.status !== 'rejected').length,
+    /** Frames of photos taken but not yet registered: they still count against the guest's quota (a collage holds one per shot). */
+    pending: jobs.filter((j) => j.status !== 'done' && j.status !== 'rejected').reduce((n, j) => n + (j.frames || 1), 0),
     retry: retryNow,
     discard,
   };

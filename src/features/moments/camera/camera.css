@@ -437,3 +437,79 @@
   height: 100%;
   object-fit: cover;
 }
+
+.cam-layout:disabled {
+  opacity: 0.35;
+}
+
+/* Event frame switch over the corner of the viewfinder and above the darkroom tools. */
+.cam-frame-switch {
+  position: absolute;
+  left: 0.5rem;
+  bottom: 0.5rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 2.25rem;
+  padding: 0 0.7rem;
+  border-radius: 999px;
+  border: 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #fff;
+  background: rgb(0 0 0 / 0.55);
+}
+.cam-switch {
+  position: relative;
+  width: 1.9rem;
+  height: 1.1rem;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.3);
+  transition: background 0.2s;
+}
+.cam-switch::after {
+  content: '';
+  position: absolute;
+  top: 0.15rem;
+  left: 0.15rem;
+  width: 0.8rem;
+  height: 0.8rem;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.2s;
+}
+[aria-checked='true'] > .cam-switch {
+  background: #d9b36a;
+}
+[aria-checked='true'] > .cam-switch::after {
+  transform: translateX(0.8rem);
+}
+.cam-frame-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0 0.9rem;
+  border-radius: 0.9rem;
+  border: 1px solid rgb(255 255 255 / 0.16);
+  background: rgb(255 255 255 / 0.05);
+  color: #f4efe6;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+.cam-frame-row:disabled {
+  opacity: 0.45;
+}
+.cam-frame-row > span:first-child {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.cam-cost {
+  margin-left: 0.4rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #d9b36a;
+}

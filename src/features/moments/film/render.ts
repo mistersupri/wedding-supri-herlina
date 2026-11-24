@@ -30,6 +30,8 @@ export interface Recipe {
   stamp: boolean;
   frame: FrameStyle;
   caption: string;
+  /** Fixed shape of the finished picture (a collage sheet keeps the shape it was composed in, with or without the event frame). */
+  aspect?: number;
 }
 
 export const DUST_VARIANTS = 5;
@@ -49,6 +51,10 @@ export function aspectOf(frame: FrameStyle, eventFrame?: { naturalWidth: number;
   }
   return ASPECT;
 }
+
+/** The shape of the finished picture for this recipe. */
+export const recipeAspect = (recipe: Pick<Recipe, 'frame' | 'aspect'>, eventFrame?: { naturalWidth: number; naturalHeight: number } | null) =>
+  recipe.aspect ?? aspectOf(recipe.frame, eventFrame);
 
 export const isStoryAspect = (aspect: number) => Math.abs(aspect - STORY_ASPECT) < 0.01;
 
@@ -278,7 +284,7 @@ export interface RenderOptions {
 export function renderPhoto(source: HTMLCanvasElement | HTMLImageElement, recipe: Recipe, opts: RenderOptions, target?: HTMLCanvasElement) {
   const frame = recipe.frame === 'event' && !opts.eventFrame ? 'none' : recipe.frame;
   const W = Math.round(opts.width);
-  const H = Math.round(W / aspectOf(frame, opts.eventFrame));
+  const H = Math.round(W / (recipe.aspect ?? aspectOf(frame, opts.eventFrame)));
   const canvas = target ?? document.createElement('canvas');
   if (canvas.width !== W) canvas.width = W;
   if (canvas.height !== H) canvas.height = H;

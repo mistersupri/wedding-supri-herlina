@@ -162,6 +162,8 @@ model PhotoMoment {
   /// Full-resolution copy for download. Older photos only have photoUrl.
   originalUrl   String?
   caption       String         @default("")
+  /// Frames of the guest's quota this picture used: 1, or 2 to 4 for a photo-strip or grid collage.
+  frames        Int            @default(1)
   /// Film look the guest used, for the CMS ("none" when unedited).
   look          String?
   /// False while the couple has not reviewed it (moderation on).

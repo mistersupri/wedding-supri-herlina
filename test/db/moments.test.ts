@@ -35,6 +35,16 @@ describe('photo quota', () => {
     await expect(photo('Ani', { guestSlug: guest.slug })).resolves.toBeTruthy();
   });
 
+  it('charges a collage one frame per shot it holds', async () => {
+    await photo('Collage Guest', { frames: 2 });
+    // 1 frame left of 3: a 2-shot collage no longer fits, a single photo does.
+    await expect(photo('Collage Guest', { frames: 2 })).rejects.toMatchObject({ status: 400, message: expect.stringContaining('kolase 2 foto') });
+    await expect(photo('Collage Guest')).resolves.toMatchObject({ frames: 1 });
+    await expect(photo('Collage Guest')).rejects.toMatchObject({ status: 400 });
+    const page = await moments().page({ page: 1, limit: 12, guestName: 'Collage Guest', guestSlug: '' });
+    expect(page.userCount).toBe(3);
+  });
+
   it('refuses photos once the camera is closed', async () => {
     await moments().saveSettings({ cameraOpen: false });
     await expect(photo('Budi')).rejects.toMatchObject({ status: 403 });
