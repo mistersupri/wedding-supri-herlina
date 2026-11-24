@@ -102,6 +102,7 @@ export const CMSCoupleTab: React.FC = () => {
     >
       <PageHeader
         title="Mempelai & sampul"
+        stickyActions
         description="Nama, orang tua, foto, gambar sampul, dan ayat pembuka."
         actions={
           <Button type="submit" loading={save.isPending}>

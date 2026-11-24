@@ -171,7 +171,7 @@ export const CMSLayout: React.FC = () => {
           </div>
         )}
 
-        <main className="min-w-0 px-4 py-8 sm:px-8 sm:py-10">
+        <main className="min-w-0 px-4 py-8 max-sm:pb-28 sm:px-8 sm:py-10">
           <div className="mx-auto max-w-6xl">
             <Suspense fallback={<LoadingState label="Memuat..." />}>
               <Outlet />

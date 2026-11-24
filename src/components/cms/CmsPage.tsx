@@ -2,17 +2,29 @@ import React from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { IconButton } from '../ui/Button.js';
 
-export const PageHeader: React.FC<{ title: string; description?: string; actions?: React.ReactNode }> = ({
+/** `stickyActions`: on phones the actions stay in a bar at the bottom of the screen, so a long form can be saved without scrolling back up. */
+export const PageHeader: React.FC<{ title: string; description?: string; actions?: React.ReactNode; stickyActions?: boolean }> = ({
   title,
   description,
   actions,
+  stickyActions = false,
 }) => (
   <header className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
     <div>
       <h1 className="font-display text-3xl leading-tight">{title}</h1>
       {description && <p className="mt-1.5 max-w-2xl text-[15px] text-ink-soft">{description}</p>}
     </div>
-    {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
+    {actions && (
+      <div
+        className={
+          stickyActions
+            ? 'flex flex-wrap gap-2 max-sm:fixed max-sm:inset-x-0 max-sm:bottom-0 max-sm:z-30 max-sm:border-t max-sm:border-line max-sm:bg-card/95 max-sm:p-3 max-sm:pb-[max(0.75rem,env(safe-area-inset-bottom))] max-sm:backdrop-blur max-sm:[&>*]:flex-1'
+            : 'flex flex-wrap gap-2'
+        }
+      >
+        {actions}
+      </div>
+    )}
   </header>
 );
 

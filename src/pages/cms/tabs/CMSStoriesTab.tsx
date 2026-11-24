@@ -41,7 +41,7 @@ export const CMSStoriesTab: React.FC = () => {
         <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {items.map((s) => (
             <li key={s.id} className="flex flex-col overflow-hidden rounded-md border border-line bg-card">
-              {s.photoUrl && <img src={s.photoUrl} alt="" referrerPolicy="no-referrer" className="aspect-[4/3] w-full object-cover" />}
+              {s.photoUrl && <img src={s.photoUrl} alt="" referrerPolicy="no-referrer" className="aspect-[4/3] max-h-56 w-full bg-paper-2 object-cover" />}
               <div className="flex flex-1 flex-col p-4">
                 <p className="display-numeral text-2xl text-prada-ink">{s.year}</p>
                 <p className="mt-1 font-semibold">{s.title}</p>

@@ -46,7 +46,7 @@ export const CMSGiftsTab: React.FC = () => {
           {items.map((g) => {
             const qr = g.qrisImageUrl;
             return (
-              <li key={g.id} className="flex gap-4 rounded-md border border-line bg-card p-5">
+              <li key={g.id} className="flex flex-col gap-4 rounded-md border border-line bg-card p-5 min-[480px]:flex-row">
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold text-prada-ink">{g.bankName}</p>
                   <p className="display-numeral mt-1 text-2xl break-all">{g.accountNumber || 'QRIS'}</p>
@@ -65,7 +65,7 @@ export const CMSGiftsTab: React.FC = () => {
                     src={qr}
                     alt={`QR ${g.bankName}`}
                     referrerPolicy="no-referrer"
-                    className="h-24 w-24 shrink-0 rounded-xs border border-line bg-white object-contain p-1"
+                    className="h-32 w-32 shrink-0 self-start rounded-xs border border-line bg-white object-contain p-1 min-[480px]:h-24 min-[480px]:w-24"
                   />
                 )}
               </li>

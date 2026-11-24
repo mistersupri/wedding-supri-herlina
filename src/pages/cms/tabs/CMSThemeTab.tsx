@@ -69,6 +69,7 @@ export const CMSThemeTab: React.FC = () => {
     >
       <PageHeader
         title="Template, musik & WhatsApp"
+        stickyActions
         description="Desain undangan, lagu latar, tanggal hitung mundur, dan nomor tujuan konfirmasi."
         actions={
           <Button type="submit" loading={save.isPending}>

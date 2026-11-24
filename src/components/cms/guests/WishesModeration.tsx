@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Search } from 'lucide-react';
+import { Eye, EyeOff, Reply, Search, Trash2 } from 'lucide-react';
 import { cmsApi } from '../../../lib/api.js';
 import { queryKeys } from '../../../lib/queryKeys.js';
 import { formatDateTime } from '../../../lib/format.js';
 import { useDebounce } from '../../../hooks/useDebounce.js';
 import { Pagination, usePagination } from '../CmsPage.js';
 import { useToast } from '../Toast.js';
-import { Button } from '../../ui/Button.js';
+import { Button, IconButton } from '../../ui/Button.js';
 import { Field, Input, Segmented, Textarea } from '../../ui/Field.js';
 import { ConfirmDialog, Modal } from '../../ui/Modal.js';
 import { Chip, StatusChip } from '../../ui/StatusChip.js';
@@ -125,24 +125,23 @@ export const WishesModeration: React.FC = () => {
                     {w.reply}
                   </p>
                 )}
-                <div className="mt-3 flex flex-wrap items-center gap-1.5">
+                <div className="mt-2 flex items-center gap-0.5">
                   <span className="mr-auto text-xs text-ink-soft">{formatDateTime(w.createdAt)}</span>
-                  <Button
-                    variant="secondary"
-                    size="sm"
+                  <IconButton
+                    label={w.reply ? `Ubah balasan untuk ${w.guestName}` : `Balas ${w.guestName}`}
                     onClick={() => {
                       setReplying(w);
                       setReplyText(w.reply || '');
                     }}
                   >
-                    {w.reply ? 'Ubah balasan' : 'Balas'}
-                  </Button>
-                  <Button variant="ghost" size="sm" onClick={() => toggle.mutate(w.id)}>
-                    {w.isHidden ? 'Tampilkan' : 'Sembunyikan'}
-                  </Button>
-                  <Button variant="ghost" size="sm" className="text-no" onClick={() => setToDelete(w)}>
-                    Hapus
-                  </Button>
+                    <Reply className="h-5 w-5" />
+                  </IconButton>
+                  <IconButton label={w.isHidden ? `Tampilkan ucapan ${w.guestName}` : `Sembunyikan ucapan ${w.guestName}`} onClick={() => toggle.mutate(w.id)}>
+                    {w.isHidden ? <Eye className="h-5 w-5" /> : <EyeOff className="h-5 w-5" />}
+                  </IconButton>
+                  <IconButton label={`Hapus ucapan ${w.guestName}`} tone="danger" onClick={() => setToDelete(w)}>
+                    <Trash2 className="h-5 w-5" />
+                  </IconButton>
                 </div>
               </li>
             ))}

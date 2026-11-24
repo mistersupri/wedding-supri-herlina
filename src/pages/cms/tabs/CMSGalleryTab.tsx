@@ -262,7 +262,7 @@ export const CMSGalleryTab: React.FC = () => {
         }
       />
 
-      <div role="group" aria-label="Saring kategori" className="no-scrollbar mb-5 flex gap-1 overflow-x-auto">
+      <div role="group" aria-label="Saring kategori" className="no-scrollbar mb-5 flex gap-1 overflow-x-auto [mask-image:linear-gradient(to_right,black_calc(100%-2rem),transparent)] sm:[mask-image:none]">
         {[{ value: 'ALL' as const, label: 'Semua' }, ...CATEGORIES].map((c) => (
           <button
             key={c.value}
