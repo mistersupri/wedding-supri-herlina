@@ -149,7 +149,7 @@ export const Viewfinder: React.FC<ViewfinderProps> = ({ remaining, onShot, onClo
           />
           <span className="cam-thirds" aria-hidden="true" />
           {layout > 1 && (
-            <span className="cam-ratio" aria-live="polite">
+            <span className="cam-step" aria-live="polite">
               Foto {taken.length + 1} dari {layout}
             </span>
           )}

@@ -56,6 +56,12 @@ export const Darkroom: React.FC<DarkroomProps> = ({
   const [panel, setPanel] = useState<Panel>('film');
   const [editKey, setEditKey] = useState<keyof Edits>('brightness');
   const [dragging, setDragging] = useState(false);
+  // The gesture hint fades after a few seconds, or at the first touch.
+  const [showHint, setShowHint] = useState(true);
+  useEffect(() => {
+    const t = setTimeout(() => setShowHint(false), 3500);
+    return () => clearTimeout(t);
+  }, []);
   const pointers = useRef(new Map<number, { x: number; y: number }>());
   const pinch = useRef<number | null>(null);
   const aspect = recipeAspect(recipe, eventFrame);
@@ -82,6 +88,7 @@ export const Darkroom: React.FC<DarkroomProps> = ({
     (e.target as Element).setPointerCapture(e.pointerId);
     pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
     setDragging(true);
+    setShowHint(false);
   };
   const onPointerMove = (e: React.PointerEvent) => {
     const prev = pointers.current.get(e.pointerId);
@@ -182,27 +189,32 @@ export const Darkroom: React.FC<DarkroomProps> = ({
       onClick: () => set('stamp', !recipe.stamp),
     },
     { id: 'crop', label: 'Posisi', icon: <Crop />, active: panel === 'crop', onClick: () => toggle('crop') },
-    { id: 'reset', label: 'Reset', icon: <RefreshCcw />, active: false, disabled: !dirty, onClick: resetFilters },
   ];
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex items-center justify-between gap-2 px-2 py-2">
+      <div className="grid grid-cols-[auto_1fr_auto] items-center gap-2 px-2 py-2">
         <button type="button" className="cam-icon" onClick={onClose} aria-label="Tutup kamera">
           <X className="h-6 w-6" />
         </button>
-        <p className="cam-hint min-w-0 flex-1 truncate">Geser untuk atur posisi, cubit untuk zoom</p>
-        <span className="flex items-center">
+        <span className="flex items-center justify-center">
           <FrameCounter remaining={remaining} />
-          {cost > 1 && <span className="cam-cost" title={`Foto ini memakai ${cost} frame`}>−{cost}</span>}
+          {cost > 1 && (
+            <span className="cam-cost" title={`Foto ini memakai ${cost} frame`}>
+              −{cost}
+            </span>
+          )}
         </span>
+        <button type="button" className="cam-icon" onClick={resetFilters} disabled={!dirty} aria-label="Reset filter" title="Reset filter">
+          <RefreshCcw className="h-5 w-5" />
+        </button>
       </div>
 
       <div className="flex min-h-0 flex-1 items-center justify-center px-3">
         <div
           ref={boxRef}
           className="cam-window cam-darkroom"
-          style={{ width: `min(100%, 30rem, calc((100dvh - 25.5rem) * ${aspect}))`, aspectRatio: String(aspect) }}
+          style={{ width: `min(100%, 30rem, calc((100dvh - 27rem) * ${aspect}))`, aspectRatio: String(aspect) }}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
@@ -214,7 +226,10 @@ export const Darkroom: React.FC<DarkroomProps> = ({
         </div>
       </div>
 
-      <div className="mx-auto w-full max-w-xl px-3 pt-2">
+      <p className={`cam-gesture-hint ${showHint ? '' : 'is-off'}`} aria-hidden={!showHint}>
+        Geser untuk atur posisi · cubit untuk zoom
+      </p>
+      <div className="mx-auto w-full max-w-xl px-3 pt-1">
         {eventFrame && (
           <button
             type="button"
@@ -376,7 +391,7 @@ export const Darkroom: React.FC<DarkroomProps> = ({
               key={t.id}
               type="button"
               className="cam-tool"
-              aria-pressed={t.id === 'retake' || t.id === 'reset' ? undefined : t.active}
+              aria-pressed={t.id === 'retake' ? undefined : t.active}
               disabled={t.disabled}
               onClick={t.onClick}
             >

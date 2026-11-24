@@ -513,3 +513,27 @@
   font-weight: 700;
   color: #d9b36a;
 }
+
+/* Which shot of the collage is next: top corner, away from the frame switch and the ratio tag. */
+.cam-step {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  padding: 5px 9px;
+  border-radius: 99px;
+  background: #000000a0;
+  font: 600 11px/1 system-ui, sans-serif;
+  color: #fff;
+}
+.cam-gesture-hint {
+  height: 1.25rem;
+  margin: 0;
+  text-align: center;
+  font: 500 12px/1.25rem system-ui, sans-serif;
+  color: rgb(255 255 255 / 0.7);
+  transition: opacity 0.5s;
+}
+.cam-gesture-hint.is-off {
+  opacity: 0;
+}
+
