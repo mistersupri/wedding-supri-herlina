@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { CalendarPlus, Camera, Check, Lock, MapPin, Pause, Play, QrCode, Settings2, X } from 'lucide-react';
+import { CalendarPlus, Camera, Check, Lock, MapPin, Pause, Play, QrCode, X } from 'lucide-react';
 import { useInvitation } from '../../InvitationContext.js';
 import { useGuestbook } from '../../hooks/useGuestbook.js';
 import { useCountdown } from '../../../../hooks/useCountdown.js';
@@ -78,7 +78,7 @@ function useScrollProgress(ref: React.RefObject<HTMLElement | null>, sticky = fa
   }, [ref, sticky]);
 }
 
-/** Adds `is-in` to every `[data-anim]` inside the page as it scrolls into view (also to ones that mount later). */
+/** Adds `is-in` to every `[data-anim]` inside the page while it is on screen, and removes it when it leaves (also for ones that mount later). */
 function useScrollAnimations(ref: React.RefObject<HTMLElement | null>, enabled: boolean) {
   useEffect(() => {
     const root = ref.current;
@@ -86,17 +86,16 @@ function useScrollAnimations(ref: React.RefObject<HTMLElement | null>, enabled: 
     const io = new IntersectionObserver(
       (entries) => {
         for (const e of entries) {
-          if (e.isIntersecting) {
-            e.target.classList.add('is-in');
-            io.unobserve(e.target);
-          }
+          // In when it is properly on screen, back to its starting state once fully off screen, so it plays again on the next pass.
+          if (e.intersectionRatio >= 0.18) e.target.classList.add('is-in');
+          else if (!e.isIntersecting) e.target.classList.remove('is-in');
         }
       },
-      { threshold: 0.18, rootMargin: '0px 0px -6% 0px' },
+      { threshold: [0, 0.18], rootMargin: '0px 0px -6% 0px' },
     );
     const seen = new WeakSet<Element>();
     const scan = () =>
-      root.querySelectorAll('[data-anim]:not(.is-in)').forEach((el) => {
+      root.querySelectorAll('[data-anim]').forEach((el) => {
         if (!seen.has(el)) {
           seen.add(el);
           io.observe(el);
@@ -237,7 +236,7 @@ const Story: React.FC = () => {
       {stories.length ? (
         <ol className="lp-story-grid">
           {stories.map((s) => (
-            <Reveal as="li" key={s.id} className="lp-story-item">
+            <Reveal repeat as="li" key={s.id} className="lp-story-item">
               <p className="lp-story-year">{s.year}</p>
               <h3>{s.title}</h3>
               <p>{s.description}</p>
@@ -245,7 +244,7 @@ const Story: React.FC = () => {
           ))}
         </ol>
       ) : (
-        <Reveal className="lp-story-pair">
+        <Reveal repeat className="lp-story-pair">
           <p>{FALLBACK_STORY[0]}</p>
           <span className="lp-vrule" data-anim="draw-y" aria-hidden="true" />
           <p>{FALLBACK_STORY[1]}</p>
@@ -282,7 +281,7 @@ const Couple: React.FC = () => {
                   &amp;
                 </span>
               )}
-              <Reveal className="lp-person" delay={i * 0.1}>
+              <Reveal repeat className="lp-person" delay={i * 0.1}>
                 <div className="lp-photo-frame" data-anim="develop" style={{ transform: `rotate(${p.tilt}deg)` }}>
                   {p.photo && <img src={p.photo} alt={p.full} loading="lazy" referrerPolicy="no-referrer" />}
                 </div>
@@ -347,7 +346,7 @@ const Events: React.FC = () => {
         Acara
       </h2>
       <div className="lp-events-row">
-        <Reveal className="lp-bigdate">
+        <Reveal repeat className="lp-bigdate">
           <b data-anim="pop">{Number(d.day)}</b>
           <p>
             <span aria-hidden="true" />
@@ -355,7 +354,7 @@ const Events: React.FC = () => {
           </p>
         </Reveal>
         {inv.events.map((e, i) => (
-          <Reveal key={e.id} className="lp-event" delay={i * 0.08}>
+          <Reveal repeat key={e.id} className="lp-event" delay={i * 0.08}>
             <img className="lp-event-rings" data-anim="pop" src={rings} alt="" aria-hidden="true" loading="lazy" />
             <h3>{e.title}</h3>
             <p className="lp-event-time">Pukul {timeRange(e)}</p>
@@ -609,7 +608,7 @@ const Wishes: React.FC = () => {
 
 /** Closing credits on cream paper: the lines rise one after another when the footer comes into view. */
 const Credits: React.FC = () => {
-  const { invitation: inv, displayName, guest, isAdmin } = useInvitation();
+  const { invitation: inv, displayName, guest } = useInvitation();
   const people = (s: string) =>
     s
       .replace(/^\s*(putra|putri)\b.*?\bdari\s+/i, '')
@@ -651,11 +650,6 @@ const Credits: React.FC = () => {
         <p className="lp-sign lp-rollrow" style={step(rows.length + 2)}>
           {inv.groomShortName} &amp; {inv.brideShortName}
         </p>
-        {isAdmin && (
-          <a className="lp-admin" href="/cms/overview">
-            <Settings2 size={14} aria-hidden="true" /> Kelola undangan di CMS
-          </a>
-        )}
       </div>
     </footer>
   );

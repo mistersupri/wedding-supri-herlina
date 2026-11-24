@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import f1 from './assets/orchid-1.webp';
 import f2 from './assets/orchid-2.webp';
 import f3 from './assets/orchid-3.webp';
@@ -30,10 +30,9 @@ interface Petal {
 
 /**
  * Orchids drifting down the screen once the invitation opens. Pure CSS animation on a fixed,
- * click-through layer; it unmounts itself when the last flower has landed off screen.
+ * click-through layer. The shower loops for as long as the page is open.
  */
 export const FallingFlowers: React.FC<{ run: boolean; count?: number }> = ({ run, count = 45 }) => {
-  const [alive, setAlive] = useState(true);
   const petals = useMemo<Petal[]>(() => {
     const r = rng(20261120);
     return Array.from({ length: count }, (_, i) => ({
@@ -48,15 +47,7 @@ export const FallingFlowers: React.FC<{ run: boolean; count?: number }> = ({ run
     }));
   }, [count]);
 
-  useEffect(() => {
-    if (!run) return;
-    setAlive(true);
-    const longest = Math.max(...petals.map((p) => p.delay + p.fall));
-    const t = window.setTimeout(() => setAlive(false), longest * 1000 + 400);
-    return () => window.clearTimeout(t);
-  }, [run, petals]);
-
-  if (!run || !alive) return null;
+  if (!run) return null;
   return (
     <div className="lp-flowers" aria-hidden="true">
       {petals.map((p, i) => (

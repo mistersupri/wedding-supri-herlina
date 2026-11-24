@@ -1258,13 +1258,6 @@ input.lp-code {
   letter-spacing: 0.34em;
   text-transform: uppercase;
 }
-.lp-admin {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--gold);
-  font-size: 15px;
-}
 
 /* ---------- cover */
 .lp-cover {
@@ -1515,6 +1508,7 @@ input.lp-code {
   will-change: transform, opacity;
   animation-name: lp-fall;
   animation-timing-function: linear;
+  animation-iteration-count: infinite;
   animation-fill-mode: both;
   filter: drop-shadow(0 1px 1px rgba(59, 46, 37, 0.25));
 }
@@ -2008,5 +2002,26 @@ input.lp-code {
   }
   to {
     transform: scaleX(1);
+  }
+}
+
+/* Phones: the film ribbon runs behind the gallery, not the map. */
+@media (max-width: 767px) {
+  .lp-ribbon::before {
+    display: none;
+  }
+  .lp-gallery {
+    position: relative;
+  }
+  .lp-gallery::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--ribbon) center top / 150% auto no-repeat;
+    opacity: 0.28;
+    pointer-events: none;
+  }
+  .lp-gallery > * {
+    position: relative;
   }
 }
