@@ -72,7 +72,8 @@ export const limits = {
   checkIn: rateLimit({ max: 40, windowMs: 10 * MINUTE, message: 'Terlalu banyak percobaan. Tunggu beberapa menit lalu coba lagi.' }),
   /** One ping per opened cover; generous, because a whole wedding party may share one Wi-Fi address. */
   opened: rateLimit({ max: 600, windowMs: 10 * MINUTE }),
-  react: rateLimit({ max: 300, windowMs: MINUTE }),
+  /** Per photo and address: a venue's Wi-Fi may like one photo together, but one phone cannot hammer a counter. */
+  react: rateLimit({ max: 30, windowMs: MINUTE, key: (req) => `${req.ip}:${req.params.id}` }),
   guestUpload: rateLimit({ max: 300, windowMs: 10 * MINUTE, message: 'Terlalu banyak unggahan dari jaringan ini. Coba lagi nanti.' }),
   addMoment: rateLimit({ max: 300, windowMs: 10 * MINUTE }),
 };

@@ -355,6 +355,7 @@ export const cmsApi = {
 
   photoMoments: {
     list: () => adminData<PhotoMoment[]>('/cms/photo-moments'),
+    comments: (id: string) => adminData<PhotoComment[]>(`/cms/photo-moments/${id}/comments`),
     remove: async (id: string) => {
       await adminRequest(`/cms/photo-moments/${id}`, { method: 'DELETE' });
     },

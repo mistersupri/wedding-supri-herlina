@@ -124,7 +124,7 @@ export const CameraRulesPanel: React.FC = () => {
           />
         </div>
         <div className="space-y-4">
-          <Field label="Tamu bisa melihat">
+          <Field label="Tamu bisa melihat" hint="Berlaku di galeri HP tamu. Layar besar (proyektor) tetap menampilkan semua foto yang disetujui; matikan layar besar bila tidak diinginkan.">
             {() => (
               <Segmented<MomentVisibility>
                 name="Siapa lihat apa"

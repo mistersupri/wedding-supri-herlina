@@ -102,3 +102,26 @@ describe('event frame settings', () => {
     await expect(services.moments.saveFrame({ photoInset: { top: 45, right: 45, bottom: 45, left: 45 } })).rejects.toMatchObject({ status: 400 });
   });
 });
+
+describe('photos waiting for approval stay private', () => {
+  it('blocks reactions and public comments on a photo the couple has not approved, but not the couple', async () => {
+    await moments().saveSettings({ moderation: true });
+    const pending = await photo('Sari Test');
+    await expect(moments().react(pending.id, '❤️', 'add')).rejects.toMatchObject({ status: 404 });
+    await expect(moments().comments(pending.id)).rejects.toMatchObject({ status: 404 });
+    await expect(moments().addComment(pending.id, { guestName: 'Budi Test', text: 'bagus' })).rejects.toMatchObject({ status: 404 });
+    expect(await moments().commentsForAdmin(pending.id)).toEqual([]);
+
+    await moments().approve(pending.id, true);
+    await expect(moments().react(pending.id, '❤️', 'add')).resolves.toMatchObject({ likesCount: 1 });
+  });
+
+  it('shows a typed name its own pending photos only where anyone may take part', async () => {
+    await moments().saveSettings({ moderation: true });
+    await photo('Sari Test');
+    const seen = () => moments().page({ page: 1, limit: 20, guestName: 'Sari Test', guestSlug: '' });
+    expect((await seen()).data).toHaveLength(1);
+    await moments().saveSettings({ access: 'INVITED' });
+    expect((await seen()).data).toHaveLength(0);
+  });
+});

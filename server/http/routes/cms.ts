@@ -306,6 +306,10 @@ export function cmsRoutes(s: Services): Router {
       return { message: data.approved ? 'Foto tampil di galeri tamu.' : 'Foto disembunyikan.', data };
     }, 'Gagal memperbarui foto.'),
   );
+  router.get(
+    '/cms/photo-moments/:id/comments',
+    route(async (req) => ({ data: await s.moments.commentsForAdmin(req.params.id) }), 'Gagal memuat komentar.'),
+  );
   router.delete(
     '/cms/photo-moments/comments/:id',
     route(async (req) => {

@@ -14,7 +14,7 @@ export const CommentsDialog: React.FC<{ photo: PhotoMoment | null; onClose: () =
   const client = useQueryClient();
   const notify = useToast();
   const id = photo?.id || '';
-  const comments = useQuery({ queryKey: queryKeys.photoComments(id), queryFn: () => publicApi.photoComments(id), enabled: Boolean(photo) });
+  const comments = useQuery({ queryKey: queryKeys.photoComments(id), queryFn: () => cmsApi.photoMoments.comments(id), enabled: Boolean(photo) });
   const remove = useMutation({
     mutationFn: cmsApi.photoMoments.removeComment,
     onSuccess: () => {
