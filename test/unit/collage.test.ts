@@ -33,3 +33,23 @@ describe('collage layout', () => {
     expect(four[1].x).toBeGreaterThan(four[0].x);
   });
 });
+
+describe('collage inside a frame window', () => {
+  it('keeps every cell inside the clear window of the frame', () => {
+    const window = { x: 0.05, y: 0.03, w: 0.9, h: 0.65 };
+    for (const n of [2, 3, 4] as const) {
+      const s = collageSpec(n, true, 1440, { window });
+      for (const c of s.cells) {
+        expect(c.x).toBeGreaterThanOrEqual(window.x * s.width);
+        expect(c.y).toBeGreaterThanOrEqual(window.y * s.height);
+        expect(c.x + c.w).toBeLessThanOrEqual((window.x + window.w) * s.width + 1);
+        expect(c.y + c.h).toBeLessThanOrEqual((window.y + window.h) * s.height + 1);
+      }
+    }
+  });
+
+  it('takes a custom sheet shape for a photo area in front of a frame', () => {
+    const s = collageSpec(2, false, 1440, { aspect: 1.2 });
+    expect(s.width / s.height).toBeCloseTo(1.2, 2);
+  });
+});

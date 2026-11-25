@@ -31,6 +31,7 @@ async function assertStoredPhoto(url: unknown, message: string) {
   if (typeof url !== 'string' || !MOMENT_FILE.test(url) || url.includes('..') || !(await fileExists(url))) throw badRequest(message);
   return url;
 }
+export const DEFAULT_INSET = { top: 8, right: 8, bottom: 24, left: 8 };
 const isGenericName = (name: string) => !name.trim() || name.trim().toLowerCase() === 'tamu undangan';
 const clean = (v: unknown, max: number) => (typeof v === 'string' ? v.replace(/\s+/g, ' ').trim().slice(0, max) : '');
 
@@ -188,12 +189,20 @@ export function photoMomentService(d: Deps) {
     },
 
     async frame(): Promise<PhotoFrameConfig> {
-      return (await d.frames.get()) ?? { enabled: false, frameOverlayUrl: '', allowGuestToggle: true };
+      return (await d.frames.get()) ?? { enabled: false, frameOverlayUrl: '', allowGuestToggle: true, photoInFront: false, photoInset: DEFAULT_INSET };
     },
 
     async saveFrame(patch: Partial<PhotoFrameConfig>) {
       const current = await this.frame();
-      return d.frames.save({ ...current, ...patch });
+      const next: PhotoFrameConfig = { ...current, ...patch };
+      next.photoInFront = Boolean(next.photoInFront);
+      const pct = (v: unknown, fallback: number) => Math.min(45, Math.max(0, Math.round(Number(v)) || (v === 0 ? 0 : fallback)));
+      const inset = { ...DEFAULT_INSET, ...(next.photoInset ?? {}) };
+      next.photoInset = { top: pct(inset.top, 8), right: pct(inset.right, 8), bottom: pct(inset.bottom, 24), left: pct(inset.left, 8) };
+      if (next.photoInset.left + next.photoInset.right > 80 || next.photoInset.top + next.photoInset.bottom > 80) {
+        throw badRequest('Area foto terlalu kecil. Kurangi margin kiri, kanan, atas, atau bawah.');
+      }
+      return d.frames.save(next);
     },
   };
 }

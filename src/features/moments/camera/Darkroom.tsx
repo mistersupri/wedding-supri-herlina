@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { CalendarDays, Crop, Film, Frame, RefreshCcw, RotateCcw, RotateCw, Sliders, Sparkles, Sun, Wind, X } from 'lucide-react';
+import type { FrameLayout } from '../film/frameLayout.js';
 import { EDIT_FIELDS, LOOK_GROUPS, NO_EDITS, lookById, type Edits, type Look } from '../film/looks.js';
 import {
   DUST_VARIANTS,
@@ -23,6 +24,10 @@ interface DarkroomProps {
   onChange: (update: (r: Recipe) => Recipe) => void;
   looks: Look[];
   eventFrame: HTMLImageElement | null;
+  /** Whether the photo sits in front of the event frame or under it. */
+  frameLayout?: FrameLayout;
+  /** A collage laid out for a photo area cannot change its frame. */
+  frameLocked?: boolean;
   remaining: number;
   /** Frames this picture will use up (a collage uses one per shot). */
   cost: number;
@@ -44,6 +49,8 @@ export const Darkroom: React.FC<DarkroomProps> = ({
   onChange,
   looks,
   eventFrame,
+  frameLayout,
+  frameLocked = false,
   remaining,
   cost,
   sending,
@@ -67,7 +74,7 @@ export const Darkroom: React.FC<DarkroomProps> = ({
   const aspect = recipeAspect(recipe, eventFrame);
   const frameOn = recipe.frame === 'event' && Boolean(eventFrame);
   // A collage sheet keeps the shape it was made in, so the event frame only fits when that shape matches it.
-  const frameFits = Boolean(eventFrame) && (recipe.aspect === undefined || Math.abs(recipe.aspect - aspectOf('event', eventFrame)) < 0.01);
+  const frameFits = Boolean(eventFrame) && !frameLocked && (recipe.aspect === undefined || Math.abs(recipe.aspect - aspectOf('event', eventFrame)) < 0.01);
   const previewSrc = useMemo(() => downscale(source, 1400), [source]);
   const thumbSrc = useMemo(() => downscale(source, 220), [source]);
 
@@ -78,10 +85,10 @@ export const Darkroom: React.FC<DarkroomProps> = ({
     if (!canvas || !box) return;
     const id = requestAnimationFrame(() => {
       const width = Math.min(1080, box.clientWidth * Math.min(2, window.devicePixelRatio || 1));
-      renderPhoto(previewSrc, recipe, { width, eventFrame, fast: dragging }, canvas);
+      renderPhoto(previewSrc, recipe, { width, eventFrame, layout: frameLayout, fast: dragging }, canvas);
     });
     return () => cancelAnimationFrame(id);
-  }, [previewSrc, recipe, eventFrame, dragging]);
+  }, [previewSrc, recipe, eventFrame, frameLayout, dragging]);
 
   // --- Gestures: one finger pans, two fingers zoom, a wheel zooms. ---
   const onPointerDown = (e: React.PointerEvent) => {
@@ -242,7 +249,7 @@ export const Darkroom: React.FC<DarkroomProps> = ({
             <span>
               <Frame className="h-5 w-5" aria-hidden="true" />
               Bingkai acara
-              {!frameFits && <small className="font-normal opacity-70"> · tidak cocok untuk kolase ini</small>}
+              {!frameFits && <small className="font-normal opacity-70"> · tidak bisa diubah untuk kolase ini</small>}
             </span>
             <span className="cam-switch" aria-hidden="true" />
           </button>

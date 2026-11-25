@@ -16,6 +16,8 @@ interface ViewfinderProps {
     layout: CollageLayout;
     onLayout: (layout: CollageLayout) => void;
     cellRatio: number;
+    /** Shape of the guide for a single photo when it is neither 4:5 nor 9:16 (a photo area in front of a frame). */
+    singleRatio?: number;
     /** Small previews of the shots already taken for this sheet. */
     taken: string[];
     onUndo: () => void;
@@ -62,7 +64,7 @@ function grab(video: HTMLVideoElement, mirror: boolean) {
  */
 export const Viewfinder: React.FC<ViewfinderProps> = ({ remaining, onShot, onClose, story = false, frame, collage }) => {
   const { layout, taken } = collage;
-  const ratio = layout === 1 ? (story ? 9 / 16 : 4 / 5) : collage.cellRatio;
+  const ratio = layout === 1 ? (collage.singleRatio ?? (story ? 9 / 16 : 4 / 5)) : collage.cellRatio;
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -155,7 +157,7 @@ export const Viewfinder: React.FC<ViewfinderProps> = ({ remaining, onShot, onClo
           )}
           {layout === 1 && (
             <span className="cam-ratio" aria-hidden="true">
-              {story ? '9:16' : '4:5'}
+              {collage.singleRatio && layout === 1 ? 'area foto' : story ? '9:16' : '4:5'}
             </span>
           )}
           {frame && (

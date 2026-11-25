@@ -253,6 +253,14 @@ model PhotoFrameSetting {
   frameOverlayUrl  String
   frameName        String?
   allowGuestToggle Boolean @default(true)
+  /// True: the guest's photo is placed in front of the frame, inside the margins below (for frames that are a solid picture).
+  /// False: the frame is drawn over the photo and must be a transparent PNG.
+  photoInFront     Boolean @default(false)
+  /// Margins of the photo area, in percent of the frame's width (left, right) and height (top, bottom).
+  photoInsetTop    Int     @default(8)
+  photoInsetRight  Int     @default(8)
+  photoInsetBottom Int     @default(24)
+  photoInsetLeft   Int     @default(8)
 }
 
 model AdminUser {

@@ -424,6 +424,12 @@ export function frameRepository(db: Db) {
     frameOverlayUrl: r.frameOverlayUrl,
     frameName: r.frameName ?? undefined,
     allowGuestToggle: r.allowGuestToggle,
+    photoInFront: r.photoInFront,
+    photoInset: { top: r.photoInsetTop, right: r.photoInsetRight, bottom: r.photoInsetBottom, left: r.photoInsetLeft },
+  });
+  const columns = ({ photoInset, ...rest }: PhotoFrameConfig) => ({
+    ...rest,
+    ...(photoInset ? { photoInsetTop: photoInset.top, photoInsetRight: photoInset.right, photoInsetBottom: photoInset.bottom, photoInsetLeft: photoInset.left } : {}),
   });
   return {
     async get() {
@@ -431,7 +437,7 @@ export function frameRepository(db: Db) {
       return r ? map(r) : null;
     },
     async save(config: PhotoFrameConfig) {
-      return map(await db.photoFrameSetting.upsert({ where: { id: 'main' }, create: { id: 'main', ...config }, update: config }));
+      return map(await db.photoFrameSetting.upsert({ where: { id: 'main' }, create: { id: 'main', ...columns(config) }, update: columns(config) }));
     },
   };
 }

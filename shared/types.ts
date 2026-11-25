@@ -250,6 +250,17 @@ export interface PhotoFrameConfig {
   frameOverlayUrl: string;
   frameName?: string;
   allowGuestToggle?: boolean;
+  /** Put the guest's photo in front of the frame (a solid frame picture), inside `photoInset`, instead of the frame over the photo. */
+  photoInFront?: boolean;
+  /** Margins of the photo area when it is in front: percent of the frame's width (left, right) and height (top, bottom). */
+  photoInset?: PhotoInset;
+}
+
+export interface PhotoInset {
+  top: number;
+  right: number;
+  bottom: number;
+  left: number;
 }
 
 export interface PresensiStats {

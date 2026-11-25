@@ -92,3 +92,13 @@ describe('reactions', () => {
     await expect(moments().react('nope', '❤️', 'add')).rejects.toMatchObject({ status: 404 });
   });
 });
+
+describe('event frame settings', () => {
+  it('stores photo-in-front with clamped margins and rejects an area that is too small', async () => {
+    const { services } = await freshServices();
+    const saved = await services.moments.saveFrame({ photoInFront: true, photoInset: { top: 12, right: 99, bottom: 20, left: 5 } });
+    expect(saved).toMatchObject({ photoInFront: true, photoInset: { top: 12, right: 45, bottom: 20, left: 5 } });
+    expect((await services.moments.frame()).photoInFront).toBe(true);
+    await expect(services.moments.saveFrame({ photoInset: { top: 45, right: 45, bottom: 45, left: 45 } })).rejects.toMatchObject({ status: 400 });
+  });
+});
