@@ -10,7 +10,7 @@ export const FooterSection: React.FC = () => {
     <footer className="on-deep kawung-field px-5 pt-20 pb-32 text-center">
       <div className="mx-auto max-w-xl">
         <p className="text-[15px] leading-relaxed text-on-deep-soft sm:text-base">
-          Merupakan suatu kehormatan dan kebahagiaan bagi kami apabila Bapak/Ibu/Saudara/i berkenan hadir dan memberikan doa restu.
+          {invitation.texts?.closing || 'Merupakan suatu kehormatan dan kebahagiaan bagi kami apabila Bapak/Ibu/Saudara/i berkenan hadir dan memberikan doa restu.'}
         </p>
         <KawungDivider tone="deep" className="my-8" />
         <p className="text-sm text-on-deep-soft">Kami yang berbahagia,</p>

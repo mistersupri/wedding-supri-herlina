@@ -54,6 +54,10 @@ model Invitation {
   heroImage        String
   heroVideoUrl     String?
   heroMediaType    MediaType @default(IMAGE)
+  /// Photos and videos for the opening screen of templates that play a sequence: [{ type, url, poster? }].
+  heroSlides       Json      @default("[]")
+  /// The couple's own wording for texts a template would otherwise write itself: { greetingTitle?, greetingBody?, closing?, letter?, credits?, receiptNote? }.
+  texts            Json      @default("{}")
   quoteText        String
   quoteSource      String
   weddingDate      DateTime

@@ -90,9 +90,25 @@ export interface CoupleProfile {
   heroImage: string;
   heroVideoUrl?: string;
   heroMediaType?: MediaType;
+  /** Photos and videos played in order on the opening screen of templates that support a sequence. */
+  heroSlides?: HeroSlide[];
+  /** The couple's own wording for texts a template would otherwise write itself. */
+  texts?: TemplateTexts;
   quoteText: string;
   quoteSource: string;
 }
+
+export interface HeroSlide {
+  type: MediaType;
+  url: string;
+  /** Still image shown while a video loads. */
+  poster?: string;
+}
+
+export const TEXT_KEYS = ['greetingTitle', 'greetingBody', 'closing', 'letter', 'credits', 'receiptNote'] as const;
+export type TextKey = (typeof TEXT_KEYS)[number];
+/** Every field is optional: a blank one means "use the template's own wording". */
+export type TemplateTexts = Partial<Record<TextKey, string>>;
 
 export interface ThemeSettings {
   templateId: TemplateId;

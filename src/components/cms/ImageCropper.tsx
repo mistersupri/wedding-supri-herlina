@@ -241,7 +241,7 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({ file, ratio, maxDime
             {!img && <span className="absolute inset-0 grid place-items-center text-sm text-ink-soft">Memuat gambar...</span>}
           </div>
 
-          <div role="radiogroup" aria-label="Bentuk potongan" className="no-scrollbar flex max-w-full gap-1.5 overflow-x-auto">
+          <div role="radiogroup" aria-label="Bentuk potongan" className="flex max-w-full flex-wrap gap-1.5">
             {ratios.map((r) => (
               <button
                 key={r.id}

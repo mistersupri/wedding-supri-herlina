@@ -388,7 +388,7 @@ const Credits: React.FC = () => {
     ['sutradara', 'Takdir'],
     ['produser', `${inv.brideParents}\n${inv.groomParents}`],
     ...(venues.length ? ([['lokasi', venues.map((v) => v.venueName).join('\n')]] as [string, string][]) : []),
-    ['pemeran pendukung', 'Kamu, dan semua yang kami sayangi'],
+    ['pemeran pendukung', inv.texts?.credits || 'Kamu, dan semua yang kami sayangi'],
   ];
   return (
     <footer className="gk-credits">

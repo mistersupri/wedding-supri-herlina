@@ -184,7 +184,7 @@ export const CameraRulesPanel: React.FC = () => {
         {LOOK_GROUPS.map((g) => (
           <div key={g.id} className="mt-3">
             <p className="mb-1.5 text-sm font-semibold text-ink-soft">{g.label}</p>
-            <div className="no-scrollbar flex gap-2 overflow-x-auto pb-1">
+            <div className="flex flex-wrap gap-2">
               {film
                 .filter((l) => l.group === g.id)
                 .map((l) => (

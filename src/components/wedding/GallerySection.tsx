@@ -31,7 +31,7 @@ export const GallerySection: React.FC<{ gallery: GalleryPhoto[] }> = ({ gallery 
             Galeri
           </h2>
           {categories.length > 1 && (
-            <div role="group" aria-label="Kategori galeri" className="no-scrollbar -mx-5 flex gap-1 overflow-x-auto px-5 sm:mx-0 sm:px-0">
+            <div role="group" aria-label="Kategori galeri" className="flex flex-wrap gap-x-1 gap-y-0.5">
               {(['ALL', ...categories] as const).map((c) => {
                 const active = c === category;
                 return (

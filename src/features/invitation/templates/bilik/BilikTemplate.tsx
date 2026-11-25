@@ -252,7 +252,7 @@ const Receipt: React.FC = () => {
               <dd>doa restu</dd>
             </dl>
             <div className="bf-barcode" aria-hidden="true" />
-            <p className="bf-receipt-c">terima kasih sudah datang ♥</p>
+            <p className="bf-receipt-c">{invitation.texts?.receiptNote || 'terima kasih sudah datang'} ♥</p>
           </div>
           <div className="bf-btns">
             {guest ? (

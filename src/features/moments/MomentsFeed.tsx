@@ -239,7 +239,7 @@ export const MomentsFeed: React.FC<MomentsFeedProps> = ({ identity, config, coup
                 </p>
               </div>
               {current.caption && <p className="text-[15px] text-on-deep-soft">{current.caption}</p>}
-              <div role="group" aria-label="Reaksi" className="no-scrollbar flex gap-1.5 overflow-x-auto">
+              <div role="group" aria-label="Reaksi" className="flex flex-wrap gap-1.5">
                 {EMOJIS.map((emoji) => {
                   const selected = m.myReactions[current.id] === emoji;
                   const n = current.reactions?.[emoji] || 0;
