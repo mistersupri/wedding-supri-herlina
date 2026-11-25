@@ -160,3 +160,81 @@ describe('large guest lists', () => {
     expect((await guests().createMany(rows)).length).toBe(4);
   });
 });
+
+describe('invitation opened', () => {
+  it('starts unopened and records the first and latest open', async () => {
+    const g = await guests().create({ name: 'Rina' });
+    expect(g).toMatchObject({ firstOpenedAt: null, lastOpenedAt: null, openCount: 0 });
+
+    expect(await guests().recordOpen(g.slug.toLowerCase())).toEqual({ recorded: true });
+    const [opened] = (await guests().page({ opened: 'OPENED' })).data;
+    expect(opened).toMatchObject({ id: g.id, openCount: 1 });
+    expect(opened.firstOpenedAt).toBeTruthy();
+    expect(opened.lastOpenedAt).toBe(opened.firstOpenedAt);
+  });
+
+  it('counts a quick reload once but a later visit again, keeping the first time', async () => {
+    const g = await guests().create({ name: 'Rina' });
+    await guests().recordOpen(g.slug);
+    await guests().recordOpen(g.slug);
+    expect((await guests().page({ opened: 'OPENED' })).data[0].openCount).toBe(1);
+
+    const first = (await guests().page({ opened: 'OPENED' })).data[0].firstOpenedAt;
+    await ctx.db.invitedGuest.update({ where: { id: g.id }, data: { lastOpenedAt: new Date(Date.now() - 10 * 60_000) } });
+    await guests().recordOpen(g.slug);
+    const after = (await guests().page({ opened: 'OPENED' })).data[0];
+    expect(after.openCount).toBe(2);
+    expect(after.firstOpenedAt).toBe(first);
+  });
+
+  it('ignores unknown or malformed codes and filters the list', async () => {
+    const a = await guests().create({ name: 'Ada' });
+    await guests().create({ name: 'Bayu' });
+    expect(await guests().recordOpen('ZZZZ')).toEqual({ recorded: false });
+    expect(await guests().recordOpen('x')).toEqual({ recorded: false });
+    await guests().recordOpen(a.slug);
+
+    const opened = await guests().page({ opened: 'OPENED' });
+    const unopened = await guests().page({ opened: 'UNOPENED' });
+    expect(opened.data.map((g) => g.name)).toEqual(['Ada']);
+    expect(unopened.data.map((g) => g.name)).toEqual(['Bayu']);
+    expect(opened.openedCount).toBe(1);
+  });
+
+  it('never leaks open tracking through the public guest view', async () => {
+    const g = await guests().create({ name: 'Rina' });
+    await guests().recordOpen(g.slug);
+    const res = await guests().verify(g.slug);
+    expect(res.guest).not.toHaveProperty('openCount');
+    expect(res.guest).not.toHaveProperty('firstOpenedAt');
+  });
+});
+
+describe('reminders and RSVP filters', () => {
+  it('splits guests into who has not opened, who opened without answering, and who has not answered', async () => {
+    const sent = { invitationSent: true };
+    const a = await guests().create({ name: 'Ani', ...sent }); // sent, never opened
+    const b = await guests().create({ name: 'Budi', ...sent }); // opened, no answer
+    const c = await guests().create({ name: 'Cici', ...sent }); // opened and answered
+    await guests().recordOpen(b.slug);
+    await guests().recordOpen(c.slug);
+    await ctx.services.guestbook.submit({ guestSlug: c.slug, attendanceStatus: 'HADIR', numberOfGuests: 1, message: 'Selamat' });
+
+    const page = await guests().page({});
+    expect(page.reminders).toEqual({ unopened: 1, openedNoRsvp: 1, noRsvp: 2 });
+    expect(page.data.find((g) => g.id === c.id)?.rsvp).toBe('HADIR');
+    expect(page.data.find((g) => g.id === a.id)?.rsvp).toBeNull();
+
+    expect((await guests().page({ opened: 'OPENED', rsvp: 'NOT_REPLIED' })).data.map((g) => g.name)).toEqual(['Budi']);
+    expect((await guests().page({ rsvp: 'REPLIED' })).data.map((g) => g.name)).toEqual(['Cici']);
+  });
+
+  it('counts reminders sent', async () => {
+    const g = await guests().create({ name: 'Dedi' });
+    expect(await guests().bulk([g.id], { action: 'reminded' })).toEqual({ count: 1 });
+    await guests().bulk([g.id], { action: 'reminded' });
+    const [after] = (await guests().page({})).data;
+    expect(after).toMatchObject({ reminderCount: 2 });
+    expect(after.lastRemindedAt).toBeTruthy();
+  });
+});

@@ -1,22 +1,22 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { CheckCheck, ChevronLeft, ChevronRight, Copy, ExternalLink, FileSpreadsheet, FileText, Hash, MessageCircle, MessageSquareText, Pencil, Plus, Search, Send, Tag, Trash2, Undo2, Upload, Users, X } from 'lucide-react';
+import { BellRing, CheckCheck, ChevronDown, ChevronLeft, ChevronRight, Copy, ExternalLink, Eye, FileSpreadsheet, FileText, Hash, MessageCircle, MessageSquareText, Pencil, Plus, Search, Send, Tag, Trash2, Undo2, Upload, Users, X } from 'lucide-react';
 import { cmsApi, publicApi } from '../../../lib/api.js';
 import { queryKeys } from '../../../lib/queryKeys.js';
-import { coupleNames, guestInvitationUrl } from '../../../lib/format.js';
-import { loadInviteTemplate, renderInvite, whatsappLink } from '../../../lib/inviteMessage.js';
+import { coupleNames, formatDateTime, guestInvitationUrl, timeAgo } from '../../../lib/format.js';
+import { loadTemplate, renderInvite, whatsappLink, type MessageKind } from '../../../lib/inviteMessage.js';
 import { buildXlsx } from '../../../lib/xlsx.js';
 import { useDebounce } from '../../../hooks/useDebounce.js';
 import { useCopy } from '../../../hooks/useCopy.js';
 import { Stat } from '../CmsPage.js';
 import { useToast } from '../Toast.js';
-import { InviteQueueModal, InviteTemplateModal } from './InviteSender.js';
+import { InviteQueueModal, InviteTemplateModal, type QueueJob } from './InviteSender.js';
 import { GuestImportModal } from './GuestImportModal.js';
 import { GUEST_CATEGORIES, GuestForm, emptyGuest, guestToInput } from './GuestForm.js';
-import { Button, IconButton } from '../../ui/Button.js';
+import { Button, buttonClass } from '../../ui/Button.js';
 import { Field, Input, Select } from '../../ui/Field.js';
 import { ConfirmDialog, Modal } from '../../ui/Modal.js';
-import { Chip } from '../../ui/StatusChip.js';
+import { Chip, StatusChip } from '../../ui/StatusChip.js';
 import { EmptyState, ErrorState, LoadingState, Spinner } from '../../ui/StateView.js';
 import type { GuestBulkAction, GuestListQuery, InvitedGuest, InvitedGuestInput } from '@shared/types';
 
@@ -33,19 +33,18 @@ async function fetchAllMatching(q: GuestListQuery) {
   }
 }
 
-/** Secondary toolbar action: an icon with its name for screen readers and a tooltip, so six of them fit one row on a phone. */
-const ToolButton: React.FC<{ icon: React.ReactNode; label: string; onClick: () => void; loading?: boolean }> = ({ icon, label, onClick, loading }) => (
-  <button
-    type="button"
-    aria-label={label}
-    title={label}
-    disabled={loading}
-    onClick={onClick}
-    className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-sm border border-field bg-card text-ink transition-colors hover:bg-paper-2 disabled:opacity-55"
-  >
-    {loading ? <Spinner className="h-4 w-4" /> : icon}
-  </button>
-);
+/** The three groups of guests who still need a nudge, and which filters list them. */
+const SEGMENTS: {
+  id: 'unopened' | 'openedNoRsvp' | 'noRsvp';
+  label: string;
+  detail: string;
+  kind: MessageKind;
+  filters: Pick<GuestListQuery, 'sent' | 'opened' | 'rsvp'>;
+}[] = [
+  { id: 'unopened', label: 'Belum membuka', detail: 'Sudah dikirimi undangan tetapi belum membukanya.', kind: 'reminderUnopened', filters: { sent: 'SENT', opened: 'UNOPENED', rsvp: 'ALL' } },
+  { id: 'openedNoRsvp', label: 'Membuka, belum RSVP', detail: 'Sudah membaca undangan, belum mengisi kehadiran.', kind: 'reminderRsvp', filters: { sent: 'ALL', opened: 'OPENED', rsvp: 'NOT_REPLIED' } },
+  { id: 'noRsvp', label: 'Belum RSVP', detail: 'Semua yang belum mengisi kehadiran, dibuka atau tidak.', kind: 'reminderRsvp', filters: { sent: 'ALL', opened: 'ALL', rsvp: 'NOT_REPLIED' } },
+];
 
 export const InvitedGuestsPanel: React.FC = () => {
   const client = useQueryClient();
@@ -55,6 +54,8 @@ export const InvitedGuestsPanel: React.FC = () => {
   const [category, setCategory] = useState('ALL');
   const [sent, setSent] = useState<'ALL' | 'SENT' | 'UNSENT'>('ALL');
   const [attendance, setAttendance] = useState<'ALL' | 'CHECKED_IN' | 'NOT_CHECKED_IN'>('ALL');
+  const [opened, setOpened] = useState<'ALL' | 'OPENED' | 'UNOPENED'>('ALL');
+  const [rsvp, setRsvp] = useState<'ALL' | 'REPLIED' | 'NOT_REPLIED'>('ALL');
   const [sort, setSort] = useState<NonNullable<GuestListQuery['sort']>>('NAME');
   const [pageSize, setPageSize] = useState(15);
   const [page, setPage] = useState(1);
@@ -62,15 +63,17 @@ export const InvitedGuestsPanel: React.FC = () => {
   const [editing, setEditing] = useState<{ guest: InvitedGuest | null } | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [templateOpen, setTemplateOpen] = useState(false);
-  const [queueGuests, setQueueGuests] = useState<InvitedGuest[] | null>(null);
-  const [template, setTemplate] = useState(loadInviteTemplate);
+  const [job, setJob] = useState<QueueJob | null>(null);
+  const [queueOpen, setQueueOpen] = useState(false);
+  const [templateKind, setTemplateKind] = useState<MessageKind>('invite');
+  const [template, setTemplate] = useState(() => loadTemplate('invite'));
   const [toDelete, setToDelete] = useState<InvitedGuest | null>(null);
   const [bulkDelete, setBulkDelete] = useState(false);
   const [bulkEdit, setBulkEdit] = useState<Edit>(null);
   const [busy, setBusy] = useState(false);
   const q = useDebounce(search, 300).trim();
 
-  const params: GuestListQuery = { search: q, category, sent, attendance, sort };
+  const params: GuestListQuery = { search: q, category, sent, attendance, opened, rsvp, sort };
   const filterKey = JSON.stringify(params);
   // A new search or filter starts at page 1; an old selection stays only while the list is unchanged.
   useEffect(() => {
@@ -140,6 +143,11 @@ export const InvitedGuestsPanel: React.FC = () => {
     onSuccess: refresh,
     onError,
   });
+  const markReminded = useMutation({
+    mutationFn: (id: string) => cmsApi.invitedGuests.bulk([id], { action: 'reminded' }),
+    onSuccess: refresh,
+    onError,
+  });
   const remove = useMutation({
     mutationFn: cmsApi.invitedGuests.remove,
     onSuccess: () => {
@@ -172,10 +180,10 @@ export const InvitedGuestsPanel: React.FC = () => {
     try {
       const list = selected.size ? await selectedGuests() : await fetchAllMatching(params);
       const rows = [
-        ['Nama', 'Kategori', 'Kursi', 'Telepon', 'Meja', 'Catatan', 'Instagram', 'Kode', 'Terkirim', 'Hadir'],
-        ...list.map((g) => [g.name, g.category, String(g.pax), g.phone || '', g.tableNumber || '', g.customNote || '', g.instagram || '', g.slug, g.invitationSent ? 'ya' : '', g.isCheckedIn ? 'ya' : '']),
+        ['Nama', 'Kategori', 'Kursi', 'Telepon', 'Meja', 'Catatan', 'Instagram', 'Kode', 'Terkirim', 'Dibuka', 'Terakhir dibuka', 'Hadir'],
+        ...list.map((g) => [g.name, g.category, String(g.pax), g.phone || '', g.tableNumber || '', g.customNote || '', g.instagram || '', g.slug, g.invitationSent ? 'ya' : '', g.firstOpenedAt ? 'ya' : '', g.lastOpenedAt ? formatDateTime(g.lastOpenedAt) : '', g.isCheckedIn ? 'ya' : '']),
       ];
-      const url = URL.createObjectURL(buildXlsx(rows, 'Tamu', [26, 14, 8, 20, 10, 28, 18, 8, 10, 8]));
+      const url = URL.createObjectURL(buildXlsx(rows, 'Tamu', [26, 14, 8, 20, 10, 28, 18, 8, 10, 10, 20, 8]));
       const a = Object.assign(document.createElement('a'), { href: url, download: 'daftar-tamu.xlsx' });
       document.body.appendChild(a);
       a.click();
@@ -187,36 +195,105 @@ export const InvitedGuestsPanel: React.FC = () => {
       setBusy(false);
     }
   };
-  const openQueue = async () => {
+  const openInviteQueue = async () => {
     setBusy(true);
     try {
-      setQueueGuests(selected.size ? await selectedGuests() : await fetchAllMatching({ ...params, sent: 'UNSENT' }));
+      const guests = selected.size ? await selectedGuests() : await fetchAllMatching({ ...params, sent: 'UNSENT' });
+      setJob({ kind: 'invite', title: 'Kirim undangan berurutan', guests });
+      setQueueOpen(true);
     } catch (e) {
       onError(e as Error);
     } finally {
       setBusy(false);
     }
   };
+  const openReminderQueue = async (segment: (typeof SEGMENTS)[number]) => {
+    setBusy(true);
+    try {
+      const guests = await fetchAllMatching({ category: 'ALL', attendance: 'ALL', ...segment.filters });
+      setJob({ kind: segment.kind, title: `Kirim pengingat: ${segment.label.toLowerCase()}`, guests });
+      setQueueOpen(true);
+    } catch (e) {
+      onError(e as Error);
+    } finally {
+      setBusy(false);
+    }
+  };
+  const showSegment = (segment: (typeof SEGMENTS)[number]) => {
+    setSearch('');
+    setCategory('ALL');
+    setAttendance('ALL');
+    setSent(segment.filters.sent ?? 'ALL');
+    setOpened(segment.filters.opened ?? 'ALL');
+    setRsvp(segment.filters.rsvp ?? 'ALL');
+    document.getElementById('guest-list')?.scrollIntoView({ block: 'start' });
+  };
+  const editTemplate = (kind: MessageKind) => {
+    setTemplateKind(kind);
+    setTemplateOpen(true);
+  };
 
-  const filtersActive = Boolean(q) || category !== 'ALL' || sent !== 'ALL' || attendance !== 'ALL';
+  const filtersActive = Boolean(q) || category !== 'ALL' || sent !== 'ALL' || opened !== 'ALL' || rsvp !== 'ALL' || attendance !== 'ALL';
 
   return (
     <div>
       {stats && (
-        <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-5">
           <Stat label="Undangan" value={stats.totalInvited} detail={`${stats.totalPaxAllocated} kursi`} />
           <Stat
             label="Sudah dikirim"
             value={result?.sentCount ?? 0}
             detail={`${stats.totalInvited ? Math.round(((result?.sentCount ?? 0) / stats.totalInvited) * 100) : 0}% dari daftar`}
           />
+          <Stat
+            label="Sudah dibuka"
+            value={result?.openedCount ?? 0}
+            detail={`${stats.totalInvited ? Math.round(((result?.openedCount ?? 0) / stats.totalInvited) * 100) : 0}% dari daftar`}
+          />
           <Stat label="Sudah hadir" value={stats.totalCheckedIn} detail={`${stats.totalActualPax} orang datang`} />
-          <Stat label="Belum hadir" value={stats.totalRemaining} />
+          <div className="col-span-2 lg:col-span-1 [&>div]:h-full">
+            <Stat label="Belum hadir" value={stats.totalRemaining} detail={`dari ${stats.totalInvited} undangan`} />
+          </div>
         </div>
       )}
 
-      <div className="flex flex-col gap-3">
-        <div className="flex flex-col gap-2 xl:flex-row xl:items-center">
+      {result && (
+        <section aria-labelledby="reminder-title" className="mb-6 rounded-md border border-line bg-card">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-4 py-3">
+            <h3 id="reminder-title" className="flex items-center gap-2 font-semibold">
+              <BellRing className="h-4 w-4 text-prada-ink" aria-hidden="true" /> Pengingat tamu
+            </h3>
+            <Button variant="ghost" size="sm" onClick={() => editTemplate('reminderRsvp')}>
+              <MessageSquareText className="h-4 w-4" aria-hidden="true" /> Atur pesan pengingat
+            </Button>
+          </div>
+          <ul className="divide-y divide-line">
+            {SEGMENTS.map((seg) => {
+              const count = result.reminders[seg.id];
+              return (
+                <li key={seg.id} className="grid grid-cols-[auto_1fr] items-center gap-x-4 gap-y-2 px-4 py-3 md:grid-cols-[auto_1fr_auto]">
+                  <span className="display-numeral w-10 text-3xl leading-none">{count}</span>
+                  <div className="min-w-0">
+                    <p className="font-semibold">{seg.label}</p>
+                    <p className="text-sm text-ink-soft">{seg.detail}</p>
+                  </div>
+                  <div className="col-span-2 flex flex-wrap gap-2 md:col-span-1">
+                    <Button variant="secondary" size="sm" disabled={count === 0} onClick={() => showSegment(seg)}>
+                      <Eye className="h-4 w-4" aria-hidden="true" /> Lihat daftar
+                    </Button>
+                    <Button size="sm" disabled={count === 0} loading={busy} onClick={() => openReminderQueue(seg)}>
+                      <Send className="h-4 w-4" aria-hidden="true" /> Kirim pengingat
+                    </Button>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
+
+      <div id="guest-list" className="flex scroll-mt-4 flex-col gap-3">
+        <div className="flex flex-col gap-2">
           <label className="relative flex-1">
             <span className="sr-only">Cari tamu</span>
             <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-ink-soft" aria-hidden="true" />
@@ -227,7 +304,7 @@ export const InvitedGuestsPanel: React.FC = () => {
               className="pl-9"
             />
           </label>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:flex">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
             <label>
               <span className="sr-only">Kategori</span>
               <Select value={category} onChange={(e) => setCategory(e.target.value)} className={category !== 'ALL' ? '!border-primary' : ''}>
@@ -243,6 +320,22 @@ export const InvitedGuestsPanel: React.FC = () => {
                 <option value="ALL">Pengiriman</option>
                 <option value="UNSENT">Belum dikirim</option>
                 <option value="SENT">Sudah dikirim</option>
+              </Select>
+            </label>
+            <label>
+              <span className="sr-only">Status dibuka</span>
+              <Select value={opened} onChange={(e) => setOpened(e.target.value as typeof opened)} className={opened !== 'ALL' ? '!border-primary' : ''}>
+                <option value="ALL">Dibuka</option>
+                <option value="OPENED">Sudah dibuka</option>
+                <option value="UNOPENED">Belum dibuka</option>
+              </Select>
+            </label>
+            <label>
+              <span className="sr-only">Status RSVP</span>
+              <Select value={rsvp} onChange={(e) => setRsvp(e.target.value as typeof rsvp)} className={rsvp !== 'ALL' ? '!border-primary' : ''}>
+                <option value="ALL">RSVP</option>
+                <option value="REPLIED">Sudah RSVP</option>
+                <option value="NOT_REPLIED">Belum RSVP</option>
               </Select>
             </label>
             <label>
@@ -264,14 +357,24 @@ export const InvitedGuestsPanel: React.FC = () => {
             </label>
           </div>
         </div>
-        <div className="flex flex-wrap items-center gap-1.5 md:justify-end">
-          <ToolButton icon={<MessageSquareText className="h-5 w-5" />} label="Pesan undangan" onClick={() => setTemplateOpen(true)} />
-          <ToolButton icon={<Send className="h-5 w-5" />} label="Kirim berurutan" loading={busy} onClick={openQueue} />
-          <ToolButton icon={<FileSpreadsheet className="h-5 w-5" />} label="Ekspor Excel" loading={busy} onClick={exportXlsx} />
-          <ToolButton icon={<FileText className="h-5 w-5" />} label="Ekspor CSV" onClick={() => cmsApi.exportGuests().catch((e: Error) => notify(e.message, 'error'))} />
-          <ToolButton icon={<Upload className="h-5 w-5" />} label="Impor Excel / daftar" onClick={() => setImportOpen(true)} />
-          <Button onClick={() => setEditing({ guest: null })} className="order-first mb-1 w-full whitespace-nowrap md:order-last md:mb-0 md:ml-2 md:w-auto">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button onClick={() => setEditing({ guest: null })} className="w-full sm:order-last sm:ml-auto sm:w-auto">
             <Plus className="h-4 w-4" aria-hidden="true" /> Tambah tamu
+          </Button>
+          <Button variant="secondary" loading={busy} onClick={openInviteQueue}>
+            <Send className="h-4 w-4" aria-hidden="true" /> Kirim undangan
+          </Button>
+          <Button variant="secondary" onClick={() => editTemplate('invite')}>
+            <MessageSquareText className="h-4 w-4" aria-hidden="true" /> Atur pesan
+          </Button>
+          <Button variant="secondary" onClick={() => setImportOpen(true)}>
+            <Upload className="h-4 w-4" aria-hidden="true" /> Impor daftar
+          </Button>
+          <Button variant="secondary" loading={busy} onClick={exportXlsx}>
+            <FileSpreadsheet className="h-4 w-4" aria-hidden="true" /> Ekspor Excel
+          </Button>
+          <Button variant="secondary" onClick={() => cmsApi.exportGuests().catch((e: Error) => notify(e.message, 'error'))}>
+            <FileText className="h-4 w-4" aria-hidden="true" /> Ekspor CSV
           </Button>
         </div>
       </div>
@@ -286,37 +389,34 @@ export const InvitedGuestsPanel: React.FC = () => {
             <p className="min-w-0 pl-1 text-sm font-semibold">
               {selected.size} tamu dipilih
               {!allMatchingSelected && total > selected.size && (
-                <button type="button" className="ml-2 font-normal whitespace-nowrap text-primary underline underline-offset-4" onClick={() => setSelected(new Set(result?.ids))}>
+                <button type="button" className="ml-2 min-h-11 font-normal whitespace-nowrap text-primary underline underline-offset-4" onClick={() => setSelected(new Set(result?.ids))}>
                   Pilih semua {total}
                 </button>
               )}
             </p>
-            <IconButton label="Batalkan pilihan" onClick={() => setSelected(new Set())} className="-mr-1 md:!hidden">
-              <X className="h-5 w-5" />
-            </IconButton>
+            <Button variant="ghost" size="sm" onClick={() => setSelected(new Set())}>
+              <X className="h-4 w-4" aria-hidden="true" /> Batal
+            </Button>
           </div>
-          <div className="flex items-center justify-around md:justify-end md:gap-1">
-            <IconButton label="Tandai terkirim" disabled={bulk.isPending} onClick={() => bulk.mutate({ action: 'sent', value: true })}>
-              <CheckCheck className="h-5 w-5" />
-            </IconButton>
-            <IconButton label="Tandai belum terkirim" disabled={bulk.isPending} onClick={() => bulk.mutate({ action: 'sent', value: false })}>
-              <Undo2 className="h-5 w-5" />
-            </IconButton>
-            <IconButton label="Ubah kategori" onClick={() => setBulkEdit({ kind: 'category', value: categories[0] ?? 'Umum' })}>
-              <Tag className="h-5 w-5" />
-            </IconButton>
-            <IconButton label="Ubah jumlah kursi" onClick={() => setBulkEdit({ kind: 'pax', value: '2' })}>
-              <Users className="h-5 w-5" />
-            </IconButton>
-            <IconButton label="Atur nomor meja" onClick={() => setBulkEdit({ kind: 'table', value: '' })}>
-              <Hash className="h-5 w-5" />
-            </IconButton>
-            <IconButton label="Hapus tamu terpilih" tone="danger" onClick={() => setBulkDelete(true)}>
-              <Trash2 className="h-5 w-5" />
-            </IconButton>
-            <IconButton label="Batalkan pilihan" onClick={() => setSelected(new Set())} className="max-md:!hidden">
-              <X className="h-5 w-5" />
-            </IconButton>
+          <div className="mt-1 grid grid-cols-3 gap-1.5 md:mt-0 md:flex md:flex-wrap md:justify-end">
+            <Button variant="secondary" size="sm" disabled={bulk.isPending} onClick={() => bulk.mutate({ action: 'sent', value: true })}>
+              <CheckCheck className="h-4 w-4" aria-hidden="true" /> Terkirim
+            </Button>
+            <Button variant="secondary" size="sm" disabled={bulk.isPending} onClick={() => bulk.mutate({ action: 'sent', value: false })}>
+              <Undo2 className="h-4 w-4" aria-hidden="true" /> Belum kirim
+            </Button>
+            <Button variant="secondary" size="sm" onClick={() => setBulkEdit({ kind: 'category', value: categories[0] ?? 'Umum' })}>
+              <Tag className="h-4 w-4" aria-hidden="true" /> Kategori
+            </Button>
+            <Button variant="secondary" size="sm" onClick={() => setBulkEdit({ kind: 'pax', value: '2' })}>
+              <Users className="h-4 w-4" aria-hidden="true" /> Kursi
+            </Button>
+            <Button variant="secondary" size="sm" onClick={() => setBulkEdit({ kind: 'table', value: '' })}>
+              <Hash className="h-4 w-4" aria-hidden="true" /> Meja
+            </Button>
+            <Button variant="danger" size="sm" onClick={() => setBulkDelete(true)}>
+              <Trash2 className="h-4 w-4" aria-hidden="true" /> Hapus
+            </Button>
           </div>
         </div>
       )}
@@ -360,54 +460,63 @@ export const InvitedGuestsPanel: React.FC = () => {
                         <p className="font-semibold break-words">{g.name}</p>
                         <span className="display-numeral rounded-xs bg-paper-2 px-1.5 text-sm tracking-widest">{g.slug}</span>
                         {g.isCheckedIn && <Chip tone="ok">Hadir</Chip>}
+                        {g.firstOpenedAt ? (
+                          <span title={`Pertama dibuka ${formatDateTime(g.firstOpenedAt)}`}>
+                            <Chip tone="ok">
+                              <Eye className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
+                              Dibuka{g.lastOpenedAt ? ` ${timeAgo(g.lastOpenedAt)}` : ''}
+                              {(g.openCount ?? 0) > 1 ? ` · ${g.openCount}×` : ''}
+                            </Chip>
+                          </span>
+                        ) : (
+                          g.invitationSent && <Chip tone="neutral">Belum dibuka</Chip>
+                        )}
+                        {g.rsvp ? <StatusChip status={g.rsvp} suffix="RSVP" /> : g.firstOpenedAt && <Chip tone="maybe">Belum RSVP</Chip>}
+                        {(g.reminderCount ?? 0) > 0 && g.lastRemindedAt && (
+                          <Chip tone="neutral">Diingatkan {g.reminderCount}× · {timeAgo(g.lastRemindedAt)}</Chip>
+                        )}
                       </div>
                       <p className="mt-0.5 text-sm break-words text-ink-soft">
                         {g.category} · {g.pax} kursi{g.tableNumber ? ` · ${g.tableNumber}` : ''}
                         {g.phone ? ` · ${g.phone}` : ''}
                       </p>
                     </div>
-                    <div className="col-span-2 flex items-center justify-end gap-0.5 md:col-span-1">
-                      <IconButton
-                        label={g.invitationSent ? 'Sudah terkirim, ketuk untuk batalkan' : 'Tandai terkirim'}
-                        aria-pressed={Boolean(g.invitationSent)}
-                        className={g.invitationSent ? '!bg-ok-bg !text-ok' : ''}
-                        onClick={() => markSent.mutate({ ids: [g.id], value: !g.invitationSent })}
-                      >
-                        <CheckCheck className="h-5 w-5" />
-                      </IconButton>
+                    <div className="col-span-2 flex flex-wrap items-center gap-2 md:col-span-1 md:justify-end">
                       {wa ? (
                         <a
                           href={wa}
                           target="_blank"
                           rel="noreferrer"
-                          aria-label={`Kirim WhatsApp ke ${g.name}`}
-                          title="Kirim WhatsApp"
                           onClick={() => !g.invitationSent && markSent.mutate({ ids: [g.id], value: true })}
-                          className="inline-flex h-11 w-11 items-center justify-center rounded-sm bg-primary text-on-primary hover:bg-primary-hover"
+                          className={buttonClass('primary', 'sm')}
                         >
-                          <MessageCircle className="h-5 w-5" />
+                          <MessageCircle className="h-4 w-4" aria-hidden="true" /> Kirim WhatsApp<span className="sr-only"> ke {g.name}</span>
                         </a>
                       ) : (
-                        <IconButton label={copied === g.id ? 'Pesan tersalin' : 'Salin pesan undangan'} onClick={() => copy(inviteMessage(g), g.id)}>
-                          {copied === g.id ? <CheckCheck className="h-5 w-5" /> : <Copy className="h-5 w-5" />}
-                        </IconButton>
+                        <Button variant="secondary" size="sm" onClick={() => copy(inviteMessage(g), g.id)}>
+                          {copied === g.id ? <CheckCheck className="h-4 w-4" aria-hidden="true" /> : <Copy className="h-4 w-4" aria-hidden="true" />}
+                          {copied === g.id ? 'Pesan tersalin' : 'Salin pesan'}
+                        </Button>
                       )}
-                      <a
-                        href={guestInvitationUrl(g)}
-                        target="_blank"
-                        rel="noreferrer"
-                        aria-label={`Buka undangan ${g.name}`}
-                        title="Buka undangan"
-                        className="inline-flex h-11 w-11 items-center justify-center rounded-sm text-ink-soft hover:bg-paper-2 hover:text-ink"
-                      >
-                        <ExternalLink className="h-5 w-5" />
-                      </a>
-                      <IconButton label={`Ubah ${g.name}`} onClick={() => setEditing({ guest: g })}>
-                        <Pencil className="h-5 w-5" />
-                      </IconButton>
-                      <IconButton label={`Hapus ${g.name}`} tone="danger" onClick={() => setToDelete(g)}>
-                        <Trash2 className="h-5 w-5" />
-                      </IconButton>
+                      <Button variant="secondary" size="sm" onClick={() => setEditing({ guest: g })}>
+                        <Pencil className="h-4 w-4" aria-hidden="true" /> Ubah<span className="sr-only"> {g.name}</span>
+                      </Button>
+                      <details className="group w-full md:w-auto">
+                        <summary className={`${buttonClass('ghost', 'sm')} cursor-pointer list-none select-none [&::-webkit-details-marker]:hidden`}>
+                          Lainnya <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" aria-hidden="true" />
+                        </summary>
+                        <div className="mt-1 flex flex-wrap gap-2">
+                          <Button variant="secondary" size="sm" aria-pressed={Boolean(g.invitationSent)} onClick={() => markSent.mutate({ ids: [g.id], value: !g.invitationSent })}>
+                            <CheckCheck className="h-4 w-4" aria-hidden="true" /> {g.invitationSent ? 'Batalkan terkirim' : 'Tandai terkirim'}
+                          </Button>
+                          <a href={guestInvitationUrl(g)} target="_blank" rel="noreferrer" className={buttonClass('secondary', 'sm')}>
+                            <ExternalLink className="h-4 w-4" aria-hidden="true" /> Buka undangan<span className="sr-only"> {g.name}</span>
+                          </a>
+                          <Button variant="danger" size="sm" onClick={() => setToDelete(g)}>
+                            <Trash2 className="h-4 w-4" aria-hidden="true" /> Hapus<span className="sr-only"> {g.name}</span>
+                          </Button>
+                        </div>
+                      </details>
                     </div>
                   </li>
                 );
@@ -422,7 +531,7 @@ export const InvitedGuestsPanel: React.FC = () => {
           <p>
             {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, total)} dari {total}
           </p>
-          <div className="flex items-center gap-1">
+          <div className="flex flex-wrap items-center gap-2">
             <label>
               <span className="sr-only">Tamu per halaman</span>
               <Select value={pageSize} onChange={(e) => setPageSize(Number(e.target.value))} className="!min-h-11 !w-auto !py-1">
@@ -433,9 +542,9 @@ export const InvitedGuestsPanel: React.FC = () => {
                 ))}
               </Select>
             </label>
-            <IconButton label="Halaman sebelumnya" disabled={page <= 1} onClick={() => setPage(page - 1)}>
-              <ChevronLeft className="h-5 w-5" />
-            </IconButton>
+            <Button variant="secondary" size="sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>
+              <ChevronLeft className="h-4 w-4" aria-hidden="true" /> Sebelumnya
+            </Button>
             <label className="flex items-center gap-1">
               <span className="sr-only">Nomor halaman</span>
               <Input
@@ -449,9 +558,9 @@ export const InvitedGuestsPanel: React.FC = () => {
               />
               <span aria-hidden="true">/ {pages}</span>
             </label>
-            <IconButton label="Halaman berikutnya" disabled={page >= pages} onClick={() => setPage(page + 1)}>
-              <ChevronRight className="h-5 w-5" />
-            </IconButton>
+            <Button variant="secondary" size="sm" disabled={page >= pages} onClick={() => setPage(page + 1)}>
+              Berikutnya <ChevronRight className="h-4 w-4" aria-hidden="true" />
+            </Button>
           </div>
         </nav>
       )}
@@ -461,15 +570,15 @@ export const InvitedGuestsPanel: React.FC = () => {
         onClose={() => setTemplateOpen(false)}
         couple={couple}
         sample={guests[0]}
-        onSaved={setTemplate}
+        initialKind={templateKind}
+        onSaved={(kind, text) => kind === 'invite' && setTemplate(text)}
       />
       <InviteQueueModal
-        open={queueGuests !== null}
-        onClose={() => setQueueGuests(null)}
-        guests={queueGuests ?? []}
-        template={template}
+        open={queueOpen}
+        onClose={() => setQueueOpen(false)}
+        job={job}
         couple={couple}
-        onSent={(id) => markSent.mutate({ ids: [id], value: true })}
+        onSent={(kind, id) => (kind === 'invite' ? markSent.mutate({ ids: [id], value: true }) : markReminded.mutate(id))}
       />
 
       <Modal

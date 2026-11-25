@@ -35,6 +35,14 @@ Penguncian dilakukan **di server**: respons publik tidak memuat alamat dan reken
 - **Ubah kehadiran satu kali**; teks ucapan tetap. Mengubah kehadiran tanpa teks tidak menimpa ucapan.
 - **Tanpa sinyal:** konfirmasi dan ucapan (termasuk rekaman) disimpan di HP dan terkirim otomatis saat sinyal kembali. Tamu melihat kartu *Tersimpan di HP Anda* dengan *Kirim sekarang* dan *Batalkan dan ubah*.
 
+### 1.5a. Status undangan dibuka
+Saat tamu berkode menekan *Buka undangan*, peramban mengirim satu ping (`POST /public/opened`) dan server mencatat waktu pertama dan terakhir dibuka serta jumlah kunjungan. Tidak dicatat untuk admin yang sedang pratinjau, untuk kunjungan tanpa kode, atau untuk muat ulang dalam satu menit (dihitung satu kunjungan). Tanpa sinyal, ping menunggu sampai online. Datanya tidak pernah masuk respons publik; hanya CMS yang melihatnya.
+
+### 1.5b. Pratinjau tautan, pengingat, dan bingkai
+- **Pratinjau tautan WhatsApp:** server menyisipkan judul, deskripsi, dan `og:image` (foto sampul) ke HTML halaman undangan, dan menyapa tamu bila tautan memuat `?to=`. Crawler WhatsApp tidak menjalankan JavaScript, jadi ini harus ada di HTML.
+- **Pengingat tamu (CMS):** tiga kelompok (belum membuka, membuka tapi belum RSVP, belum RSVP) dengan jumlah, tombol *Lihat daftar* dan *Kirim pengingat*. Antrean WhatsApp melewati tamu tanpa nomor dan yang baru diingatkan kurang dari 12 jam. Tiga pesan (undangan, pengingat belum dibuka, pengingat RSVP) bisa diubah.
+- **Bingkai acara:** *Bingkai di atas foto* (PNG transparan) atau *Foto di depan bingkai* (gambar utuh, dengan margin area foto). Sel kolase selalu ditaruh di jendela bening terbesar pada bingkai, sehingga tidak ada foto yang tertutup tepi atau papan nama.
+
 ### 1.6. Kartu tamu
 Modal berisi nama, kategori, kursi, meja, **QR dan kode 4 karakter**, status hadir, dan tombol salin tautan pribadi. Dipakai petugas meja untuk memindai. Tetap tampil offline.
 
@@ -58,13 +66,13 @@ Setelah dibuka sekali dengan internet, undangan, kartu tamu, dan kamera tetap te
 | Menu | Fungsi |
 |---|---|
 | **Ringkasan** | Statistik RSVP (hadir, tidak, ragu, jumlah kursi), jumlah konten, ucapan terbaru |
-| **Mempelai & sampul** | Nama, orang tua, Instagram, foto, hero (foto atau video), kutipan |
+| **Mempelai & sampul** | Mengikuti template aktif: hero satu foto/video (Nusantara), urutan hingga 5 foto dan video (Gulungan Kenangan, Layar Perak), atau tanpa sampul (Bilik Foto, Cozy Home); teks salam, penutup, surat, dan kredit yang dapat ditulis sendiri; foto kisah hanya bila template memakainya |
 | **Jadwal acara** | Sesi, tanggal dan jam, tempat, alamat, tautan peta, busana, catatan |
 | **Kisah** | Linimasa kisah cinta dengan foto |
 | **Galeri** | Foto dan video, kategori, urutan, unggah massal |
 | **Rekening & QRIS** | Rekening bank, e-wallet, gambar QRIS |
 | **Template & musik** | Pilih template dan preset warna, musik latar, tanggal, WhatsApp dan templat balasan |
-| **Daftar tamu & ucapan** | *Tamu undangan*: tambah, ubah, impor dari spreadsheet, kode otomatis, saring, **kirim WhatsApp per tamu atau berurutan**, **pesan yang bisa diubah**, tanda terkirim, **ekspor CSV**. *Ucapan & RSVP*: cari, saring, balas, sembunyikan, hapus, ekspor CSV |
+| **Daftar tamu & ucapan** | *Tamu undangan*: tambah, ubah, impor dari spreadsheet, kode otomatis, saring, **kirim WhatsApp per tamu atau berurutan**, **status dibuka (chip, statistik, saringan Belum dibuka untuk kirim ulang)**, **pesan yang bisa diubah**, tanda terkirim, **ekspor CSV** (waktu dalam WIB, termasuk kolom dibuka). *Ucapan & RSVP*: cari, saring, balas, sembunyikan, hapus, ekspor CSV |
 | **Meja penerima tamu** | **Aturan konfirmasi hadir mandiri** (aktif/mati, verifikasi lokasi, koordinat, radius); pemindai QR, cari nama, jumlah orang, suvenir, batalkan; statistik hadir |
 | **Photo Moments** | Aturan kamera (akses, **wajib check-in**, jatah, tutup kamera, cek dulu, visibilitas, unduhan, look), bingkai acara, **kartu QR PDF**, daftar foto dengan setujui/sembunyikan/hapus dan komentar, **setujui semua**, **unduh semua foto (ZIP)**, angka foto menunggu di menu |
 | **Pengaturan** | Ubah kata sandi, kembalikan ke data demo (mati di produksi) |

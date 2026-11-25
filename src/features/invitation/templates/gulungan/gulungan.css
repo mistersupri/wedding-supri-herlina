@@ -1263,7 +1263,8 @@
 }
 .gk-input:focus {
   border-bottom-color: var(--cream);
-  outline: none;
+  outline: 3px solid var(--cream);
+  outline-offset: 2px;
 }
 .gk-static small {
   color: var(--muted);

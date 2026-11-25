@@ -60,13 +60,20 @@ const MINUTE = 60_000;
 /** Limits sized for a wedding venue, where many guests share one Wi-Fi address. */
 export const limits = {
   login: rateLimit({ max: 10, windowMs: 15 * MINUTE, message: 'Terlalu banyak percobaan masuk. Coba lagi dalam 15 menit.' }),
-  /** Guesses at the 4-character invitation code. */
-  verifyCode: rateLimit({ max: 60, windowMs: 10 * MINUTE, message: 'Terlalu banyak percobaan kode. Tunggu beberapa menit lalu coba lagi.' }),
+  /**
+   * Guesses at the 4-character invitation code. Every guest opening the page makes two of these calls (verify + details),
+   * and a wedding hall shares one Wi-Fi address, so the ceiling must fit a few hundred guests arriving together;
+   * 32^4 codes keep blind guessing hopeless at this rate anyway.
+   */
+  verifyCode: rateLimit({ max: 600, windowMs: 10 * MINUTE, message: 'Terlalu banyak percobaan kode. Tunggu beberapa menit lalu coba lagi.' }),
   wish: rateLimit({ max: 60, windowMs: 10 * MINUTE, message: 'Terlalu banyak ucapan dikirim dari jaringan ini. Coba lagi nanti.' }),
   comment: rateLimit({ max: 60, windowMs: 10 * MINUTE, message: 'Terlalu banyak komentar. Coba lagi nanti.' }),
   /** Self check-in: a few honest retries (GPS, permissions), not a loop. */
   checkIn: rateLimit({ max: 40, windowMs: 10 * MINUTE, message: 'Terlalu banyak percobaan. Tunggu beberapa menit lalu coba lagi.' }),
-  react: rateLimit({ max: 300, windowMs: MINUTE }),
+  /** One ping per opened cover; generous, because a whole wedding party may share one Wi-Fi address. */
+  opened: rateLimit({ max: 600, windowMs: 10 * MINUTE }),
+  /** Per photo and address: a venue's Wi-Fi may like one photo together, but one phone cannot hammer a counter. */
+  react: rateLimit({ max: 30, windowMs: MINUTE, key: (req) => `${req.ip}:${req.params.id}` }),
   guestUpload: rateLimit({ max: 300, windowMs: 10 * MINUTE, message: 'Terlalu banyak unggahan dari jaringan ini. Coba lagi nanti.' }),
   addMoment: rateLimit({ max: 300, windowMs: 10 * MINUTE }),
 };

@@ -58,6 +58,12 @@ export function wishRepository(db: Db) {
       return rows.map(toWish);
     },
 
+    /** RSVP answer of every invited guest who has written, by invitation code. */
+    async statusBySlug(): Promise<Map<string, AttendanceStatus>> {
+      const rows = await db.guestWish.findMany({ where: { guestSlug: { not: null } }, select: { guestSlug: true, attendanceStatus: true } });
+      return new Map(rows.map((r) => [r.guestSlug!.toUpperCase(), r.attendanceStatus as AttendanceStatus]));
+    },
+
     async recent(take: number) {
       return (await db.guestWish.findMany({ orderBy: { createdAt: 'desc' }, take })).map(toWish);
     },
@@ -118,6 +124,9 @@ type InvitedRow = Awaited<ReturnType<Db['invitedGuest']['create']>>;
 const toInvited = (r: InvitedRow): InvitedGuest => ({
   ...r,
   invitationSentAt: iso(r.invitationSentAt),
+  firstOpenedAt: iso(r.firstOpenedAt),
+  lastOpenedAt: iso(r.lastOpenedAt),
+  lastRemindedAt: iso(r.lastRemindedAt),
   checkInTime: iso(r.checkInTime),
   checkInMethod: r.checkInMethod,
   createdAt: r.createdAt.toISOString(),
@@ -170,6 +179,25 @@ export function invitedGuestRepository(db: Db) {
       // Keep the first "sent" time when a guest is marked again.
       await db.invitedGuest.updateMany({ where: { ...where, invitationSentAt: null }, data: { invitationSentAt: new Date() } });
       return (await db.invitedGuest.updateMany({ where, data: { invitationSent: true } })).count;
+    },
+    /**
+     * Notes that the guest opened their invitation. Opening again within `windowMs` is the same visit
+     * (a double tap, a reload), so it is not counted twice. Resolves to false for an unknown code.
+     */
+    async recordOpen(slug: string, windowMs = 60_000): Promise<boolean> {
+      const code = slug.trim().toUpperCase();
+      const now = new Date();
+      await db.invitedGuest.updateMany({ where: { slug: code, firstOpenedAt: null }, data: { firstOpenedAt: now } });
+      const counted = await db.invitedGuest.updateMany({
+        where: { slug: code, OR: [{ lastOpenedAt: null }, { lastOpenedAt: { lt: new Date(now.getTime() - windowMs) } }] },
+        data: { lastOpenedAt: now, openCount: { increment: 1 } },
+      });
+      if (counted.count === 0) await db.invitedGuest.updateMany({ where: { slug: code }, data: { lastOpenedAt: now } });
+      return (await db.invitedGuest.count({ where: { slug: code } })) > 0;
+    },
+    /** A WhatsApp reminder went out to these guests. */
+    async markReminded(ids: string[]): Promise<number> {
+      return (await db.invitedGuest.updateMany({ where: { id: { in: ids } }, data: { lastRemindedAt: new Date(), reminderCount: { increment: 1 } } })).count;
     },
     async remove(id: string) {
       return (await orNull(db.invitedGuest.delete({ where: { id } }))) !== null;
@@ -407,6 +435,12 @@ export function frameRepository(db: Db) {
     frameOverlayUrl: r.frameOverlayUrl,
     frameName: r.frameName ?? undefined,
     allowGuestToggle: r.allowGuestToggle,
+    photoInFront: r.photoInFront,
+    photoInset: { top: r.photoInsetTop, right: r.photoInsetRight, bottom: r.photoInsetBottom, left: r.photoInsetLeft },
+  });
+  const columns = ({ photoInset, ...rest }: PhotoFrameConfig) => ({
+    ...rest,
+    ...(photoInset ? { photoInsetTop: photoInset.top, photoInsetRight: photoInset.right, photoInsetBottom: photoInset.bottom, photoInsetLeft: photoInset.left } : {}),
   });
   return {
     async get() {
@@ -414,7 +448,7 @@ export function frameRepository(db: Db) {
       return r ? map(r) : null;
     },
     async save(config: PhotoFrameConfig) {
-      return map(await db.photoFrameSetting.upsert({ where: { id: 'main' }, create: { id: 'main', ...config }, update: config }));
+      return map(await db.photoFrameSetting.upsert({ where: { id: 'main' }, create: { id: 'main', ...columns(config) }, update: columns(config) }));
     },
   };
 }

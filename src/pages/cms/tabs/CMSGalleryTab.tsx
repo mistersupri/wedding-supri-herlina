@@ -6,6 +6,8 @@ import { formatBytes, kindOf, type FileRules, type MediaKind } from '../../../li
 import { queryKeys } from '../../../lib/queryKeys.js';
 import { resizeImageFile } from '../../../lib/image.js';
 import { PageHeader } from '../../../components/cms/CmsPage.js';
+import { TemplateNote } from '../../../components/cms/TemplateNote.js';
+import { useActiveTemplate } from '../../../components/cms/useActiveTemplate.js';
 import { MediaField } from '../../../components/cms/MediaField.js';
 import { useCollection } from '../../../components/cms/useCollection.js';
 import { useToast } from '../../../components/cms/Toast.js';
@@ -232,6 +234,7 @@ const BatchUpload: React.FC<{ open: boolean; onClose: () => void; startIndex: nu
 };
 
 export const CMSGalleryTab: React.FC = () => {
+  const template = useActiveTemplate();
   const { query, items, save, remove } = useCollection(queryKeys.cms.gallery, cmsApi.gallery, 'Media');
   const [filter, setFilter] = useState<GalleryCategory | 'ALL'>('ALL');
   const [draft, setDraft] = useState<Partial<GalleryPhoto> | null>(null);
@@ -262,7 +265,9 @@ export const CMSGalleryTab: React.FC = () => {
         }
       />
 
-      <div role="group" aria-label="Saring kategori" className="no-scrollbar mb-5 flex gap-1 overflow-x-auto [mask-image:linear-gradient(to_right,black_calc(100%-2rem),transparent)] sm:[mask-image:none]">
+      <TemplateNote>{template.content.galleryNote}</TemplateNote>
+
+      <div role="group" aria-label="Saring kategori" className="mb-5 flex flex-wrap gap-x-1 gap-y-0.5 border-b border-line">
         {[{ value: 'ALL' as const, label: 'Semua' }, ...CATEGORIES].map((c) => (
           <button
             key={c.value}

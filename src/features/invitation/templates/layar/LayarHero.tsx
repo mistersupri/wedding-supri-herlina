@@ -15,11 +15,14 @@ const HOLD_MS = 7000;
 const MAX_SLIDES = 3;
 const pad = (n: number) => String(n).padStart(2, '0');
 
-/** Hero video (or photo) first, then gallery videos and photos: up to three scenes on the screen. */
+/** The couple's own sequence of photos and videos when they set one; else the hero, then gallery videos and photos (up to three scenes). */
 function useSlides(): Slide[] {
   const { invitation: inv } = useInvitation();
   const photo = usePhotoPool(inv);
   return useMemo(() => {
+    if (inv.heroSlides?.length) {
+      return inv.heroSlides.map((s, i) => ({ key: `slide-${i}`, kind: s.type === 'VIDEO' ? ('video' as const) : ('image' as const), src: s.url, poster: s.poster || inv.heroImage }));
+    }
     const slides: Slide[] = [];
     if (inv.heroMediaType === 'VIDEO' && inv.heroVideoUrl) slides.push({ key: 'hero-video', kind: 'video', src: inv.heroVideoUrl, poster: inv.heroImage });
     else if (inv.heroImage) slides.push({ key: 'hero-image', kind: 'image', src: inv.heroImage });

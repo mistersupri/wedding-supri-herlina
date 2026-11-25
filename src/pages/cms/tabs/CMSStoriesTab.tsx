@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { cmsApi } from '../../../lib/api.js';
 import { queryKeys } from '../../../lib/queryKeys.js';
 import { PageHeader } from '../../../components/cms/CmsPage.js';
+import { TemplateNote } from '../../../components/cms/TemplateNote.js';
+import { useActiveTemplate } from '../../../components/cms/useActiveTemplate.js';
 import { MediaField } from '../../../components/cms/MediaField.js';
 import { useCollection } from '../../../components/cms/useCollection.js';
 import { Button } from '../../../components/ui/Button.js';
@@ -15,6 +17,8 @@ const BLANK: Partial<LoveStoryItem> = { year: '', title: '', description: '', ph
 
 export const CMSStoriesTab: React.FC = () => {
   const { query, items, save, remove } = useCollection(queryKeys.cms.stories, cmsApi.stories, 'Kisah');
+  const template = useActiveTemplate();
+  const showPhoto = template.content.storyPhoto;
   const [draft, setDraft] = useState<Partial<LoveStoryItem> | null>(null);
   const [toDelete, setToDelete] = useState<LoveStoryItem | null>(null);
   const { errors, clear, validate, formRef } = useFormErrors<'year' | 'title' | 'description'>();
@@ -31,6 +35,10 @@ export const CMSStoriesTab: React.FC = () => {
         actions={<Button onClick={() => setDraft({ ...BLANK })}>Tambah kisah</Button>}
       />
 
+      <TemplateNote>
+        {showPhoto ? 'Template ini menampilkan foto di setiap kisah.' : 'Template ini menampilkan tahun, judul, dan cerita saja, tanpa foto. Foto kisah yang sudah ada tersimpan dan muncul lagi bila Anda ganti template.'}
+      </TemplateNote>
+
       {query.isLoading ? (
         <LoadingState label="Memuat kisah..." />
       ) : query.isError ? (
@@ -41,7 +49,7 @@ export const CMSStoriesTab: React.FC = () => {
         <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {items.map((s) => (
             <li key={s.id} className="flex flex-col overflow-hidden rounded-md border border-line bg-card">
-              {s.photoUrl && <img src={s.photoUrl} alt="" referrerPolicy="no-referrer" className="aspect-[4/3] max-h-56 w-full bg-paper-2 object-cover" />}
+              {showPhoto && s.photoUrl && <img src={s.photoUrl} alt="" referrerPolicy="no-referrer" className="aspect-[4/3] max-h-56 w-full bg-paper-2 object-cover" />}
               <div className="flex flex-1 flex-col p-4">
                 <p className="display-numeral text-2xl text-prada-ink">{s.year}</p>
                 <p className="mt-1 font-semibold">{s.title}</p>
@@ -116,6 +124,7 @@ export const CMSStoriesTab: React.FC = () => {
                 <Textarea {...p} rows={4} required maxLength={400} value={draft.description || ''} onChange={(e) => set('description', e.target.value)} />
               )}
             </Field>
+            {showPhoto && (
             <MediaField
               label="Foto (opsional)"
               aspect="portrait"
@@ -125,8 +134,9 @@ export const CMSStoriesTab: React.FC = () => {
               minWidth={600}
               value={draft.photoUrl || ''}
               onChange={(url) => set('photoUrl', url)}
-              hint="Potret tegak 4:5 paling pas dalam bingkai gunungan."
+              hint={template.id === 'nusantara' ? 'Potret tegak 4:5 paling pas dalam bingkai gunungan.' : 'Tampil sebagai foto adegan di samping cerita.'}
             />
+            )}
           </form>
         )}
       </Modal>

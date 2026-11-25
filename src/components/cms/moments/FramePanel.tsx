@@ -9,8 +9,16 @@ import { Panel } from '../CmsPage.js';
 import { MediaField } from '../MediaField.js';
 import { useToast } from '../Toast.js';
 import { Button } from '../../ui/Button.js';
-import { Checkbox } from '../../ui/Field.js';
-import type { PhotoFrameConfig } from '@shared/types';
+import { Checkbox, Field, Input } from '../../ui/Field.js';
+import type { PhotoFrameConfig, PhotoInset } from '@shared/types';
+
+const DEFAULT_INSET: PhotoInset = { top: 8, right: 8, bottom: 24, left: 8 };
+const INSET_SIDES: { key: keyof PhotoInset; label: string }[] = [
+  { key: 'top', label: 'Atas' },
+  { key: 'right', label: 'Kanan' },
+  { key: 'bottom', label: 'Bawah' },
+  { key: 'left', label: 'Kiri' },
+];
 
 /** The shape of a frame image: Story (9:16), the older 4:5, or something else. */
 function describeRatio(w: number, h: number) {
@@ -110,6 +118,75 @@ export const FramePanel: React.FC = () => {
         </p>
       )}
 
+      <fieldset className="mt-5">
+        <legend className="mb-2 text-sm font-semibold">Susunan foto dan bingkai</legend>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {[
+            { front: false, title: 'Bingkai di atas foto', detail: 'Untuk PNG dengan latar transparan. Foto tamu terlihat di belakang bingkai.' },
+            { front: true, title: 'Foto di depan bingkai', detail: 'Untuk bingkai berupa gambar utuh (tidak transparan). Foto tamu ditaruh di atas bingkai, di dalam area yang Anda atur.' },
+          ].map((o) => {
+            const active = Boolean(form.photoInFront) === o.front;
+            return (
+              <label key={o.title} className={`flex cursor-pointer gap-3 rounded-sm border p-3 ${active ? 'border-primary ring-2 ring-primary' : 'border-line hover:border-field'}`}>
+                <input
+                  type="radio"
+                  name="frame-order"
+                  className="mt-1 h-5 w-5 accent-[var(--primary)]"
+                  checked={active}
+                  onChange={() => setForm({ ...form, photoInFront: o.front, photoInset: form.photoInset ?? DEFAULT_INSET })}
+                />
+                <span>
+                  <span className="block font-semibold">{o.title}</span>
+                  <span className="block text-sm text-ink-soft">{o.detail}</span>
+                </span>
+              </label>
+            );
+          })}
+        </div>
+
+        {form.photoInFront && (
+          <div className="mt-4 grid gap-5 sm:grid-cols-[minmax(0,12rem)_1fr]">
+            <div>
+              <p className="mb-1.5 text-sm font-semibold">Pratinjau area foto</p>
+              <span className="relative block aspect-[9/16] w-full max-w-48 overflow-hidden rounded-xs border border-line bg-paper-2">
+                {form.frameOverlayUrl && <img src={form.frameOverlayUrl} alt="" className="absolute inset-0 h-full w-full" />}
+                <span
+                  className="absolute grid place-items-center bg-[linear-gradient(160deg,#6f6253,#c9b79d_55%,#8a7a68)] text-xs font-semibold text-white"
+                  style={{
+                    left: `${(form.photoInset ?? DEFAULT_INSET).left}%`,
+                    right: `${(form.photoInset ?? DEFAULT_INSET).right}%`,
+                    top: `${(form.photoInset ?? DEFAULT_INSET).top}%`,
+                    bottom: `${(form.photoInset ?? DEFAULT_INSET).bottom}%`,
+                  }}
+                >
+                  Foto tamu
+                </span>
+              </span>
+            </div>
+            <div>
+              <p className="mb-2 text-sm text-ink-soft">Jarak area foto dari tepi bingkai, dalam persen. Kolase dan foto tunggal sama-sama mengisi area ini.</p>
+              <div className="grid grid-cols-2 gap-3">
+                {INSET_SIDES.map(({ key, label }) => (
+                  <Field key={key} label={`${label} (%)`}>
+                    {(p) => (
+                      <Input
+                        {...p}
+                        type="number"
+                        inputMode="numeric"
+                        min={0}
+                        max={45}
+                        value={(form.photoInset ?? DEFAULT_INSET)[key]}
+                        onChange={(e) => setForm({ ...form, photoInset: { ...(form.photoInset ?? DEFAULT_INSET), [key]: Math.min(45, Math.max(0, Number(e.target.value) || 0)) } })}
+                      />
+                    )}
+                  </Field>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+      </fieldset>
+
       <div role="radiogroup" aria-label="Pilihan bingkai" className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
         {presets.map((p) => {
           const active = form.frameOverlayUrl === p.dataUrl;
@@ -144,7 +221,7 @@ export const FramePanel: React.FC = () => {
           maxMB={{ image: 10 }}
           value={isCustom ? form.frameOverlayUrl : ''}
           onChange={(url) => setForm({ ...form, frameOverlayUrl: url, frameName: 'Bingkai unggahan' })}
-          hint={`PNG transparan ${FRAME_WIDTH} × ${FRAME_HEIGHT} px (9:16). Biarkan ${STORY_SAFE.top} px teratas dan ${STORY_SAFE.bottom} px terbawah bebas dari tulisan penting, karena Instagram menutupinya dengan nama akun dan kolom balas.`}
+          hint={`PNG ${FRAME_WIDTH} × ${FRAME_HEIGHT} px (9:16): transparan untuk "Bingkai di atas foto", atau gambar utuh untuk "Foto di depan bingkai". Biarkan ${STORY_SAFE.top} px teratas dan ${STORY_SAFE.bottom} px terbawah bebas dari tulisan penting, karena Instagram menutupinya dengan nama akun dan kolom balas.`}
           noUrl
         />
       </div>

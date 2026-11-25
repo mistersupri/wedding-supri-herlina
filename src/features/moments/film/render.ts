@@ -3,6 +3,7 @@
  * Every effect is drawn from seeded randomness and sizes relative to the canvas, so the small live
  * preview and the full-size upload come out the same.
  */
+import type { FrameLayout } from './frameLayout.js';
 import { applyGrade, combineGrade, lookById, NO_EDITS, type Edits } from './looks.js';
 
 export type FrameStyle = 'none' | 'white' | 'black' | 'white-caption' | 'black-caption' | 'event';
@@ -276,6 +277,8 @@ export interface RenderOptions {
   /** Optional overlay drawn over everything (the couple's event frame). */
   eventFrame?: HTMLImageElement | null;
   date?: Date;
+  /** Where the picture sits on the event frame (in front of it, or under it). */
+  layout?: FrameLayout;
   /** Skip grading (used while dragging, for speed). */
   fast?: boolean;
 }
@@ -291,10 +294,16 @@ export function renderPhoto(source: HTMLCanvasElement | HTMLImageElement, recipe
   const ctx = canvas.getContext('2d', { willReadFrequently: !opts.fast })!;
   ctx.globalCompositeOperation = 'source-over';
 
-  const r = frameLayout(frame, W, H);
+  // A solid frame goes underneath and the photo sits on top of it, inside the couple's margins.
+  const front = frame === 'event' && Boolean(opts.eventFrame) && Boolean(opts.layout?.front && opts.layout.area);
+  const area = front ? opts.layout!.area! : null;
+  const r = area
+    ? { x: Math.round(area.x * W), y: Math.round(area.y * H), w: Math.round(area.w * W), h: Math.round(area.h * H) }
+    : frameLayout(frame, W, H);
   const dark = frame.startsWith('black');
   ctx.fillStyle = dark ? '#111110' : '#fbfaf6';
   ctx.fillRect(0, 0, W, H);
+  if (front) ctx.drawImage(opts.eventFrame!, 0, 0, W, H);
 
   // Photo, cropped into its area.
   const src = rotate(source, recipe.crop.rotation);
@@ -336,7 +345,7 @@ export function renderPhoto(source: HTMLCanvasElement | HTMLImageElement, recipe
     ctx.fillText(recipe.caption.trim().slice(0, 60), W / 2, r.y + r.h + (H - r.y - r.h) / 2, W * 0.9);
     ctx.restore();
   }
-  if (frame === 'event' && opts.eventFrame) ctx.drawImage(opts.eventFrame, 0, 0, W, H);
+  if (frame === 'event' && opts.eventFrame && !front) ctx.drawImage(opts.eventFrame, 0, 0, W, H);
   return canvas;
 }
 

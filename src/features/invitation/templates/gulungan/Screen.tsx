@@ -13,10 +13,13 @@ interface Slide {
 const IMAGE_HOLD_MS = 7000;
 const MAX_SLIDES = 3;
 
-/** Hero video first, then gallery videos, then gallery photos, up to three "reels" on the screen. */
+/** The couple's own sequence of photos and videos when they set one; else the hero, then gallery videos and photos (up to three "reels"). */
 function useSlides(): Slide[] {
   const { invitation: inv } = useInvitation();
   return useMemo(() => {
+    if (inv.heroSlides?.length) {
+      return inv.heroSlides.map((s, i) => ({ key: `slide-${i}`, kind: s.type === 'VIDEO' ? ('video' as const) : ('image' as const), src: s.url, poster: s.poster || inv.heroImage }));
+    }
     const slides: Slide[] = [];
     if (inv.heroMediaType === 'VIDEO' && inv.heroVideoUrl)
       slides.push({ key: 'hero-video', kind: 'video', src: inv.heroVideoUrl, poster: inv.heroImage });

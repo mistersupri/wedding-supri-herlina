@@ -161,20 +161,23 @@ const Nav: React.FC = () => {
 
 /* ------------------------------------------------------------------ Greeting & quote */
 
-const Greeting: React.FC = () => (
+const Greeting: React.FC = () => {
+  const { invitation: inv } = useInvitation();
+  return (
   <section id="salam" className="lp-salam">
     <img className="lp-corner-tl" src={cornerTl} alt="" aria-hidden="true" />
     <div>
       <Ornament />
       <p className="lp-salam-title" data-anim="rise" style={{ '--d': '0.15s' } as React.CSSProperties}>
-        Assalamu’alaikum Warahmatullahi Wabarakatuh
+        {inv.texts?.greetingTitle || 'Assalamu’alaikum Warahmatullahi Wabarakatuh'}
       </p>
       <p className="lp-salam-body" data-anim="rise" style={{ '--d': '0.35s' } as React.CSSProperties}>
-        Dengan memohon rahmat dan ridho Allah SWT, kami mengundang Bapak/Ibu/Saudara/i untuk hadir dan berbagi kebahagiaan di hari pernikahan kami.
+        {inv.texts?.greetingBody || 'Dengan memohon rahmat dan ridho Allah SWT, kami mengundang Bapak/Ibu/Saudara/i untuk hadir dan berbagi kebahagiaan di hari pernikahan kami.'}
       </p>
     </div>
   </section>
-);
+  );
+};
 
 const Quote: React.FC = () => {
   const { invitation: inv } = useInvitation();
@@ -645,7 +648,7 @@ const Credits: React.FC = () => {
           Terima Kasih
         </p>
         <p className="lp-farewell lp-rollrow" style={step(rows.length + 1)}>
-          Merupakan suatu kehormatan dan kebahagiaan bagi kami apabila Bapak/Ibu/Saudara/i berkenan hadir dan memberikan doa restu.
+          {inv.texts?.closing || 'Merupakan suatu kehormatan dan kebahagiaan bagi kami apabila Bapak/Ibu/Saudara/i berkenan hadir dan memberikan doa restu.'}
         </p>
         <p className="lp-sign lp-rollrow" style={step(rows.length + 2)}>
           {inv.groomShortName} &amp; {inv.brideShortName}

@@ -1,6 +1,6 @@
 import React from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { IconButton } from '../ui/Button.js';
+import { Button } from '../ui/Button.js';
 
 /** `stickyActions`: on phones the actions stay in a bar at the bottom of the screen, so a long form can be saved without scrolling back up. */
 export const PageHeader: React.FC<{ title: string; description?: string; actions?: React.ReactNode; stickyActions?: boolean }> = ({
@@ -82,21 +82,21 @@ export const Pagination: React.FC<{
   onPage: (p: number) => void;
   noun: string;
 }> = ({ page, pages, from, to, total, onPage, noun }) => (
-  <nav aria-label={`Halaman ${noun}`} className="mt-4 flex items-center justify-between gap-3 text-sm text-ink-soft">
+  <nav aria-label={`Halaman ${noun}`} className="mt-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 text-sm text-ink-soft">
     <p>
       {from}–{to} dari {total} {noun}
     </p>
     {pages > 1 && (
       <div className="flex items-center gap-1">
-        <IconButton label="Halaman sebelumnya" disabled={page <= 1} onClick={() => onPage(page - 1)}>
-          <ChevronLeft className="h-5 w-5" />
-        </IconButton>
+        <Button variant="secondary" size="sm" disabled={page <= 1} onClick={() => onPage(page - 1)}>
+          <ChevronLeft className="h-4 w-4" aria-hidden="true" /> Sebelumnya
+        </Button>
         <span aria-current="page" className="min-w-16 text-center">
           {page} / {pages}
         </span>
-        <IconButton label="Halaman berikutnya" disabled={page >= pages} onClick={() => onPage(page + 1)}>
-          <ChevronRight className="h-5 w-5" />
-        </IconButton>
+        <Button variant="secondary" size="sm" disabled={page >= pages} onClick={() => onPage(page + 1)}>
+          Berikutnya <ChevronRight className="h-4 w-4" aria-hidden="true" />
+        </Button>
       </div>
     )}
   </nav>

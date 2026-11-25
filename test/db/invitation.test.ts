@@ -54,3 +54,30 @@ describe('settings input', () => {
     await expect(ctx.services.invitation.saveCouple({ groomInstagram: 'a b!c' })).rejects.toMatchObject({ status: 400 });
   });
 });
+
+describe('hero slides and template texts', () => {
+  it('saves an ordered sequence and trims template texts', async () => {
+    const { services } = await freshServices();
+    const saved = await services.invitation.saveCouple({
+      heroSlides: [
+        { type: 'VIDEO', url: '/uploads/hero/a.mp4', poster: '/uploads/hero/a.jpg' },
+        { type: 'IMAGE', url: 'https://cdn.example/b.jpg' },
+      ],
+      texts: { closing: '  Terima kasih.  ', letter: '   ', bogus: 'x' } as never,
+    });
+    expect(saved.heroSlides).toEqual([
+      { type: 'VIDEO', url: '/uploads/hero/a.mp4', poster: '/uploads/hero/a.jpg' },
+      { type: 'IMAGE', url: 'https://cdn.example/b.jpg' },
+    ]);
+    expect(saved.texts).toEqual({ closing: 'Terima kasih.' });
+    expect((await services.invitation.publicInvitation()).heroSlides).toHaveLength(2);
+  });
+
+  it('rejects an empty slide, a script URL and too many slides', async () => {
+    const { services } = await freshServices();
+    await expect(services.invitation.saveCouple({ heroSlides: [{ type: 'IMAGE', url: '' }] })).rejects.toMatchObject({ status: 400 });
+    await expect(services.invitation.saveCouple({ heroSlides: [{ type: 'IMAGE', url: 'javascript:alert(1)' }] })).rejects.toMatchObject({ status: 400 });
+    const six = Array.from({ length: 6 }, () => ({ type: 'IMAGE' as const, url: '/uploads/hero/x.jpg' }));
+    await expect(services.invitation.saveCouple({ heroSlides: six })).rejects.toMatchObject({ status: 400 });
+  });
+});

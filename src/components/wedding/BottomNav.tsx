@@ -33,7 +33,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({ sections, photoMomentsHref
   ];
 
   const itemClass = (isActive: boolean) =>
-    `relative flex min-h-14 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 px-1 text-[11px] font-semibold transition-colors ${
+    `relative flex min-h-14 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 px-0.5 text-xs leading-tight font-semibold transition-colors ${
       isActive ? 'text-primary' : 'text-ink-soft hover:text-ink'
     }`;
 

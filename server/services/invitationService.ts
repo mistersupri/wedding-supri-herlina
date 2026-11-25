@@ -5,7 +5,11 @@ import { isTemplateId } from '../../shared/templates.js';
 import type { InvitationRepository } from '../repositories/invitationRepository.js';
 import type { OrderedRepository } from '../repositories/contentRepositories.js';
 import type { cameraSettingRepository, wishRepository } from '../repositories/guestRepositories.js';
+import { TEXT_KEYS } from '../../shared/types.js';
 import type {
+  HeroSlide,
+  TemplateTexts,
+  TextKey,
   CMSStatsData,
   CoupleProfile,
   GalleryPhoto,
@@ -22,11 +26,40 @@ const THEMES: ThemePreset[] = ['sogan', 'wedel', 'gadung', 'jambon'];
 const COUPLE_KEYS: (keyof CoupleProfile)[] = [
   'groomName', 'groomShortName', 'groomParents', 'groomInstagram', 'groomPhoto',
   'brideName', 'brideShortName', 'brideParents', 'brideInstagram', 'bridePhoto',
-  'heroImage', 'heroVideoUrl', 'heroMediaType', 'quoteText', 'quoteSource',
+  'heroImage', 'heroVideoUrl', 'heroMediaType', 'heroSlides', 'texts', 'quoteText', 'quoteSource',
 ];
 const THEME_KEYS: (keyof ThemeSettings)[] = [
   'templateId', 'themeColor', 'musicUrl', 'musicTitle', 'weddingDate', 'countdownTarget', 'whatsappNumber', 'whatsappTemplate',
 ];
+
+export const MAX_HERO_SLIDES = 5;
+const MEDIA_URL = /^(https?:\/\/|\/uploads\/)\S{1,1000}$/;
+
+/** The opening-screen sequence: a few photos and videos, each with a real address. */
+export function cleanSlides(raw: unknown): HeroSlide[] {
+  if (!Array.isArray(raw)) throw new HttpError(400, 'Daftar foto dan video sampul tidak valid.');
+  if (raw.length > MAX_HERO_SLIDES) throw new HttpError(400, `Sampul paling banyak ${MAX_HERO_SLIDES} foto atau video.`);
+  return raw.map((item, i) => {
+    const slide = item as Partial<HeroSlide>;
+    const type = slide.type === 'VIDEO' ? 'VIDEO' : 'IMAGE';
+    if (typeof slide.url !== 'string' || !MEDIA_URL.test(slide.url.trim())) throw new HttpError(400, `Sampul nomor ${i + 1} belum punya foto atau video yang valid.`);
+    const poster = typeof slide.poster === 'string' && MEDIA_URL.test(slide.poster.trim()) ? slide.poster.trim() : undefined;
+    return { type, url: slide.url.trim(), ...(type === 'VIDEO' && poster ? { poster } : {}) };
+  });
+}
+
+const TEXT_LIMITS: Record<TextKey, number> = { greetingTitle: 120, greetingBody: 400, closing: 400, letter: 600, credits: 160, receiptNote: 80 };
+
+/** Only the known text slots, trimmed and capped; a blank one is dropped so the template's own wording returns. */
+export function cleanTexts(raw: unknown): TemplateTexts {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) throw new HttpError(400, 'Teks undangan tidak valid.');
+  const out: TemplateTexts = {};
+  for (const key of TEXT_KEYS) {
+    const value = (raw as Record<string, unknown>)[key];
+    if (typeof value === 'string' && value.trim()) out[key] = value.trim().slice(0, TEXT_LIMITS[key]);
+  }
+  return out;
+}
 
 /** Fields of an event that only invited guests may read. */
 const redactEvent = (e: WeddingEvent): WeddingEvent => ({ ...e, address: '', mapsUrl: '', mapsEmbedUrl: undefined });
@@ -90,6 +123,8 @@ export function invitationService(d: Deps) {
           input[key] = handle;
         }
       }
+      if (input.heroSlides !== undefined) input.heroSlides = cleanSlides(input.heroSlides);
+      if (input.texts !== undefined) input.texts = cleanTexts(input.texts);
       return pick(await d.invitation.update(pick(input, COUPLE_KEYS)), COUPLE_KEYS) as CoupleProfile;
     },
 
@@ -116,6 +151,17 @@ export function invitationService(d: Deps) {
         d.wishes.stats(), d.events.count(), d.gallery.count(), d.stories.count(), d.gifts.count(), d.wishes.recent(5), d.moments.countPending(),
       ]);
       return { stats, counts: { eventsCount, galleryCount, storiesCount, giftsCount }, recentGuests, pendingMoments };
+    },
+
+    /** What a chat app needs to preview the link: the couple, the date and a picture. Reads one row only. */
+    async shareInfo() {
+      const inv = await core();
+      return {
+        groomShortName: inv.groomShortName,
+        brideShortName: inv.brideShortName,
+        weddingDate: inv.weddingDate,
+        image: inv.heroImage || inv.bridePhoto || inv.groomPhoto || '',
+      };
     },
 
     async general() {

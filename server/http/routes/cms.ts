@@ -196,6 +196,8 @@ export function cmsRoutes(s: Services): Router {
         category: String(q.category || 'ALL'),
         sent: String(q.sent || 'ALL') as 'ALL',
         attendance: String(q.attendance || 'ALL') as 'ALL',
+        opened: String(q.opened || 'ALL') as 'ALL',
+        rsvp: String(q.rsvp || 'ALL') as 'ALL',
         sort: String(q.sort || 'NAME') as 'NAME',
       });
     }, 'Gagal memuat daftar tamu.'),
@@ -303,6 +305,10 @@ export function cmsRoutes(s: Services): Router {
       const data = await s.moments.approve(req.params.id, req.body?.approved !== false);
       return { message: data.approved ? 'Foto tampil di galeri tamu.' : 'Foto disembunyikan.', data };
     }, 'Gagal memperbarui foto.'),
+  );
+  router.get(
+    '/cms/photo-moments/:id/comments',
+    route(async (req) => ({ data: await s.moments.commentsForAdmin(req.params.id) }), 'Gagal memuat komentar.'),
   );
   router.delete(
     '/cms/photo-moments/comments/:id',

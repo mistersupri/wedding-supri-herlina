@@ -90,9 +90,25 @@ export interface CoupleProfile {
   heroImage: string;
   heroVideoUrl?: string;
   heroMediaType?: MediaType;
+  /** Photos and videos played in order on the opening screen of templates that support a sequence. */
+  heroSlides?: HeroSlide[];
+  /** The couple's own wording for texts a template would otherwise write itself. */
+  texts?: TemplateTexts;
   quoteText: string;
   quoteSource: string;
 }
+
+export interface HeroSlide {
+  type: MediaType;
+  url: string;
+  /** Still image shown while a video loads. */
+  poster?: string;
+}
+
+export const TEXT_KEYS = ['greetingTitle', 'greetingBody', 'closing', 'letter', 'credits', 'receiptNote'] as const;
+export type TextKey = (typeof TEXT_KEYS)[number];
+/** Every field is optional: a blank one means "use the template's own wording". */
+export type TemplateTexts = Partial<Record<TextKey, string>>;
 
 export interface ThemeSettings {
   templateId: TemplateId;
@@ -158,6 +174,16 @@ export interface InvitedGuest {
   customNote?: string;
   invitationSent?: boolean;
   invitationSentAt?: string | null;
+  /** First and latest time the guest opened the cover of their invitation; null while it is still unopened. */
+  firstOpenedAt?: string | null;
+  lastOpenedAt?: string | null;
+  /** How many separate visits opened the cover. */
+  openCount?: number;
+  /** Last WhatsApp reminder sent to this guest and how many so far. */
+  lastRemindedAt?: string | null;
+  reminderCount?: number;
+  /** The guest's RSVP answer from the guest book, or null when they have not answered. Only in the CMS list. */
+  rsvp?: AttendanceStatus | null;
   isCheckedIn: boolean;
   checkInTime?: string | null;
   checkInMethod?: 'QR_SCAN' | 'MANUAL' | 'SELF' | null;
@@ -245,6 +271,17 @@ export interface PhotoFrameConfig {
   frameOverlayUrl: string;
   frameName?: string;
   allowGuestToggle?: boolean;
+  /** Put the guest's photo in front of the frame (a solid frame picture), inside `photoInset`, instead of the frame over the photo. */
+  photoInFront?: boolean;
+  /** Margins of the photo area when it is in front: percent of the frame's width (left, right) and height (top, bottom). */
+  photoInset?: PhotoInset;
+}
+
+export interface PhotoInset {
+  top: number;
+  right: number;
+  bottom: number;
+  left: number;
 }
 
 export interface PresensiStats {
@@ -300,6 +337,10 @@ export interface GuestListQuery {
   category?: string;
   sent?: 'ALL' | 'SENT' | 'UNSENT';
   attendance?: 'ALL' | 'CHECKED_IN' | 'NOT_CHECKED_IN';
+  /** Whether the guest has opened the invitation. */
+  opened?: 'ALL' | 'OPENED' | 'UNOPENED';
+  /** Whether the guest answered the RSVP in the guest book. */
+  rsvp?: 'ALL' | 'REPLIED' | 'NOT_REPLIED';
   sort?: 'NAME' | 'NEWEST' | 'CODE' | 'CATEGORY';
 }
 
@@ -314,6 +355,10 @@ export interface GuestListPage {
   /** Categories in use, for the filter list. */
   categories: string[];
   sentCount: number;
+  /** Guests who opened the invitation, across the whole list. */
+  openedCount: number;
+  /** Who still needs a nudge, across the whole list. */
+  reminders: { unopened: number; openedNoRsvp: number; noRsvp: number };
   stats: PresensiStats;
 }
 
@@ -322,7 +367,9 @@ export type GuestBulkAction =
   | { action: 'sent'; value: boolean }
   | { action: 'category'; value: string }
   | { action: 'pax'; value: number }
-  | { action: 'table'; value: string };
+  | { action: 'table'; value: string }
+  /** WhatsApp reminders were sent to these guests. */
+  | { action: 'reminded' };
 
 export type InvitedGuestInput = Partial<
   Pick<InvitedGuest, 'slug' | 'phone' | 'instagram' | 'category' | 'pax' | 'tableNumber' | 'customNote' | 'invitationSent'>

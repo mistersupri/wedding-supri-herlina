@@ -54,6 +54,10 @@ model Invitation {
   heroImage        String
   heroVideoUrl     String?
   heroMediaType    MediaType @default(IMAGE)
+  /// Photos and videos for the opening screen of templates that play a sequence: [{ type, url, poster? }].
+  heroSlides       Json      @default("[]")
+  /// The couple's own wording for texts a template would otherwise write itself: { greetingTitle?, greetingBody?, closing?, letter?, credits?, receiptNote? }.
+  texts            Json      @default("{}")
   quoteText        String
   quoteSource      String
   weddingDate      DateTime
@@ -144,6 +148,14 @@ model InvitedGuest {
   customNote       String         @default("")
   invitationSent   Boolean        @default(false)
   invitationSentAt DateTime?
+  /// When the guest first opened the cover of their personal invitation, and most recently. Null until then.
+  firstOpenedAt    DateTime?
+  lastOpenedAt     DateTime?
+  /// Distinct visits that opened the cover (reopening within a minute counts once).
+  openCount        Int            @default(0)
+  /// Last WhatsApp reminder the couple sent this guest, and how many so far.
+  lastRemindedAt   DateTime?
+  reminderCount    Int            @default(0)
   isCheckedIn      Boolean        @default(false)
   checkInTime      DateTime?
   checkInMethod    CheckInMethod?
@@ -248,6 +260,14 @@ model PhotoFrameSetting {
   frameOverlayUrl  String
   frameName        String?
   allowGuestToggle Boolean @default(true)
+  /// True: the guest's photo is placed in front of the frame, inside the margins below (for frames that are a solid picture).
+  /// False: the frame is drawn over the photo and must be a transparent PNG.
+  photoInFront     Boolean @default(false)
+  /// Margins of the photo area, in percent of the frame's width (left, right) and height (top, bottom).
+  photoInsetTop    Int     @default(8)
+  photoInsetRight  Int     @default(8)
+  photoInsetBottom Int     @default(24)
+  photoInsetLeft   Int     @default(8)
 }
 
 model AdminUser {

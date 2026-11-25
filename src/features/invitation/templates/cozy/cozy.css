@@ -739,7 +739,8 @@
 }
 .ch-input:focus {
   border-color: #c98a50;
-  outline: none;
+  outline: 3px solid #c98a50;
+  outline-offset: 2px;
 }
 .ch-static small {
   color: #9a8a73;

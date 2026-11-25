@@ -1,5 +1,5 @@
-import type { Db } from '../infrastructure/prisma.js';
-import type { CoupleProfile, MediaType, TemplateId, ThemePreset, ThemeSettings } from '../../shared/types.js';
+import type { Db, Prisma } from '../infrastructure/prisma.js';
+import type { CoupleProfile, HeroSlide, MediaType, TemplateTexts, TemplateId, ThemePreset, ThemeSettings } from '../../shared/types.js';
 
 export type InvitationCore = CoupleProfile & ThemeSettings & { id: string };
 
@@ -20,6 +20,8 @@ const toDomain = (r: Row): InvitationCore => ({
   heroImage: r.heroImage,
   heroVideoUrl: r.heroVideoUrl ?? undefined,
   heroMediaType: r.heroMediaType as MediaType,
+  heroSlides: (r.heroSlides ?? []) as unknown as HeroSlide[],
+  texts: (r.texts ?? {}) as TemplateTexts,
   quoteText: r.quoteText,
   quoteSource: r.quoteSource,
   weddingDate: r.weddingDate.toISOString(),
@@ -34,9 +36,11 @@ const toDomain = (r: Row): InvitationCore => ({
 
 /** Only the columns a caller may write; dates arrive as ISO strings. */
 function toData(patch: Partial<InvitationCore>) {
-  const { id: _id, weddingDate, countdownTarget, ...rest } = patch;
+  const { id: _id, weddingDate, countdownTarget, heroSlides, texts, ...rest } = patch;
   return {
     ...rest,
+    ...(heroSlides !== undefined ? { heroSlides: heroSlides as unknown as Prisma.InputJsonValue } : {}),
+    ...(texts !== undefined ? { texts: texts as Prisma.InputJsonValue } : {}),
     ...(weddingDate ? { weddingDate: new Date(weddingDate) } : {}),
     ...(countdownTarget ? { countdownTarget: new Date(countdownTarget) } : {}),
   };

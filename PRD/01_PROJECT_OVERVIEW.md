@@ -41,7 +41,7 @@ Setiap tamu terdaftar menerima **kode undangan 4 karakter** (misal `R7K2`) yang 
 | Penyimpanan berkas | Disk lokal (`UPLOAD_DIR`, volume Docker `uploads`) |
 | AI opsional | Google Gemini untuk menyalin pesan suara menjadi teks (`GEMINI_API_KEY`) |
 | Offline | Service worker buatan sendiri, Web App Manifest, IndexedDB |
-| Kualitas | `tsc --noEmit`, Vitest (91 tes, termasuk tes database PGlite), GitHub Actions |
+| Kualitas | `tsc --noEmit`, Vitest (147 tes, termasuk tes database PGlite), GitHub Actions |
 | Deploy | Dockerfile multi-stage, Docker Compose (aplikasi + PostgreSQL 17), reverse proxy HTTPS di depannya |
 
 Tidak ada Firebase, SQLite, atau layanan pihak ketiga yang wajib selain font Google Fonts (dan Gemini bila diaktifkan).

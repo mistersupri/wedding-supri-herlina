@@ -33,12 +33,13 @@ Status: **Selesai** = ada di kode dan teruji; **Sebagian** = ada dengan batasan 
 | Kirim WhatsApp per tamu dan berurutan, pesan dapat diubah | Selesai | Pesan tersimpan di perangkat admin |
 | Meja penerima tamu (QR, cari nama, jumlah, suvenir) | Selesai | |
 | Pengaturan kehadiran mandiri (koordinat, radius, saklar) | Selesai | |
+| Status undangan dibuka (chip per tamu, statistik, saringan, ekspor) | Selesai | Dicatat saat tamu berkode menekan *Buka undangan* |
 | Moderasi ucapan (balas, sembunyikan, hapus) | Selesai | |
 | Moderasi foto, setujui semua, hitung foto menunggu | Selesai | |
 | Kartu QR PDF per template | Selesai | A4, A5, A6, 300 dpi |
 | Ekspor CSV tamu dan ucapan, ZIP foto | Selesai | |
 | Backup dan restore | Sebagian | Skrip ditulis dan diperiksa sintaksnya; belum dijalankan terhadap Docker sungguhan, uji sebelum hari H |
-| Tes otomatis dan CI | Selesai | 91 tes; GitHub Actions. OneDev belum |
+| Tes otomatis dan CI | Selesai | 147 tes; GitHub Actions. OneDev belum |
 | Manajemen akun admin lewat antarmuka | **Belum** | Backlog |
 | Pencabutan sesi saat keluar | **Belum** | Backlog |
 

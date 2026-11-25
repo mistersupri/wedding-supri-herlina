@@ -31,6 +31,7 @@ async function assertStoredPhoto(url: unknown, message: string) {
   if (typeof url !== 'string' || !MOMENT_FILE.test(url) || url.includes('..') || !(await fileExists(url))) throw badRequest(message);
   return url;
 }
+export const DEFAULT_INSET = { top: 8, right: 8, bottom: 24, left: 8 };
 const isGenericName = (name: string) => !name.trim() || name.trim().toLowerCase() === 'tamu undangan';
 const clean = (v: unknown, max: number) => (typeof v === 'string' ? v.replace(/\s+/g, ' ').trim().slice(0, max) : '');
 
@@ -60,12 +61,15 @@ export function photoMomentService(d: Deps) {
   }
 
   /** Viewer for read-only requests: never throws, unknown viewers just see the public feed. */
-  async function viewer(guestName: string, guestSlug: string): Promise<MomentIdentity | undefined> {
+  async function viewer(guestName: string, guestSlug: string, settings: CameraSettings): Promise<MomentIdentity | undefined> {
     const slug = guestSlug.trim().toUpperCase();
     if (slug) {
       const guest = await d.guests.findBySlug(slug);
       if (guest) return { name: guest.name, slug: guest.slug };
     }
+    // A typed name proves nothing, so it only counts where the couple lets anyone take part; otherwise anyone could
+    // type another guest's name and see their photos that are still waiting for approval.
+    if (settings.access !== 'ANYONE') return undefined;
     return isGenericName(guestName) ? undefined : { name: guestName.trim() };
   }
 
@@ -104,7 +108,7 @@ export function photoMomentService(d: Deps) {
       const settings = await d.settings.get();
       const page = Math.max(1, params.page || 1);
       const limit = Math.min(50, Math.max(1, params.limit || 12));
-      const who = await viewer(params.guestName, params.guestSlug);
+      const who = await viewer(params.guestName, params.guestSlug, settings);
       const { data, total } = await d.moments.page((page - 1) * limit, limit, {
         approvedOrOwn: true,
         ownOnly: settings.visibility === 'OWN',
@@ -142,19 +146,29 @@ export function photoMomentService(d: Deps) {
 
     async react(id: string, emoji: string, action: 'add' | 'remove') {
       if (!REACTION_EMOJIS.includes(emoji)) throw badRequest('Reaksi tidak dikenal.');
+      // A photo still waiting for the couple's approval is not public yet, so nobody can react to it by guessing its id.
+      const photo = await d.moments.findById(id);
+      if (!photo || photo.approved === false) throw notFound('Foto tidak ditemukan.');
       const saved = await d.moments.react(id, emoji, action === 'add' ? 1 : -1);
       if (!saved) throw notFound('Foto tidak ditemukan.');
       return { likesCount: saved.likesCount || 0, reactions: saved.reactions || {} };
     },
 
     async comments(id: string) {
+      const photo = await d.moments.findById(id);
+      if (!photo || photo.approved === false) throw notFound('Foto tidak ditemukan.');
+      return d.comments.list(id);
+    },
+
+    /** Comments under any photo, hidden ones included, for the couple's moderation. */
+    async commentsForAdmin(id: string) {
       if (!(await d.moments.findById(id))) throw notFound('Foto tidak ditemukan.');
       return d.comments.list(id);
     },
 
     async addComment(id: string, input: { guestName?: string; guestSlug?: string; text?: string }) {
       const photo = await d.moments.findById(id);
-      if (!photo) throw notFound('Foto tidak ditemukan.');
+      if (!photo || photo.approved === false) throw notFound('Foto tidak ditemukan.');
       const text = clean(input.text, 300);
       if (!text) throw badRequest('Komentarnya masih kosong.');
       // Commenting follows the same access rule as the camera, but stays open after the camera closes.
@@ -188,12 +202,20 @@ export function photoMomentService(d: Deps) {
     },
 
     async frame(): Promise<PhotoFrameConfig> {
-      return (await d.frames.get()) ?? { enabled: false, frameOverlayUrl: '', allowGuestToggle: true };
+      return (await d.frames.get()) ?? { enabled: false, frameOverlayUrl: '', allowGuestToggle: true, photoInFront: false, photoInset: DEFAULT_INSET };
     },
 
     async saveFrame(patch: Partial<PhotoFrameConfig>) {
       const current = await this.frame();
-      return d.frames.save({ ...current, ...patch });
+      const next: PhotoFrameConfig = { ...current, ...patch };
+      next.photoInFront = Boolean(next.photoInFront);
+      const pct = (v: unknown, fallback: number) => Math.min(45, Math.max(0, Math.round(Number(v)) || (v === 0 ? 0 : fallback)));
+      const inset = { ...DEFAULT_INSET, ...(next.photoInset ?? {}) };
+      next.photoInset = { top: pct(inset.top, 8), right: pct(inset.right, 8), bottom: pct(inset.bottom, 24), left: pct(inset.left, 8) };
+      if (next.photoInset.left + next.photoInset.right > 80 || next.photoInset.top + next.photoInset.bottom > 80) {
+        throw badRequest('Area foto terlalu kecil. Kurangi margin kiri, kanan, atas, atau bawah.');
+      }
+      return d.frames.save(next);
     },
   };
 }

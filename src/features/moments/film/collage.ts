@@ -5,6 +5,7 @@
  */
 
 import { ASPECT, STORY_ASPECT } from './render.js';
+import type { Rect } from './frameLayout.js';
 
 export type CollageLayout = 1 | 2 | 3 | 4;
 export const COLLAGE_LAYOUTS: CollageLayout[] = [1, 2, 3, 4];
@@ -27,26 +28,40 @@ export interface CollageSpec {
 /** Sheet width in px. The darkroom scales it down for the preview and for the feed copy. */
 const SHEET_WIDTH = 1440;
 
-export function collageSpec(layout: CollageLayout, story: boolean, width = SHEET_WIDTH): CollageSpec {
-  const aspect = story ? STORY_ASPECT : ASPECT;
+export interface CollageOptions {
+  /** Shape of the sheet when it is neither 4:5 nor a Story (a photo area in front of a frame). */
+  aspect?: number;
+  /** The clear window of the couple's frame, as fractions of the sheet: the cells stay inside it, so no shot ends up behind a border. */
+  window?: Rect | null;
+}
+
+export function collageSpec(layout: CollageLayout, story: boolean, width = SHEET_WIDTH, options: CollageOptions = {}): CollageSpec {
+  const aspect = options.aspect ?? (story ? STORY_ASPECT : ASPECT);
   const height = Math.round(width / aspect);
   if (layout === 1) return { width, height, cells: [{ x: 0, y: 0, w: width, h: height }], cellRatio: aspect };
 
-  const side = Math.round(width * 0.05);
-  // A Story keeps clear of the top and bottom, where Instagram puts its own buttons.
-  const vertical = story ? Math.round(height * 0.08) : side;
   const gap = Math.round(width * 0.035);
-  const innerW = width - side * 2;
-  const innerH = height - vertical * 2;
+  // The usable region: a clear window of the frame, else the whole sheet with a margin (a Story also keeps clear of
+  // the top and bottom, where Instagram puts its own buttons).
+  const win = options.window;
+  const side = Math.round(width * (win ? 0.03 : 0.05));
+  const vertical = win ? Math.round(width * 0.03) : story ? Math.round(height * 0.08) : side;
+  const region = win
+    ? { x: Math.round(win.x * width), y: Math.round(win.y * height), w: Math.round(win.w * width), h: Math.round(win.h * height) }
+    : { x: 0, y: 0, w: width, h: height };
+  const innerW = region.w - side * 2;
+  const innerH = region.h - vertical * 2;
+  const left = region.x + side;
+  const top = region.y + vertical;
 
   const cells: Cell[] = [];
   if (layout === 4) {
     const w = Math.floor((innerW - gap) / 2);
     const h = Math.floor((innerH - gap) / 2);
-    for (let i = 0; i < 4; i++) cells.push({ x: side + (i % 2) * (w + gap), y: vertical + Math.floor(i / 2) * (h + gap), w, h });
+    for (let i = 0; i < 4; i++) cells.push({ x: left + (i % 2) * (w + gap), y: top + Math.floor(i / 2) * (h + gap), w, h });
   } else {
     const h = Math.floor((innerH - gap * (layout - 1)) / layout);
-    for (let i = 0; i < layout; i++) cells.push({ x: side, y: vertical + i * (h + gap), w: innerW, h });
+    for (let i = 0; i < layout; i++) cells.push({ x: left, y: top + i * (h + gap), w: innerW, h });
   }
   return { width, height, cells, cellRatio: cells[0].w / cells[0].h };
 }

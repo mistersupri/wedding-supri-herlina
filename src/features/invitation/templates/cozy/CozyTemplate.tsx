@@ -66,7 +66,10 @@ const Panel: React.FC<{ kicker: string; title: string; onClose: () => void; wide
 /** The letter types itself out, like a game dialogue box. A tap shows it all at once. */
 const Letter: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const { invitation, displayName, names } = useInvitation();
-  const text = `Halo, ${displayName}! Kami, ${names}, akan menikah pada ${formatLongDate(invitation.weddingDate)}. Rumah kecil kami di tengah hutan ini terbuka untukmu. Datang, ya. Doamu adalah kado yang paling kami tunggu.`;
+  const own = invitation.texts?.letter;
+  const text = own
+    ? own.replace(/\{nama\}/g, displayName).replace(/\{mempelai\}/g, names).replace(/\{tanggal\}/g, formatLongDate(invitation.weddingDate))
+    : `Halo, ${displayName}! Kami, ${names}, akan menikah pada ${formatLongDate(invitation.weddingDate)}. Rumah kecil kami di tengah hutan ini terbuka untukmu. Datang, ya. Doamu adalah kado yang paling kami tunggu.`;
   const [shown, setShown] = useState(0);
   const done = shown >= text.length;
   const ref = useRef<HTMLDivElement>(null);

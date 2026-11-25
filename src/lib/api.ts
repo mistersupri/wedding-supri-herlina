@@ -217,6 +217,11 @@ export const publicApi = {
     };
   },
 
+  /** Tells the couple this guest opened their invitation. Best effort: a lost ping is never shown to the guest. */
+  recordOpen: async (code: string) => {
+    await publicRequest('/public/opened', jsonInit('POST', { code: code.trim().toUpperCase() }));
+  },
+
   /** Never throws: a network failure reads as "not verified". */
   verifyCode: async (code: string): Promise<GuestAccessVerification> => {
     try {
@@ -350,6 +355,7 @@ export const cmsApi = {
 
   photoMoments: {
     list: () => adminData<PhotoMoment[]>('/cms/photo-moments'),
+    comments: (id: string) => adminData<PhotoComment[]>(`/cms/photo-moments/${id}/comments`),
     remove: async (id: string) => {
       await adminRequest(`/cms/photo-moments/${id}`, { method: 'DELETE' });
     },

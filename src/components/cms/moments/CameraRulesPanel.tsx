@@ -124,7 +124,7 @@ export const CameraRulesPanel: React.FC = () => {
           />
         </div>
         <div className="space-y-4">
-          <Field label="Tamu bisa melihat">
+          <Field label="Tamu bisa melihat" hint="Berlaku di galeri HP tamu. Layar besar (proyektor) tetap menampilkan semua foto yang disetujui; matikan layar besar bila tidak diinginkan.">
             {() => (
               <Segmented<MomentVisibility>
                 name="Siapa lihat apa"
@@ -183,8 +183,8 @@ export const CameraRulesPanel: React.FC = () => {
         </div>
         {LOOK_GROUPS.map((g) => (
           <div key={g.id} className="mt-3">
-            <p className="mb-1.5 text-xs font-semibold tracking-wider text-ink-soft uppercase">{g.label}</p>
-            <div className="no-scrollbar flex gap-2 overflow-x-auto pb-1">
+            <p className="mb-1.5 text-sm font-semibold text-ink-soft">{g.label}</p>
+            <div className="flex flex-wrap gap-2">
               {film
                 .filter((l) => l.group === g.id)
                 .map((l) => (

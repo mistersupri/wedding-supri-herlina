@@ -6,7 +6,8 @@ import type { invitedGuestRepository, photoMomentRepository, wishRepository } fr
 import type { AttendanceStatus } from '../../shared/types.js';
 
 const STATUS_LABEL: Record<AttendanceStatus, string> = { HADIR: 'Hadir', TIDAK_HADIR: 'Tidak hadir', RAGU: 'Masih ragu' };
-const stamp = (iso: string | null | undefined) => (iso ? iso.replace('T', ' ').slice(0, 19) : '');
+/** Times are stored in UTC; the couple reads them in Jakarta time (WIB), the way the invitation shows them. */
+const stamp = (iso: string | null | undefined) => (iso ? `${new Date(iso).toLocaleString('sv-SE', { timeZone: 'Asia/Jakarta' })} WIB` : '');
 
 /** Spreadsheet exports for the couple: the guest list with check-in, and the RSVP wishes. */
 export function exportService(deps: {
@@ -19,7 +20,7 @@ export function exportService(deps: {
     async guestsCsv(origin: string) {
       const guests = await deps.guests.list();
       return toCsv(
-        ['Kode', 'Nama', 'Kategori', 'Kursi', 'Telepon', 'Instagram', 'Meja', 'Catatan', 'Undangan terkirim', 'Waktu kirim', 'Hadir', 'Waktu check-in', 'Metode', 'Jumlah hadir', 'Souvenir', 'Tautan undangan'],
+        ['Kode', 'Nama', 'Kategori', 'Kursi', 'Telepon', 'Instagram', 'Meja', 'Catatan', 'Undangan terkirim', 'Waktu kirim', 'Undangan dibuka', 'Pertama dibuka', 'Terakhir dibuka', 'Kali dibuka', 'Hadir', 'Waktu check-in', 'Metode', 'Jumlah hadir', 'Souvenir', 'Tautan undangan'],
         [...guests]
           .sort((a, b) => a.name.localeCompare(b.name, 'id'))
           .map((g) => [
@@ -33,6 +34,10 @@ export function exportService(deps: {
             g.customNote,
             g.invitationSent,
             stamp(g.invitationSentAt),
+            Boolean(g.firstOpenedAt),
+            stamp(g.firstOpenedAt),
+            stamp(g.lastOpenedAt),
+            g.openCount,
             g.isCheckedIn,
             stamp(g.checkInTime),
             g.checkInMethod === 'QR_SCAN' ? 'Scan QR' : g.checkInMethod === 'MANUAL' ? 'Manual' : g.checkInMethod === 'SELF' ? 'Mandiri (HP tamu)' : '',
