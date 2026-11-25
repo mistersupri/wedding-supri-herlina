@@ -47,6 +47,13 @@ export function publicRoutes(s: Services): Router {
     route((req) => s.guests.verify(typeof req.body?.code === 'string' ? req.body.code : ''), 'Gagal memeriksa kode undangan.'),
   );
 
+  // The guest tapped "Buka undangan". Never fails loudly: a lost ping must not get in the way of reading the invitation.
+  router.post(
+    '/public/opened',
+    limits.opened,
+    route(async (req) => s.guests.recordOpen(typeof req.body?.code === 'string' ? req.body.code : ''), 'Gagal mencatat pembukaan undangan.'),
+  );
+
   router.post(
     '/public/check-in',
     limits.checkIn,

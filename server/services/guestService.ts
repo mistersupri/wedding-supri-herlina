@@ -117,6 +117,12 @@ export function guestService(repo: ReturnType<typeof invitedGuestRepository>) {
         : { isValid: false, guest: null, message: 'Kode ini tidak ada di daftar undangan.' };
     },
 
+    /** The guest opened the cover of their invitation. Unknown codes are ignored quietly. */
+    async recordOpen(code: string) {
+      const clean = code.trim().toUpperCase();
+      return { recorded: clean.length === 4 && (await repo.recordOpen(clean)) };
+    },
+
     async list(filter = 'ALL', search = '') {
       const q = search.trim().toLowerCase();
       const all = await repo.list();
@@ -145,6 +151,7 @@ export function guestService(repo: ReturnType<typeof invitedGuestRepository>) {
           (!category || g.category.toLowerCase() === category) &&
           (!query.sent || query.sent === 'ALL' || (query.sent === 'SENT') === Boolean(g.invitationSent)) &&
           (!query.attendance || query.attendance === 'ALL' || (query.attendance === 'CHECKED_IN') === g.isCheckedIn) &&
+          (!query.opened || query.opened === 'ALL' || (query.opened === 'OPENED') === Boolean(g.firstOpenedAt)) &&
           (!q || [g.name, g.slug, g.phone, g.tableNumber, g.category, g.instagram].some((v) => (v || '').toLowerCase().includes(q))),
       );
       const by = (f: (g: InvitedGuest) => string) => (a: InvitedGuest, b: InvitedGuest) => f(a).localeCompare(f(b), 'id', { sensitivity: 'base' });
@@ -163,6 +170,7 @@ export function guestService(repo: ReturnType<typeof invitedGuestRepository>) {
         ids: matched.map((g) => g.id),
         categories: [...new Set(all.map((g) => g.category))].sort((a, b) => a.localeCompare(b, 'id')),
         sentCount: all.filter((g) => g.invitationSent).length,
+        openedCount: all.filter((g) => g.firstOpenedAt).length,
         stats: stats(all),
       };
     },

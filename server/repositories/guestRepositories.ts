@@ -118,6 +118,8 @@ type InvitedRow = Awaited<ReturnType<Db['invitedGuest']['create']>>;
 const toInvited = (r: InvitedRow): InvitedGuest => ({
   ...r,
   invitationSentAt: iso(r.invitationSentAt),
+  firstOpenedAt: iso(r.firstOpenedAt),
+  lastOpenedAt: iso(r.lastOpenedAt),
   checkInTime: iso(r.checkInTime),
   checkInMethod: r.checkInMethod,
   createdAt: r.createdAt.toISOString(),
@@ -170,6 +172,21 @@ export function invitedGuestRepository(db: Db) {
       // Keep the first "sent" time when a guest is marked again.
       await db.invitedGuest.updateMany({ where: { ...where, invitationSentAt: null }, data: { invitationSentAt: new Date() } });
       return (await db.invitedGuest.updateMany({ where, data: { invitationSent: true } })).count;
+    },
+    /**
+     * Notes that the guest opened their invitation. Opening again within `windowMs` is the same visit
+     * (a double tap, a reload), so it is not counted twice. Resolves to false for an unknown code.
+     */
+    async recordOpen(slug: string, windowMs = 60_000): Promise<boolean> {
+      const code = slug.trim().toUpperCase();
+      const now = new Date();
+      await db.invitedGuest.updateMany({ where: { slug: code, firstOpenedAt: null }, data: { firstOpenedAt: now } });
+      const counted = await db.invitedGuest.updateMany({
+        where: { slug: code, OR: [{ lastOpenedAt: null }, { lastOpenedAt: { lt: new Date(now.getTime() - windowMs) } }] },
+        data: { lastOpenedAt: now, openCount: { increment: 1 } },
+      });
+      if (counted.count === 0) await db.invitedGuest.updateMany({ where: { slug: code }, data: { lastOpenedAt: now } });
+      return (await db.invitedGuest.count({ where: { slug: code } })) > 0;
     },
     async remove(id: string) {
       return (await orNull(db.invitedGuest.delete({ where: { id } }))) !== null;

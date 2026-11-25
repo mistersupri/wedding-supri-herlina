@@ -144,6 +144,11 @@ model InvitedGuest {
   customNote       String         @default("")
   invitationSent   Boolean        @default(false)
   invitationSentAt DateTime?
+  /// When the guest first opened the cover of their personal invitation, and most recently. Null until then.
+  firstOpenedAt    DateTime?
+  lastOpenedAt     DateTime?
+  /// Distinct visits that opened the cover (reopening within a minute counts once).
+  openCount        Int            @default(0)
   isCheckedIn      Boolean        @default(false)
   checkInTime      DateTime?
   checkInMethod    CheckInMethod?

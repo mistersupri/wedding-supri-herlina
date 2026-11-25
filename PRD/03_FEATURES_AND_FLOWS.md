@@ -35,6 +35,9 @@ Penguncian dilakukan **di server**: respons publik tidak memuat alamat dan reken
 - **Ubah kehadiran satu kali**; teks ucapan tetap. Mengubah kehadiran tanpa teks tidak menimpa ucapan.
 - **Tanpa sinyal:** konfirmasi dan ucapan (termasuk rekaman) disimpan di HP dan terkirim otomatis saat sinyal kembali. Tamu melihat kartu *Tersimpan di HP Anda* dengan *Kirim sekarang* dan *Batalkan dan ubah*.
 
+### 1.5a. Status undangan dibuka
+Saat tamu berkode menekan *Buka undangan*, peramban mengirim satu ping (`POST /public/opened`) dan server mencatat waktu pertama dan terakhir dibuka serta jumlah kunjungan. Tidak dicatat untuk admin yang sedang pratinjau, untuk kunjungan tanpa kode, atau untuk muat ulang dalam satu menit (dihitung satu kunjungan). Tanpa sinyal, ping menunggu sampai online. Datanya tidak pernah masuk respons publik; hanya CMS yang melihatnya.
+
 ### 1.6. Kartu tamu
 Modal berisi nama, kategori, kursi, meja, **QR dan kode 4 karakter**, status hadir, dan tombol salin tautan pribadi. Dipakai petugas meja untuk memindai. Tetap tampil offline.
 
@@ -64,7 +67,7 @@ Setelah dibuka sekali dengan internet, undangan, kartu tamu, dan kamera tetap te
 | **Galeri** | Foto dan video, kategori, urutan, unggah massal |
 | **Rekening & QRIS** | Rekening bank, e-wallet, gambar QRIS |
 | **Template & musik** | Pilih template dan preset warna, musik latar, tanggal, WhatsApp dan templat balasan |
-| **Daftar tamu & ucapan** | *Tamu undangan*: tambah, ubah, impor dari spreadsheet, kode otomatis, saring, **kirim WhatsApp per tamu atau berurutan**, **pesan yang bisa diubah**, tanda terkirim, **ekspor CSV**. *Ucapan & RSVP*: cari, saring, balas, sembunyikan, hapus, ekspor CSV |
+| **Daftar tamu & ucapan** | *Tamu undangan*: tambah, ubah, impor dari spreadsheet, kode otomatis, saring, **kirim WhatsApp per tamu atau berurutan**, **status dibuka (chip, statistik, saringan Belum dibuka untuk kirim ulang)**, **pesan yang bisa diubah**, tanda terkirim, **ekspor CSV** (waktu dalam WIB, termasuk kolom dibuka). *Ucapan & RSVP*: cari, saring, balas, sembunyikan, hapus, ekspor CSV |
 | **Meja penerima tamu** | **Aturan konfirmasi hadir mandiri** (aktif/mati, verifikasi lokasi, koordinat, radius); pemindai QR, cari nama, jumlah orang, suvenir, batalkan; statistik hadir |
 | **Photo Moments** | Aturan kamera (akses, **wajib check-in**, jatah, tutup kamera, cek dulu, visibilitas, unduhan, look), bingkai acara, **kartu QR PDF**, daftar foto dengan setujui/sembunyikan/hapus dan komentar, **setujui semua**, **unduh semua foto (ZIP)**, angka foto menunggu di menu |
 | **Pengaturan** | Ubah kata sandi, kembalikan ke data demo (mati di produksi) |

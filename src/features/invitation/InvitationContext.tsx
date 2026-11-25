@@ -99,6 +99,17 @@ export const InvitationProvider: React.FC<{ invitation: InvitationData; children
     ]);
   }, [invitation]);
 
+  // Tell the couple this guest opened their invitation: once per visit, only for a verified guest, never for the admin
+  // previewing the page. With no signal the ping waits for the connection to come back.
+  const reportedFor = useRef('');
+  useEffect(() => {
+    if (!isOpen || !guest || isAuthenticated || reportedFor.current === guest.slug) return;
+    const code = guest.slug;
+    reportedFor.current = code;
+    const send = () => publicApi.recordOpen(code).catch(() => window.addEventListener('online', send, { once: true }));
+    void send();
+  }, [isOpen, guest, isAuthenticated]);
+
   useEffect(() => {
     document.title = `Pernikahan ${names}`;
   }, [names]);

@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { CheckCheck, ChevronLeft, ChevronRight, Copy, ExternalLink, FileSpreadsheet, FileText, Hash, MessageCircle, MessageSquareText, Pencil, Plus, Search, Send, Tag, Trash2, Undo2, Upload, Users, X } from 'lucide-react';
+import { CheckCheck, ChevronLeft, ChevronRight, Copy, ExternalLink, Eye, FileSpreadsheet, FileText, Hash, MessageCircle, MessageSquareText, Pencil, Plus, Search, Send, Tag, Trash2, Undo2, Upload, Users, X } from 'lucide-react';
 import { cmsApi, publicApi } from '../../../lib/api.js';
 import { queryKeys } from '../../../lib/queryKeys.js';
-import { coupleNames, guestInvitationUrl } from '../../../lib/format.js';
+import { coupleNames, formatDateTime, guestInvitationUrl, timeAgo } from '../../../lib/format.js';
 import { loadInviteTemplate, renderInvite, whatsappLink } from '../../../lib/inviteMessage.js';
 import { buildXlsx } from '../../../lib/xlsx.js';
 import { useDebounce } from '../../../hooks/useDebounce.js';
@@ -55,6 +55,7 @@ export const InvitedGuestsPanel: React.FC = () => {
   const [category, setCategory] = useState('ALL');
   const [sent, setSent] = useState<'ALL' | 'SENT' | 'UNSENT'>('ALL');
   const [attendance, setAttendance] = useState<'ALL' | 'CHECKED_IN' | 'NOT_CHECKED_IN'>('ALL');
+  const [opened, setOpened] = useState<'ALL' | 'OPENED' | 'UNOPENED'>('ALL');
   const [sort, setSort] = useState<NonNullable<GuestListQuery['sort']>>('NAME');
   const [pageSize, setPageSize] = useState(15);
   const [page, setPage] = useState(1);
@@ -70,7 +71,7 @@ export const InvitedGuestsPanel: React.FC = () => {
   const [busy, setBusy] = useState(false);
   const q = useDebounce(search, 300).trim();
 
-  const params: GuestListQuery = { search: q, category, sent, attendance, sort };
+  const params: GuestListQuery = { search: q, category, sent, attendance, opened, sort };
   const filterKey = JSON.stringify(params);
   // A new search or filter starts at page 1; an old selection stays only while the list is unchanged.
   useEffect(() => {
@@ -172,10 +173,10 @@ export const InvitedGuestsPanel: React.FC = () => {
     try {
       const list = selected.size ? await selectedGuests() : await fetchAllMatching(params);
       const rows = [
-        ['Nama', 'Kategori', 'Kursi', 'Telepon', 'Meja', 'Catatan', 'Instagram', 'Kode', 'Terkirim', 'Hadir'],
-        ...list.map((g) => [g.name, g.category, String(g.pax), g.phone || '', g.tableNumber || '', g.customNote || '', g.instagram || '', g.slug, g.invitationSent ? 'ya' : '', g.isCheckedIn ? 'ya' : '']),
+        ['Nama', 'Kategori', 'Kursi', 'Telepon', 'Meja', 'Catatan', 'Instagram', 'Kode', 'Terkirim', 'Dibuka', 'Terakhir dibuka', 'Hadir'],
+        ...list.map((g) => [g.name, g.category, String(g.pax), g.phone || '', g.tableNumber || '', g.customNote || '', g.instagram || '', g.slug, g.invitationSent ? 'ya' : '', g.firstOpenedAt ? 'ya' : '', g.lastOpenedAt ? formatDateTime(g.lastOpenedAt) : '', g.isCheckedIn ? 'ya' : '']),
       ];
-      const url = URL.createObjectURL(buildXlsx(rows, 'Tamu', [26, 14, 8, 20, 10, 28, 18, 8, 10, 8]));
+      const url = URL.createObjectURL(buildXlsx(rows, 'Tamu', [26, 14, 8, 20, 10, 28, 18, 8, 10, 10, 20, 8]));
       const a = Object.assign(document.createElement('a'), { href: url, download: 'daftar-tamu.xlsx' });
       document.body.appendChild(a);
       a.click();
@@ -198,25 +199,32 @@ export const InvitedGuestsPanel: React.FC = () => {
     }
   };
 
-  const filtersActive = Boolean(q) || category !== 'ALL' || sent !== 'ALL' || attendance !== 'ALL';
+  const filtersActive = Boolean(q) || category !== 'ALL' || sent !== 'ALL' || opened !== 'ALL' || attendance !== 'ALL';
 
   return (
     <div>
       {stats && (
-        <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-5">
           <Stat label="Undangan" value={stats.totalInvited} detail={`${stats.totalPaxAllocated} kursi`} />
           <Stat
             label="Sudah dikirim"
             value={result?.sentCount ?? 0}
             detail={`${stats.totalInvited ? Math.round(((result?.sentCount ?? 0) / stats.totalInvited) * 100) : 0}% dari daftar`}
           />
+          <Stat
+            label="Sudah dibuka"
+            value={result?.openedCount ?? 0}
+            detail={`${stats.totalInvited ? Math.round(((result?.openedCount ?? 0) / stats.totalInvited) * 100) : 0}% dari daftar`}
+          />
           <Stat label="Sudah hadir" value={stats.totalCheckedIn} detail={`${stats.totalActualPax} orang datang`} />
-          <Stat label="Belum hadir" value={stats.totalRemaining} />
+          <div className="col-span-2 lg:col-span-1 [&>div]:h-full">
+            <Stat label="Belum hadir" value={stats.totalRemaining} detail={`dari ${stats.totalInvited} undangan`} />
+          </div>
         </div>
       )}
 
       <div className="flex flex-col gap-3">
-        <div className="flex flex-col gap-2 xl:flex-row xl:items-center">
+        <div className="flex flex-col gap-2">
           <label className="relative flex-1">
             <span className="sr-only">Cari tamu</span>
             <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-ink-soft" aria-hidden="true" />
@@ -227,7 +235,7 @@ export const InvitedGuestsPanel: React.FC = () => {
               className="pl-9"
             />
           </label>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:flex">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
             <label>
               <span className="sr-only">Kategori</span>
               <Select value={category} onChange={(e) => setCategory(e.target.value)} className={category !== 'ALL' ? '!border-primary' : ''}>
@@ -243,6 +251,14 @@ export const InvitedGuestsPanel: React.FC = () => {
                 <option value="ALL">Pengiriman</option>
                 <option value="UNSENT">Belum dikirim</option>
                 <option value="SENT">Sudah dikirim</option>
+              </Select>
+            </label>
+            <label>
+              <span className="sr-only">Status dibuka</span>
+              <Select value={opened} onChange={(e) => setOpened(e.target.value as typeof opened)} className={opened !== 'ALL' ? '!border-primary' : ''}>
+                <option value="ALL">Dibuka</option>
+                <option value="OPENED">Sudah dibuka</option>
+                <option value="UNOPENED">Belum dibuka</option>
               </Select>
             </label>
             <label>
@@ -360,6 +376,17 @@ export const InvitedGuestsPanel: React.FC = () => {
                         <p className="font-semibold break-words">{g.name}</p>
                         <span className="display-numeral rounded-xs bg-paper-2 px-1.5 text-sm tracking-widest">{g.slug}</span>
                         {g.isCheckedIn && <Chip tone="ok">Hadir</Chip>}
+                        {g.firstOpenedAt ? (
+                          <span title={`Pertama dibuka ${formatDateTime(g.firstOpenedAt)}`}>
+                            <Chip tone="ok">
+                              <Eye className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
+                              Dibuka{g.lastOpenedAt ? ` ${timeAgo(g.lastOpenedAt)}` : ''}
+                              {(g.openCount ?? 0) > 1 ? ` · ${g.openCount}×` : ''}
+                            </Chip>
+                          </span>
+                        ) : (
+                          g.invitationSent && <Chip tone="neutral">Belum dibuka</Chip>
+                        )}
                       </div>
                       <p className="mt-0.5 text-sm break-words text-ink-soft">
                         {g.category} · {g.pax} kursi{g.tableNumber ? ` · ${g.tableNumber}` : ''}

@@ -10,6 +10,19 @@ export const formatLongDate = (iso: string) =>
 export const formatDateTime = (iso: string) =>
   toDate(iso).toLocaleString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
+/** "baru saja", "5 menit lalu", "3 jam lalu", "2 hari lalu"; older than a week falls back to the date. */
+export function timeAgo(iso: string, now = Date.now()) {
+  const seconds = Math.max(0, Math.round((now - toDate(iso).getTime()) / 1000));
+  if (seconds < 60) return 'baru saja';
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes} menit lalu`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} jam lalu`;
+  const days = Math.floor(hours / 24);
+  if (days < 8) return `${days} hari lalu`;
+  return formatDateTime(iso);
+}
+
 export const formatTime = (iso: string) => toDate(iso).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
 
 /** Day, month and year as separate parts for the large typographic date. */

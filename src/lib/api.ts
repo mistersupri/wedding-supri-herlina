@@ -217,6 +217,11 @@ export const publicApi = {
     };
   },
 
+  /** Tells the couple this guest opened their invitation. Best effort: a lost ping is never shown to the guest. */
+  recordOpen: async (code: string) => {
+    await publicRequest('/public/opened', jsonInit('POST', { code: code.trim().toUpperCase() }));
+  },
+
   /** Never throws: a network failure reads as "not verified". */
   verifyCode: async (code: string): Promise<GuestAccessVerification> => {
     try {

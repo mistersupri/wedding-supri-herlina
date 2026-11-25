@@ -160,3 +160,52 @@ describe('large guest lists', () => {
     expect((await guests().createMany(rows)).length).toBe(4);
   });
 });
+
+describe('invitation opened', () => {
+  it('starts unopened and records the first and latest open', async () => {
+    const g = await guests().create({ name: 'Rina' });
+    expect(g).toMatchObject({ firstOpenedAt: null, lastOpenedAt: null, openCount: 0 });
+
+    expect(await guests().recordOpen(g.slug.toLowerCase())).toEqual({ recorded: true });
+    const [opened] = (await guests().page({ opened: 'OPENED' })).data;
+    expect(opened).toMatchObject({ id: g.id, openCount: 1 });
+    expect(opened.firstOpenedAt).toBeTruthy();
+    expect(opened.lastOpenedAt).toBe(opened.firstOpenedAt);
+  });
+
+  it('counts a quick reload once but a later visit again, keeping the first time', async () => {
+    const g = await guests().create({ name: 'Rina' });
+    await guests().recordOpen(g.slug);
+    await guests().recordOpen(g.slug);
+    expect((await guests().page({ opened: 'OPENED' })).data[0].openCount).toBe(1);
+
+    const first = (await guests().page({ opened: 'OPENED' })).data[0].firstOpenedAt;
+    await ctx.db.invitedGuest.update({ where: { id: g.id }, data: { lastOpenedAt: new Date(Date.now() - 10 * 60_000) } });
+    await guests().recordOpen(g.slug);
+    const after = (await guests().page({ opened: 'OPENED' })).data[0];
+    expect(after.openCount).toBe(2);
+    expect(after.firstOpenedAt).toBe(first);
+  });
+
+  it('ignores unknown or malformed codes and filters the list', async () => {
+    const a = await guests().create({ name: 'Ada' });
+    await guests().create({ name: 'Bayu' });
+    expect(await guests().recordOpen('ZZZZ')).toEqual({ recorded: false });
+    expect(await guests().recordOpen('x')).toEqual({ recorded: false });
+    await guests().recordOpen(a.slug);
+
+    const opened = await guests().page({ opened: 'OPENED' });
+    const unopened = await guests().page({ opened: 'UNOPENED' });
+    expect(opened.data.map((g) => g.name)).toEqual(['Ada']);
+    expect(unopened.data.map((g) => g.name)).toEqual(['Bayu']);
+    expect(opened.openedCount).toBe(1);
+  });
+
+  it('never leaks open tracking through the public guest view', async () => {
+    const g = await guests().create({ name: 'Rina' });
+    await guests().recordOpen(g.slug);
+    const res = await guests().verify(g.slug);
+    expect(res.guest).not.toHaveProperty('openCount');
+    expect(res.guest).not.toHaveProperty('firstOpenedAt');
+  });
+});

@@ -158,6 +158,11 @@ export interface InvitedGuest {
   customNote?: string;
   invitationSent?: boolean;
   invitationSentAt?: string | null;
+  /** First and latest time the guest opened the cover of their invitation; null while it is still unopened. */
+  firstOpenedAt?: string | null;
+  lastOpenedAt?: string | null;
+  /** How many separate visits opened the cover. */
+  openCount?: number;
   isCheckedIn: boolean;
   checkInTime?: string | null;
   checkInMethod?: 'QR_SCAN' | 'MANUAL' | 'SELF' | null;
@@ -300,6 +305,8 @@ export interface GuestListQuery {
   category?: string;
   sent?: 'ALL' | 'SENT' | 'UNSENT';
   attendance?: 'ALL' | 'CHECKED_IN' | 'NOT_CHECKED_IN';
+  /** Whether the guest has opened the invitation. */
+  opened?: 'ALL' | 'OPENED' | 'UNOPENED';
   sort?: 'NAME' | 'NEWEST' | 'CODE' | 'CATEGORY';
 }
 
@@ -314,6 +321,8 @@ export interface GuestListPage {
   /** Categories in use, for the filter list. */
   categories: string[];
   sentCount: number;
+  /** Guests who opened the invitation, across the whole list. */
+  openedCount: number;
   stats: PresensiStats;
 }
 
