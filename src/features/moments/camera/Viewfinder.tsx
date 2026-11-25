@@ -1,12 +1,45 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Images, RefreshCcw, X } from 'lucide-react';
+import { Frame, Images, RefreshCcw, Undo2, X } from 'lucide-react';
+import { COLLAGE_LAYOUTS, collageLabel, type CollageLayout } from '../film/collage.js';
 import { FrameCounter } from './FrameCounter.js';
 
 interface ViewfinderProps {
   remaining: number;
   onShot: (source: HTMLCanvasElement | HTMLImageElement) => void;
   onClose: () => void;
+  /** The guide is 9:16 (a Story) instead of 4:5. */
+  story?: boolean;
+  /** Present when the couple has an event frame: whether it is used, and a switch to turn it off. */
+  frame?: { on: boolean; onChange: (on: boolean) => void };
+  /** Photo-strip mode: how many shots make one picture, what has been taken so far, and the shape of each cell. */
+  collage: {
+    layout: CollageLayout;
+    onLayout: (layout: CollageLayout) => void;
+    cellRatio: number;
+    /** Small previews of the shots already taken for this sheet. */
+    taken: string[];
+    onUndo: () => void;
+  };
 }
+
+/** A tiny diagram of the layout: one block per photo. */
+const LayoutIcon: React.FC<{ layout: CollageLayout }> = ({ layout }) => {
+  const cells =
+    layout === 1
+      ? [[3, 2, 14, 20]]
+      : layout === 2
+        ? [[3, 2, 14, 9], [3, 13, 14, 9]]
+        : layout === 3
+          ? [[3, 2, 14, 6], [3, 9, 14, 6], [3, 16, 14, 6]]
+          : [[3, 2, 6.5, 9], [10.5, 2, 6.5, 9], [3, 13, 6.5, 9], [10.5, 13, 6.5, 9]];
+  return (
+    <svg viewBox="0 0 20 24" width="20" height="24" aria-hidden="true" fill="currentColor">
+      {cells.map(([x, y, w, h], i) => (
+        <rect key={i} x={x} y={y} width={w} height={h} rx="1" />
+      ))}
+    </svg>
+  );
+};
 
 /** Grab the current video frame at full resolution, mirrored for the selfie camera like the preview. */
 function grab(video: HTMLVideoElement, mirror: boolean) {
@@ -23,11 +56,13 @@ function grab(video: HTMLVideoElement, mirror: boolean) {
 }
 
 /**
- * The live camera. The 4:5 guide shows exactly what the photo will hold; anything outside is cropped,
+ * The live camera. The guide (4:5, or 9:16 for a Story) shows what the photo will hold; anything outside is cropped,
  * and the darkroom can still nudge it. When the camera is blocked or missing, the phone's gallery
  * is the way in.
  */
-export const Viewfinder: React.FC<ViewfinderProps> = ({ remaining, onShot, onClose }) => {
+export const Viewfinder: React.FC<ViewfinderProps> = ({ remaining, onShot, onClose, story = false, frame, collage }) => {
+  const { layout, taken } = collage;
+  const ratio = layout === 1 ? (story ? 9 / 16 : 4 / 5) : collage.cellRatio;
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -104,7 +139,7 @@ export const Viewfinder: React.FC<ViewfinderProps> = ({ remaining, onShot, onClo
       </div>
 
       <div className="flex min-h-0 flex-1 items-center justify-center px-3">
-        <div className="cam-window" style={{ width: 'min(100%, 30rem, calc((100dvh - 14rem) * 0.8))' }}>
+        <div className="cam-window" style={{ width: `min(100%, 30rem, calc((100dvh - ${layout > 1 ? 23 : 18}rem) * ${ratio}))`, aspectRatio: String(ratio) }}>
           <video
             ref={videoRef}
             playsInline
@@ -113,9 +148,30 @@ export const Viewfinder: React.FC<ViewfinderProps> = ({ remaining, onShot, onClo
             className={`h-full w-full object-cover ${facing === 'user' ? '-scale-x-100' : ''}`}
           />
           <span className="cam-thirds" aria-hidden="true" />
-          <span className="cam-ratio" aria-hidden="true">
-            4:5
-          </span>
+          {layout > 1 && (
+            <span className="cam-step" aria-live="polite">
+              Foto {taken.length + 1} dari {layout}
+            </span>
+          )}
+          {layout === 1 && (
+            <span className="cam-ratio" aria-hidden="true">
+              {story ? '9:16' : '4:5'}
+            </span>
+          )}
+          {frame && (
+            <button
+              type="button"
+              role="switch"
+              aria-checked={frame.on}
+              aria-label="Pakai bingkai acara"
+              className="cam-frame-switch"
+              onClick={() => frame.onChange(!frame.on)}
+            >
+              <Frame className="h-4 w-4" aria-hidden="true" />
+              Bingkai
+              <span className="cam-switch" aria-hidden="true" />
+            </button>
+          )}
           {flash && <span className="cam-flash" aria-hidden="true" />}
           {state === 'blocked' && (
             <div className="cam-blocked">
@@ -132,7 +188,39 @@ export const Viewfinder: React.FC<ViewfinderProps> = ({ remaining, onShot, onClo
         </div>
       </div>
 
-      <div className="grid grid-cols-3 items-center px-6 pt-4 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+      <div className="flex flex-col items-center gap-2 px-3 pt-3">
+        <div role="radiogroup" aria-label="Susunan foto" className="flex gap-2">
+          {COLLAGE_LAYOUTS.map((n) => (
+            <button
+              key={n}
+              type="button"
+              role="radio"
+              aria-checked={layout === n}
+              aria-label={`${collageLabel(n)}, memakai ${n} frame`}
+              title={`${collageLabel(n)} · memakai ${n} frame`}
+              disabled={n > remaining}
+              className={`cam-layout ${layout === n ? 'is-on' : ''}`}
+              onClick={() => collage.onLayout(n)}
+            >
+              <LayoutIcon layout={n} />
+            </button>
+          ))}
+        </div>
+        {layout > 1 && (
+          <p className="cam-hint">Kolase ini memakai {layout} frame</p>
+        )}
+        {layout > 1 && (
+          <div className="flex min-h-10 items-center gap-1.5" aria-label="Foto yang sudah diambil">
+            {Array.from({ length: layout }, (_, i) => (
+              <span key={i} className={`cam-slot ${i === taken.length ? 'is-next' : ''}`} style={{ aspectRatio: String(collage.cellRatio) }}>
+                {taken[i] ? <img src={taken[i]} alt={`Foto ${i + 1}`} /> : i + 1}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="grid grid-cols-3 items-center px-6 pt-3 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
         <button
           type="button"
           className="cam-icon justify-self-start"
@@ -150,7 +238,13 @@ export const Viewfinder: React.FC<ViewfinderProps> = ({ remaining, onShot, onClo
         >
           <span />
         </button>
-        <span />
+        {taken.length > 0 ? (
+          <button type="button" className="cam-icon justify-self-end" onClick={collage.onUndo} aria-label="Ulangi foto terakhir">
+            <Undo2 className="h-6 w-6" />
+          </button>
+        ) : (
+          <span />
+        )}
       </div>
       <input ref={fileRef} type="file" accept="image/*" className="sr-only" tabIndex={-1} onChange={(e) => pick(e.target.files?.[0])} />
     </div>

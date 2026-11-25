@@ -1,5 +1,6 @@
 import express, { type Router } from 'express';
 import { route } from '../http.js';
+import { limits } from '../middleware/rateLimit.js';
 import { requireAdmin, type AuthenticatedRequest } from '../middleware/requireAdmin.js';
 import type { Services } from '../../app.js';
 
@@ -8,6 +9,7 @@ export function authRoutes(s: Services): Router {
 
   router.post(
     '/auth/login',
+    limits.login,
     route(
       async (req) => ({ data: await s.auth.login(String(req.body?.username || ''), String(req.body?.password || '')) }),
       'Gagal masuk.',
@@ -16,6 +18,7 @@ export function authRoutes(s: Services): Router {
 
   router.post(
     '/auth/refresh',
+    limits.login,
     route(async (req) => ({ data: await s.auth.refresh(req.body?.refreshToken) }), 'Gagal memperbarui sesi.'),
   );
 

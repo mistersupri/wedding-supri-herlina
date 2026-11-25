@@ -22,6 +22,7 @@ export async function seedDatabase(db: Db, data: LegacyData = createDemoData()) 
     await tx.photoComment.deleteMany();
     await tx.photoMoment.deleteMany();
     await tx.cameraSetting.deleteMany();
+    await tx.attendanceSetting.deleteMany();
     await tx.guestWish.deleteMany();
     await tx.invitedGuest.deleteMany();
     await tx.galleryPhoto.deleteMany();
@@ -85,13 +86,22 @@ export async function seedDatabase(db: Db, data: LegacyData = createDemoData()) 
       })),
     });
 
-    const seenNames = new Set<string>();
+    // A wish belongs to the invitation code of the guest with that name (when exactly one has it).
+    const slugsByName = new Map<string, string[]>();
+    for (const g of data.invitedGuests || []) slugsByName.set(key(g.name), [...(slugsByName.get(key(g.name)) || []), g.slug.toUpperCase()]);
+    const ownerOf = (name: string) => (slugsByName.get(key(name))?.length === 1 ? slugsByName.get(key(name))![0] : null);
+    const seenKeys = new Set<string>();
     await tx.guestWish.createMany({
       data: (data.guests || [])
-        .filter((w) => !seenNames.has(key(w.guestName)) && seenNames.add(key(w.guestName)))
-        .map((w) => ({
+        .map((w) => ({ w, slug: ownerOf(w.guestName) }))
+        .filter(({ w, slug }) => {
+          const k = slug ? `code:${slug}` : key(w.guestName);
+          return !seenKeys.has(k) && seenKeys.add(k);
+        })
+        .map(({ w, slug }) => ({
           guestName: w.guestName,
-          guestKey: key(w.guestName),
+          guestKey: slug ? `code:${slug}` : key(w.guestName),
+          guestSlug: slug,
           relationship: w.relationship,
           attendanceStatus: w.attendanceStatus,
           numberOfGuests: w.numberOfGuests || 1,
@@ -141,6 +151,12 @@ export async function seedDatabase(db: Db, data: LegacyData = createDemoData()) 
 
 /** First run: fill an empty database with the demo invitation. */
 export async function seedIfEmpty(db: Db) {
+  if (process.env.SEED_DEMO === 'false') {
+    if ((await db.invitation.count()) === 0) {
+      console.warn('SEED_DEMO=false dan database masih kosong: isi data undangan lewat `yarn db:import-json`, atau hapus SEED_DEMO untuk data demo.');
+    }
+    return;
+  }
   if ((await db.invitation.count()) === 0) {
     await seedDatabase(db);
     console.log('Database kosong: data demo undangan sudah diisi.');

@@ -31,7 +31,10 @@ export const config = {
   },
   distDir: path.join(cwd, 'dist'),
   uploadDir: process.env.UPLOAD_DIR || path.join(cwd, 'uploads'),
-  jsonBodyLimit: '25mb',
+  /** Anything large (photos, voice notes, video) goes through /api/upload, never through a JSON body. */
+  jsonBodyLimit: '1mb',
+  /** Lets the CMS "reset to demo" button run on a production server. Off by default: it erases every table. */
+  allowDemoReset: process.env.ALLOW_DEMO_RESET === 'true',
   /** Hops of reverse proxy in front of the app (Nginx, Caddy, a load balancer), for correct client IPs. */
   trustProxy: Number(process.env.TRUST_PROXY) || 0,
   admin: {

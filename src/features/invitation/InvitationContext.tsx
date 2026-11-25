@@ -1,5 +1,10 @@
+import { useQuery } from '@tanstack/react-query';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { coupleNames } from '../../lib/format.js';
+import { publicApi } from '../../lib/api.js';
+import { warmImages } from '../../offline/register.js';
+import { startWishQueue } from '../../offline/wishQueue.instance.js';
+import { queryKeys } from '../../lib/queryKeys.js';
 import { useAuth } from '../../context/AuthContext.js';
 import { GuestPassModal } from '../../components/wedding/GuestPassModal.js';
 import { useGuestAccess } from './hooks/useGuestAccess.js';
@@ -25,12 +30,16 @@ interface InvitationContextValue {
   music: { available: boolean; playing: boolean; title: string; toggle: () => void };
 }
 
-/** The camera link, shown only to guests the couple's rule lets in (checked in, invited, or anyone). */
+/** The camera link, shown only to guests the couple's rule lets in (invited guests, checked in when required, or anyone). */
 function cameraHref(invitation: InvitationData, guest: PublicGuest | null) {
   const rule = invitation.photoMoments;
   if (rule && !rule.cameraOpen) return undefined;
-  const access = rule?.access ?? 'CHECKED_IN';
-  if (guest && (access !== 'CHECKED_IN' || guest.isCheckedIn)) return `/photo-moments?c=${guest.slug}&to=${encodeURIComponent(guest.name)}`;
+  const access = rule?.access ?? 'INVITED';
+  // A guest who still has to check in is sent to the camera page too when they can do it there from their phone.
+  const canCheckInHere = Boolean(invitation.attendance?.selfCheckIn);
+  if (guest && (!rule?.requireCheckIn || guest.isCheckedIn || canCheckInHere)) {
+    return `/photo-moments?c=${guest.slug}&to=${encodeURIComponent(guest.name)}`;
+  }
   return access === 'ANYONE' ? '/photo-moments' : undefined;
 }
 
@@ -53,14 +62,42 @@ export function useVerifiedGuest() {
  * Everything a template needs to render one invitation: the data, who is reading,
  * the cover state, the guest pass and background music. Templates only read from here.
  */
-export const InvitationProvider: React.FC<{ invitation: InvitationData; children: React.ReactNode }> = ({ invitation, children }) => {
+export const InvitationProvider: React.FC<{ invitation: InvitationData; children: React.ReactNode }> = ({ invitation: publicInvitation, children }) => {
   const { isAuthenticated } = useAuth();
   const access = useGuestAccess();
   const [isOpen, setIsOpen] = useState(false);
   const [pass, setPass] = useState<{ open: boolean; rsvp: RsvpSummary | null }>({ open: false, rsvp: null });
   const audioRef = useRef<HTMLAudioElement>(null);
   const [playing, setPlaying] = useState(false);
+  const { guest } = access;
+
+  // The public payload leaves out addresses and gift accounts; a verified guest fetches them separately.
+  const details = useQuery({
+    queryKey: queryKeys.guestDetails(guest?.slug ?? ''),
+    queryFn: () => publicApi.guestDetails(guest!.slug),
+    enabled: Boolean(guest),
+    staleTime: 5 * 60_000,
+  });
+  const invitation = useMemo<InvitationData>(
+    () => (details.data ? { ...publicInvitation, events: details.data.events, giftInfo: details.data.giftInfo } : publicInvitation),
+    [publicInvitation, details.data],
+  );
   const names = coupleNames(invitation);
+
+  // Wishes saved while offline are sent as soon as the invitation is open and a signal is there.
+  useEffect(() => startWishQueue(), []);
+
+  // Fetch the invitation's photos ahead of time, so they are there offline even if never scrolled to.
+  useEffect(() => {
+    warmImages([
+      invitation.heroImage,
+      invitation.groomPhoto,
+      invitation.bridePhoto,
+      ...invitation.loveStories.map((s) => s.photoUrl),
+      ...invitation.gallery.map((g) => (g.mediaType === 'VIDEO' ? g.thumbnailUrl : g.url)),
+      ...invitation.giftInfo.map((g) => g.qrisImageUrl),
+    ]);
+  }, [invitation]);
 
   useEffect(() => {
     document.title = `Pernikahan ${names}`;
@@ -79,7 +116,6 @@ export const InvitationProvider: React.FC<{ invitation: InvitationData; children
     else audio.pause();
   }, []);
 
-  const { guest } = access;
   const value = useMemo<InvitationContextValue>(
     () => ({
       invitation,
@@ -118,6 +154,7 @@ export const InvitationProvider: React.FC<{ invitation: InvitationData; children
           guest={guest}
           coupleNames={names}
           rsvp={pass.rsvp}
+          selfCheckIn={invitation.attendance}
         />
       )}
     </InvitationContext.Provider>

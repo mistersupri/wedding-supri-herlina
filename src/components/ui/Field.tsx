@@ -1,7 +1,7 @@
 import React, { useId } from 'react';
 
 const CONTROL =
-  'w-full rounded-xs border border-field bg-card px-3.5 text-[15px] text-ink placeholder:text-ink-soft/70 focus:border-primary focus:outline-2 focus:outline-offset-0 focus:outline-primary disabled:cursor-not-allowed disabled:bg-paper-2 disabled:text-ink-soft';
+  'w-full rounded-xs border border-field bg-card px-3.5 text-[15px] text-ink placeholder:text-ink-soft/70 focus:border-primary focus:outline-2 focus:outline-offset-0 focus:outline-primary aria-invalid:border-no aria-invalid:focus:border-no aria-invalid:focus:outline-no disabled:cursor-not-allowed disabled:bg-paper-2 disabled:text-ink-soft';
 
 interface FieldProps {
   label: string;
@@ -9,14 +9,16 @@ interface FieldProps {
   error?: string | null;
   /** Rendered next to the label, e.g. "opsional". */
   aside?: string;
+  /** Characters used and allowed, shown at the end of the hint line. */
+  counter?: { value: number; max: number };
   className?: string;
   children: (props: { id: string; 'aria-describedby'?: string; 'aria-invalid'?: boolean }) => React.ReactNode;
 }
 
 /** Label + control + hint/error, wired with ids so screen readers announce all three. */
-export const Field: React.FC<FieldProps> = ({ label, hint, error, aside, className = '', children }) => {
+export const Field: React.FC<FieldProps> = ({ label, hint, error, aside, counter, className = '', children }) => {
   const id = useId();
-  const hintId = hint || error ? `${id}-hint` : undefined;
+  const hintId = hint || error || counter ? `${id}-hint` : undefined;
   return (
     <div className={`flex flex-col gap-1.5 ${className}`}>
       <label htmlFor={id} className="flex items-baseline justify-between gap-2 text-sm font-semibold text-ink">
@@ -24,10 +26,17 @@ export const Field: React.FC<FieldProps> = ({ label, hint, error, aside, classNa
         {aside && <span className="text-xs font-normal text-ink-soft">{aside}</span>}
       </label>
       {children({ id, 'aria-describedby': hintId, 'aria-invalid': error ? true : undefined })}
-      {(error || hint) && (
-        <p id={hintId} role={error ? 'alert' : undefined} className={`text-xs ${error ? 'font-medium text-no' : 'text-ink-soft'}`}>
-          {error || hint}
-        </p>
+      {(error || hint || counter) && (
+        <div className="flex items-start justify-between gap-3 text-xs">
+          <p id={hintId} role={error ? 'alert' : undefined} className={error ? 'font-medium text-no' : 'text-ink-soft'}>
+            {error || hint}
+          </p>
+          {counter && (
+            <span className={`shrink-0 tabular-nums ${counter.value > counter.max * 0.9 ? 'font-semibold text-prada-ink' : 'text-ink-soft'}`} aria-live="off">
+              {counter.value}/{counter.max}
+            </span>
+          )}
+        </div>
       )}
     </div>
   );

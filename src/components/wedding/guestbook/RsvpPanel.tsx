@@ -17,6 +17,40 @@ export const RsvpPanel: React.FC = () => {
   const f = useRsvpForm();
   const { guest, existingWish, editing, voice } = f;
 
+  // --- Saved on this phone, waiting for a signal ---
+  if (f.queued) {
+    return (
+      <div aria-live="polite">
+        <p className="text-sm font-semibold text-prada-ink">Tersimpan di HP Anda</p>
+        <h3 className="mt-1 font-display text-2xl leading-tight">Menunggu sinyal, {guest.name}</h3>
+        <p className="mt-3 text-[15px] leading-relaxed text-ink-soft">
+          Tidak ada sambungan ke server. Konfirmasi dan ucapan Anda akan terkirim sendiri begitu sinyal kembali. Bila belum terkirim, buka lagi
+          undangan ini saat ada sinyal.
+        </p>
+        <dl className="mt-4 space-y-2 text-[15px]">
+          <div className="flex items-center justify-between gap-3">
+            <dt className="text-ink-soft">Kehadiran</dt>
+            <dd>
+              <StatusChip status={f.queued.wish.attendanceStatus} />
+            </dd>
+          </div>
+          <div>
+            <dt className="text-ink-soft">Ucapan</dt>
+            <dd className="mt-1 leading-relaxed break-words">{f.queued.wish.message || (f.queued.hasVoice ? 'Pesan suara' : '')}</dd>
+          </div>
+        </dl>
+        <div className="mt-6 flex flex-col gap-2">
+          <Button onClick={f.sendQueuedNow} loading={f.isSending}>
+            Kirim sekarang
+          </Button>
+          <Button variant="ghost" onClick={f.cancelQueued}>
+            Batalkan dan ubah
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   // --- Sent: summary ---
   if (f.isSent && existingWish) {
     return (

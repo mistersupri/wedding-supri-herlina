@@ -42,8 +42,8 @@ export const TEMPLATES: TemplateInfo[] = [
   {
     id: 'layar',
     name: 'Layar Perak',
-    description: 'Bioskop klasik ivory dan emas: judul pembuka layar lebar, tiket tayang, lembar kontak, dan credit roll.',
-    swatches: ['#FAF6EF', '#2B251F', '#A8844C'],
+    description: 'Kertas hangat dan emas: sampul amplop bersegel dengan video pembuka, anggrek berjatuhan, film strip, polaroid, dan kredit penutup.',
+    swatches: ['#EAE0CC', '#3B2E25', '#A8835A'],
     usesColorPreset: false,
   },
 ];

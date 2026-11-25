@@ -38,6 +38,8 @@ services:
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?Isi JWT_REFRESH_SECRET di .env}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       TRUST_PROXY: ${TRUST_PROXY:-1}
+      SEED_DEMO: ${SEED_DEMO:-true}
+      ALLOW_DEMO_RESET: ${ALLOW_DEMO_RESET:-false}
     ports:
       - '${APP_BIND:-127.0.0.1}:${APP_PORT:-3000}:3000'
     volumes:

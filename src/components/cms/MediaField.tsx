@@ -1,130 +1,283 @@
-import React, { useId, useRef, useState } from 'react';
-import { uploadFile } from '../../lib/api.js';
+import React, { useEffect, useId, useRef, useState } from 'react';
+import { AlertCircle, Film, Image as ImageIcon, Link2, Music, RefreshCw, Trash2, X } from 'lucide-react';
+import { uploadFileWithProgress } from '../../lib/api.js';
 import { resizeImageFile } from '../../lib/image.js';
+import { checkFile, kindOf, kindOfUrl, type FileRules, type MediaKind } from '../../lib/files.js';
+import { checkUrl } from '../../lib/inputs.js';
+import { DropSurface, FileDropzone } from '../ui/FileDropzone.js';
+import { ImageCropper } from './ImageCropper.js';
 import { Input } from '../ui/Field.js';
-import { Spinner } from '../ui/StateView.js';
 import type { UploadCategory } from '@shared/types';
+
+type Aspect = 'portrait' | 'landscape' | 'square' | 'story';
 
 interface MediaFieldProps {
   label: string;
   value: string;
   onChange: (url: string) => void;
   category: UploadCategory;
+  /** Kept for older call sites: true means photos and videos. */
   allowVideo?: boolean;
+  kinds?: MediaKind[];
   hint?: string;
   /** Longest edge for images before upload. */
   maxDimension?: number;
-  aspect?: 'portrait' | 'landscape' | 'square';
+  aspect?: Aspect;
+  maxMB?: FileRules['maxMB'];
+  /** Warn (without blocking) when a photo is narrower than this many pixels. */
+  minWidth?: number;
+  /** Show a checkerboard behind the preview, for transparent PNG overlays. */
+  checker?: boolean;
+  /** Hide the "paste a link" option. */
+  noUrl?: boolean;
+  /** Offer to crop photos before they are uploaded (on by default). */
+  crop?: boolean;
+  /** Starting shape of the crop window, width over height. Defaults to the shape of the preview. */
+  cropRatio?: number;
 }
 
-const ASPECT = { portrait: 'aspect-[3/4] w-32', landscape: 'aspect-video w-48', square: 'aspect-square w-32' };
-const isVideoUrl = (url: string) => /\.(mp4|webm|mov)(\?|$)/i.test(url) || url.startsWith('data:video/');
+const CROP_OF: Record<Aspect, number> = { portrait: 3 / 4, landscape: 16 / 9, square: 1, story: 9 / 16 };
 
-/** Upload by click or drop, or paste a URL. Images are downscaled in the browser first. */
+const THUMB: Record<Aspect, string> = {
+  portrait: 'aspect-[3/4] w-28',
+  landscape: 'aspect-video w-44',
+  square: 'aspect-square w-28',
+  story: 'aspect-[9/16] w-24',
+};
+const CHECKER =
+  'bg-[length:16px_16px] bg-[linear-gradient(45deg,#d8d0c2_25%,transparent_25%,transparent_75%,#d8d0c2_75%),linear-gradient(45deg,#d8d0c2_25%,#f3eee4_25%,#f3eee4_75%,#d8d0c2_75%)] bg-[position:0_0,8px_8px]';
+
+const PROMPT: Record<string, string> = {
+  image: 'Tarik foto ke sini, atau pilih dari perangkat',
+  video: 'Tarik video ke sini, atau pilih dari perangkat',
+  audio: 'Tarik lagu ke sini, atau pilih dari perangkat',
+  'image-video': 'Tarik foto atau video ke sini, atau pilih dari perangkat',
+};
+
+/** Uploaded files are stored under random names, so show where a file is from rather than that name. */
+const sourceOf = (url: string) => {
+  if (url.startsWith('data:') || url.startsWith('/uploads/')) return 'Diunggah ke server';
+  try {
+    return new URL(url).hostname.replace(/^www\./, '');
+  } catch {
+    return 'Tautan';
+  }
+};
+
+/**
+ * Upload by drag-and-drop or the file dialog, with a progress bar, a real preview (photo, video or audio),
+ * and plain-language errors. A link can still be pasted for files hosted elsewhere.
+ * Photos are shrunk in the browser first.
+ */
 export const MediaField: React.FC<MediaFieldProps> = ({
   label,
   value,
   onChange,
   category,
   allowVideo,
+  kinds,
   hint,
   maxDimension = 1600,
   aspect = 'landscape',
+  maxMB,
+  minWidth,
+  checker,
+  noUrl,
+  crop = true,
+  cropRatio,
 }) => {
   const id = useId();
-  const fileRef = useRef<HTMLInputElement>(null);
-  const [busy, setBusy] = useState(false);
+  const rules: FileRules = { kinds: kinds ?? (allowVideo ? ['image', 'video'] : ['image']), maxMB };
+  const promptKey = rules.kinds.length > 1 ? 'image-video' : rules.kinds[0];
+  const [progress, setProgress] = useState<{ name: string; fraction: number; stage: 'prepare' | 'upload' } | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [dragging, setDragging] = useState(false);
+  const [urlError, setUrlError] = useState<string | null>(null);
+  const [dims, setDims] = useState<{ w: number; h: number } | null>(null);
+  const [uploadedName, setUploadedName] = useState<string | null>(null);
+  const [broken, setBroken] = useState(false);
+  const [cropping, setCropping] = useState<File | null>(null);
+  const abort = useRef<AbortController | null>(null);
+  const kind = value ? kindOfUrl(value) ?? (rules.kinds.includes('image') ? 'image' : rules.kinds[0]) : null;
 
-  const handleFile = async (file: File | undefined) => {
-    if (!file) return;
-    const video = file.type.startsWith('video/');
-    if (!file.type.startsWith('image/') && !(allowVideo && video)) {
-      setError(allowVideo ? 'Pilih file gambar atau video.' : 'Pilih file gambar (JPG, PNG, WEBP).');
+  useEffect(() => {
+    setDims(null);
+    setBroken(false);
+  }, [value]);
+  useEffect(() => () => abort.current?.abort(), []);
+
+  /** A photo goes through the cropper first; everything else uploads straight away. */
+  const pick = (file: File) => {
+    const problem = checkFile(file, rules);
+    if (problem) {
+      setError(problem);
       return;
     }
-    setBusy(true);
     setError(null);
+    const croppable = crop && kindOf(file) === 'image' && !/gif|svg/.test(file.type);
+    if (croppable) setCropping(file);
+    else void upload(file);
+  };
+
+  const upload = async (file: File) => {
+    setError(null);
+    const controller = new AbortController();
+    abort.current = controller;
+    setProgress({ name: file.name, fraction: 0, stage: 'prepare' });
     try {
-      onChange(await uploadFile(video ? file : await resizeImageFile(file, maxDimension), category));
+      const body = kindOf(file) === 'image' ? await resizeImageFile(file, maxDimension) : file;
+      setProgress({ name: file.name, fraction: 0, stage: 'upload' });
+      const url = await uploadFileWithProgress(body, file.name, category, (fraction) => setProgress({ name: file.name, fraction, stage: 'upload' }), controller.signal);
+      setUploadedName(file.name);
+      onChange(url);
     } catch (err) {
-      setError((err as Error).message);
+      if (!(err as { aborted?: boolean }).aborted) setError((err as Error).message);
     } finally {
-      setBusy(false);
-      if (fileRef.current) fileRef.current.value = '';
+      abort.current = null;
+      setProgress(null);
     }
   };
 
+  const busy = progress !== null;
+  const lowRes = Boolean(minWidth && dims && dims.w < minWidth);
+
   return (
-    <div className="flex flex-col gap-1.5">
-      <label htmlFor={`${id}-url`} className="text-sm font-semibold">
+    <div className="flex flex-col gap-1.5" role="group" aria-labelledby={`${id}-label`} aria-describedby={`${id}-hint`}>
+      <span id={`${id}-label`} className="text-sm font-semibold">
         {label}
-      </label>
-      <div
-        onDragOver={(e) => {
-          e.preventDefault();
-          setDragging(true);
-        }}
-        onDragLeave={() => setDragging(false)}
-        onDrop={(e) => {
-          e.preventDefault();
-          setDragging(false);
-          handleFile(e.dataTransfer.files[0]);
-        }}
-        className={`flex flex-col gap-3 rounded-sm border border-dashed p-3 sm:flex-row sm:items-center ${dragging ? 'border-primary bg-paper-2' : 'border-field'}`}
-      >
-        <div className={`${ASPECT[aspect]} shrink-0 overflow-hidden rounded-xs bg-paper-2`}>
-          {value ? (
-            allowVideo && isVideoUrl(value) ? (
-              <video src={value} muted playsInline preload="metadata" className="h-full w-full object-cover" />
-            ) : (
-              <img src={value} alt="" referrerPolicy="no-referrer" className="h-full w-full object-cover" />
-            )
-          ) : (
-            <span className="flex h-full items-center justify-center text-xs text-ink-soft">Belum ada</span>
-          )}
-        </div>
-        <div className="flex min-w-0 flex-1 flex-col gap-2">
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => fileRef.current?.click()}
-              disabled={busy}
-              className="inline-flex min-h-11 items-center gap-2 rounded-sm border border-field bg-card px-4 text-sm font-semibold hover:bg-paper-2"
-            >
-              {busy && <Spinner className="h-4 w-4" />}
-              {busy ? 'Mengunggah...' : value ? 'Ganti file' : 'Pilih file'}
-            </button>
-            {value && (
-              <button
-                type="button"
-                onClick={() => onChange('')}
-                className="min-h-11 rounded-sm px-3 text-sm font-semibold text-no hover:bg-no-bg"
+      </span>
+
+      <FileDropzone rules={rules} disabled={busy} onFiles={(files) => pick(files[0])} onRejected={(m) => m.length && setError(m[0])} className="relative">
+        {({ dragging, open }) =>
+          busy ? (
+            <div className="rounded-sm border border-field bg-card p-4" role="status">
+              <p className="truncate text-sm font-semibold">{progress.name}</p>
+              <div
+                role="progressbar"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={progress.stage === 'upload' ? Math.round(progress.fraction * 100) : undefined}
+                aria-label="Kemajuan unggahan"
+                className="mt-2 h-1.5 overflow-hidden rounded-full bg-paper-2"
               >
-                Hapus
-              </button>
+                <div
+                  className={`h-full rounded-full bg-primary transition-[width] duration-200 ${progress.stage === 'prepare' ? 'w-1/4 animate-pulse' : ''}`}
+                  style={progress.stage === 'upload' ? { width: `${Math.max(4, progress.fraction * 100)}%` } : undefined}
+                />
+              </div>
+              <div className="mt-2 flex items-center justify-between text-xs text-ink-soft">
+                <span>{progress.stage === 'prepare' ? 'Menyiapkan file...' : `Mengunggah ${Math.round(progress.fraction * 100)}%`}</span>
+                <button type="button" onClick={() => abort.current?.abort()} className="inline-flex min-h-8 items-center gap-1 rounded-xs px-2 font-semibold text-ink hover:bg-paper-2">
+                  <X className="h-3.5 w-3.5" aria-hidden="true" /> Batal
+                </button>
+              </div>
+            </div>
+          ) : value ? (
+            <div className={`flex flex-col gap-3 rounded-sm border bg-card p-3 sm:flex-row sm:items-center ${dragging ? 'border-primary' : 'border-field'}`}>
+              <div className={`${kind === 'audio' ? 'hidden' : `${THUMB[aspect]} shrink-0 overflow-hidden rounded-xs bg-paper-2 ${checker ? CHECKER : ''}`}`}>
+                {broken ? (
+                  <span className="flex h-full w-full flex-col items-center justify-center gap-1 p-2 text-center text-xs text-ink-soft">
+                    <AlertCircle className="h-4 w-4" aria-hidden="true" />
+                    Gambar tidak bisa dimuat
+                  </span>
+                ) : kind === 'video' ? (
+                  <video src={value} muted playsInline preload="metadata" className="h-full w-full object-cover" />
+                ) : (
+                  <img
+                    src={value}
+                    alt=""
+                    referrerPolicy="no-referrer"
+                    onLoad={(e) => setDims({ w: e.currentTarget.naturalWidth, h: e.currentTarget.naturalHeight })}
+                    onError={() => setBroken(true)}
+                    className={`h-full w-full ${checker ? 'object-contain' : 'object-cover'}`}
+                  />
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="flex items-center gap-1.5 truncate text-sm font-semibold">
+                  {kind === 'audio' ? <Music className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" /> : kind === 'video' ? <Film className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" /> : <ImageIcon className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />}
+                  <span className="truncate">{uploadedName ?? sourceOf(value)}</span>
+                </p>
+                <p className="mt-0.5 text-xs text-ink-soft">
+                  {[kind === 'video' ? 'Video' : kind === 'audio' ? 'Audio' : 'Foto', uploadedName ? sourceOf(value) : null, dims ? `${dims.w} × ${dims.h} px` : null].filter(Boolean).join(' · ')}
+                </p>
+                {kind === 'audio' && <audio src={value} controls preload="metadata" className="mt-2 h-10 w-full" aria-label={`Dengarkan ${label}`} />}
+                {lowRes && (
+                  <p role="status" className="mt-1.5 flex items-start gap-1.5 text-xs font-medium text-prada-ink">
+                    <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                    Lebarnya {dims!.w} px. Sebaiknya minimal {minWidth} px agar tidak pecah di layar besar.
+                  </p>
+                )}
+                <div className="mt-2 flex flex-wrap gap-1">
+                  <button type="button" onClick={open} className="inline-flex min-h-11 items-center gap-1.5 rounded-sm border border-field bg-card px-3 text-sm font-semibold hover:bg-paper-2">
+                    <RefreshCw className="h-4 w-4" aria-hidden="true" /> Ganti
+                  </button>
+                  <button type="button" onClick={() => { setError(null); onChange(''); }} className="inline-flex min-h-11 items-center gap-1.5 rounded-sm px-3 text-sm font-semibold text-no hover:bg-no-bg">
+                    <Trash2 className="h-4 w-4" aria-hidden="true" /> Hapus
+                  </button>
+                </div>
+              </div>
+              {dragging && (
+                <div className="absolute inset-0 grid place-items-center rounded-sm border-2 border-dashed border-primary bg-card/92 text-sm font-semibold text-primary">
+                  Lepaskan untuk mengganti
+                </div>
+              )}
+            </div>
+          ) : (
+            <DropSurface title={PROMPT[promptKey]} rules={rules} dragging={dragging} onOpen={open} describedBy={`${id}-hint`} />
+          )
+        }
+      </FileDropzone>
+
+      {cropping && (
+        <ImageCropper
+          file={cropping}
+          ratio={cropRatio ?? CROP_OF[aspect]}
+          maxDimension={maxDimension}
+          onConfirm={(cropped) => {
+            setCropping(null);
+            void upload(cropped);
+          }}
+          onSkip={() => {
+            const original = cropping;
+            setCropping(null);
+            void upload(original);
+          }}
+          onCancel={() => setCropping(null)}
+        />
+      )}
+
+      {!noUrl && (
+        <details className="group text-sm" open={Boolean(urlError)}>
+          <summary className="inline-flex min-h-8 cursor-pointer list-none items-center gap-1.5 rounded-xs px-1 text-xs font-semibold text-ink-soft hover:text-ink">
+            <Link2 className="h-3.5 w-3.5" aria-hidden="true" /> Pakai tautan dari situs lain
+          </summary>
+          <div className="mt-1.5">
+            <Input
+              type="url"
+              inputMode="url"
+              autoComplete="off"
+              spellCheck={false}
+              value={value.startsWith('/uploads/') ? '' : value}
+              onChange={(e) => {
+                onChange(e.target.value.trim());
+                setUrlError(null);
+              }}
+              onBlur={(e) => setUrlError(checkUrl(e.target.value.trim()))}
+              aria-label={`Tautan ${label}`}
+              aria-invalid={urlError ? true : undefined}
+              placeholder="https://..."
+            />
+            {urlError && (
+              <p role="alert" className="mt-1 text-xs font-medium text-no">
+                {urlError}
+              </p>
             )}
           </div>
-          <Input
-            id={`${id}-url`}
-            type="url"
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            placeholder="atau tempel URL https://..."
-            aria-describedby={`${id}-hint`}
-          />
-        </div>
-        <input
-          ref={fileRef}
-          type="file"
-          hidden
-          accept={allowVideo ? 'image/*,video/*' : 'image/*'}
-          onChange={(e) => handleFile(e.target.files?.[0])}
-        />
-      </div>
-      <p id={`${id}-hint`} className={`text-xs ${error ? 'font-medium text-no' : 'text-ink-soft'}`}>
-        {error || hint || 'Tarik file ke kotak ini, pilih file, atau tempel URL.'}
+        </details>
+      )}
+
+      <p id={`${id}-hint`} role={error ? 'alert' : undefined} className={`text-xs ${error ? 'font-medium text-no' : 'text-ink-soft'}`}>
+        {error || hint}
       </p>
     </div>
   );

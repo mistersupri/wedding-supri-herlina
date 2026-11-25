@@ -1,5 +1,8 @@
 import express, { type Router } from 'express';
-import { badRequest, notFound, route } from '../http.js';
+import { config } from '../../config.js';
+import { issueDownloadTicket, verifyDownloadTicket } from '../../services/authService.js';
+import { ZipTooLargeError, writeZip } from '../zip.js';
+import { HttpError, badRequest, notFound, route } from '../http.js';
 import { requireAdmin, type AuthenticatedRequest } from '../middleware/requireAdmin.js';
 import type { OrderedRepository } from '../../repositories/contentRepositories.js';
 import type { Services } from '../../app.js';
@@ -42,7 +45,47 @@ function crud<T extends { id: string }>(router: Router, path: string, repo: Orde
 
 export function cmsRoutes(s: Services): Router {
   const router = express.Router();
+
+  // Browser downloads cannot send the Authorization header, so the CMS first asks for a 60-second ticket.
+  // Registered before requireAdmin, which guards only /cms and /admin.
+  router.get('/export/photos.zip', async (req, res) => {
+    if (!verifyDownloadTicket(String(req.query.t || ''), 'photos-zip')) {
+      res.status(401).json({ success: false, message: 'Tautan unduhan kedaluwarsa. Coba lagi dari CMS.' });
+      return;
+    }
+    try {
+      const entries = await s.exports.photoEntries(req.query.include === 'all' ? 'all' : 'approved');
+      res.setHeader('Content-Type', 'application/zip');
+      res.setHeader('Content-Disposition', 'attachment; filename="foto-tamu.zip"');
+      res.setHeader('Cache-Control', 'no-store');
+      await writeZip(res, entries);
+    } catch (err) {
+      if (res.headersSent) {
+        res.destroy();
+        return;
+      }
+      if (err instanceof ZipTooLargeError) {
+        res.status(413).json({ success: false, message: 'Foto terlalu banyak untuk satu ZIP. Unduh foto per tamu dari CMS.' });
+        return;
+      }
+      console.error('Gagal membuat ZIP foto:', err);
+      res.status(500).json({ success: false, message: 'Gagal membuat ZIP foto.' });
+    }
+  });
+
   router.use(['/cms', '/admin'], requireAdmin);
+
+  router.post(
+    '/cms/export/photos-ticket',
+    route<AuthenticatedRequest>((req) => ({ ticket: issueDownloadTicket(req.user!, 'photos-zip') }), 'Gagal menyiapkan unduhan.'),
+  );
+  router.post(
+    '/cms/photo-moments/approve-all',
+    route(async () => {
+      const count = await s.moments.approveAllPending();
+      return { message: count ? `${count} foto ditayangkan.` : 'Tidak ada foto yang menunggu.', data: { count } };
+    }, 'Gagal menayangkan foto.'),
+  );
   const noop = () => undefined;
 
   router.get(
@@ -96,6 +139,22 @@ export function cmsRoutes(s: Services): Router {
   crud(router, '/cms/gifts', s.content.gifts, 'Rekening', noop);
   crud(router, '/cms/gallery', s.content.gallery, 'Foto', noop);
 
+  // --- Spreadsheet exports ---
+  const sendCsv = (res: express.Response, filename: string, body: string) => {
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Cache-Control', 'no-store');
+    res.send(body);
+  };
+  router.get(
+    '/cms/export/guests.csv',
+    route(async (req, res) => sendCsv(res, 'daftar-tamu.csv', await s.exports.guestsCsv(`${req.protocol}://${req.get('host')}`)), 'Gagal mengekspor daftar tamu.'),
+  );
+  router.get(
+    '/cms/export/wishes.csv',
+    route(async (_req, res) => sendCsv(res, 'ucapan-rsvp.csv', await s.exports.wishesCsv()), 'Gagal mengekspor ucapan.'),
+  );
+
   // --- Guestbook moderation ---
   router.get(
     '/cms/guests',
@@ -126,13 +185,36 @@ export function cmsRoutes(s: Services): Router {
   // --- Invited guests & check-in ---
   router.get(
     '/cms/invited-guests',
-    route((req) => s.guests.list(String(req.query.filter || 'ALL'), String(req.query.search || '')), 'Gagal memuat daftar tamu.'),
+    route((req) => {
+      // With `page` the list is paged and filtered on the server; without it, the whole list (reception desk).
+      if (req.query.page === undefined) return s.guests.list(String(req.query.filter || 'ALL'), String(req.query.search || ''));
+      const q = req.query;
+      return s.guests.page({
+        page: Number(q.page),
+        pageSize: Number(q.pageSize),
+        search: String(q.search || ''),
+        category: String(q.category || 'ALL'),
+        sent: String(q.sent || 'ALL') as 'ALL',
+        attendance: String(q.attendance || 'ALL') as 'ALL',
+        sort: String(q.sort || 'NAME') as 'NAME',
+      });
+    }, 'Gagal memuat daftar tamu.'),
+  );
+  router.post(
+    '/cms/invited-guests/bulk',
+    route(async (req) => {
+      const { ids, ...op } = req.body || {};
+      const data = await s.guests.bulk(ids, op);
+      return { message: `${data.count} tamu diperbarui.`, data };
+    }, 'Gagal memproses tamu terpilih.'),
   );
   router.post(
     '/cms/invited-guests/batch',
     route(async (req, res) => {
-      const data = await s.guests.createMany(req.body?.guests);
-      res.status(201).json({ success: true, message: `${data.length} tamu ditambahkan.`, data });
+      const total = Array.isArray(req.body?.guests) ? req.body.guests.filter((g: { name?: string }) => g?.name?.trim()).length : 0;
+      const data = await s.guests.createMany(req.body?.guests, { skipDuplicates: Boolean(req.body?.skipDuplicates) });
+      const skipped = total - data.length;
+      res.status(201).json({ success: true, message: `${data.length} tamu ditambahkan${skipped > 0 ? `, ${skipped} dilewati karena sudah ada` : ''}.`, data, skipped });
     }, 'Gagal mengimpor tamu.'),
   );
   router.post(
@@ -180,6 +262,16 @@ export function cmsRoutes(s: Services): Router {
   router.get(
     '/cms/presensi/stats',
     route(async () => ({ data: await s.guests.stats() }), 'Gagal memuat statistik.'),
+  );
+
+  // --- Self check-in rules ---
+  router.get(
+    '/cms/attendance-settings',
+    route(async () => ({ data: await s.attendance.get() }), 'Gagal memuat aturan kehadiran.'),
+  );
+  router.put(
+    '/cms/attendance-settings',
+    route(async (req) => ({ message: 'Aturan kehadiran tersimpan.', data: await s.attendance.save(req.body || {}) }), 'Gagal menyimpan aturan kehadiran.'),
   );
 
   // --- Photo moments moderation ---
@@ -236,7 +328,11 @@ export function cmsRoutes(s: Services): Router {
 
   router.post(
     '/admin/reset-default',
-    route(async () => {
+    route(async (req) => {
+      if (config.isProduction && !config.allowDemoReset) {
+        throw new HttpError(403, 'Reset data dimatikan di server produksi. Set ALLOW_DEMO_RESET=true bila memang diperlukan.');
+      }
+      if (req.body?.confirm !== 'RESET') throw badRequest('Konfirmasi reset tidak lengkap.');
       await s.resetDemo();
       return { message: 'Data dikembalikan ke isi demo.', data: await s.invitation.publicInvitation() };
     }, 'Gagal mereset data.'),

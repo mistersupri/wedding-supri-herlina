@@ -1,3 +1,4 @@
+import { PhotoThumb } from '../../components/ui/PhotoThumb.js';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, Camera, MessageCircle } from 'lucide-react';
 import { formatTime } from '../../lib/format.js';
@@ -129,7 +130,7 @@ export const MomentsFeed: React.FC<MomentsFeedProps> = ({ identity, config, coup
             detail={`Setiap tamu punya ${settings.framesPerGuest} frame. Jepret suasana acara dan kirim ke galeri.`}
           />
         ) : (
-          <ul className="grid grid-cols-2 gap-2 sm:gap-3">
+          <ul className="grid grid-cols-2 items-start gap-x-2 gap-y-3 sm:gap-x-3">
             {items.map((photo, i) => {
               const mine = m.myReactions[photo.id];
               const count = totalReactions(photo);
@@ -139,34 +140,34 @@ export const MomentsFeed: React.FC<MomentsFeedProps> = ({ identity, config, coup
                     type="button"
                     onClick={() => setOpenIndex(i)}
                     aria-label={`Buka foto dari ${photo.guestName}`}
-                    className="block aspect-[4/5] w-full overflow-hidden rounded-xs bg-deep-2"
+                    className="block w-full overflow-hidden rounded-xs bg-deep-2"
                   >
-                    <img src={photo.photoUrl} alt="" loading="lazy" className="h-full w-full object-cover" />
+                    <PhotoThumb src={photo.photoUrl} />
                   </button>
-                  {photo.approved === false && (
-                    <span className="absolute top-1.5 left-1.5 rounded-xs bg-deep/85 px-2 py-1 text-xs font-semibold">Menunggu dicek</span>
-                  )}
-                  <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-between gap-1 bg-gradient-to-t from-deep/90 to-transparent p-2 pt-8">
-                    <span className="truncate text-sm font-semibold">{photo.guestName}</span>
+                  <div className="flex items-center gap-1 pt-1">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold">{photo.guestName}</p>
+                      {photo.approved === false && <p className="text-xs text-on-deep-soft">Menunggu dicek</p>}
+                    </div>
                     {Boolean(photo.commentsCount) && (
                       <span className="flex shrink-0 items-center gap-1 text-xs text-on-deep-soft">
                         <MessageCircle className="h-3.5 w-3.5" aria-hidden="true" />
                         {photo.commentsCount}
                       </span>
                     )}
+                    <button
+                      type="button"
+                      onClick={() => m.react(photo.id, mine || '❤️')}
+                      aria-pressed={Boolean(mine)}
+                      aria-label={mine ? `Batalkan reaksi ${mine}` : 'Beri reaksi hati'}
+                      className={`inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center gap-1 rounded-xs px-2 text-sm ${
+                        mine ? 'bg-on-deep text-deep' : 'text-on-deep hover:bg-white/10'
+                      }`}
+                    >
+                      <span aria-hidden="true">{mine || '♡'}</span>
+                      {count > 0 && <span className="font-semibold">{count}</span>}
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => m.react(photo.id, mine || '❤️')}
-                    aria-pressed={Boolean(mine)}
-                    aria-label={mine ? `Batalkan reaksi ${mine}` : 'Beri reaksi hati'}
-                    className={`absolute top-1.5 right-1.5 inline-flex min-h-11 min-w-11 items-center justify-center gap-1 rounded-xs px-2 text-sm ${
-                      mine ? 'bg-on-deep text-deep' : 'bg-deep/70 text-on-deep'
-                    }`}
-                  >
-                    <span aria-hidden="true">{mine || '♡'}</span>
-                    {count > 0 && <span className="font-semibold">{count}</span>}
-                  </button>
                 </li>
               );
             })}
