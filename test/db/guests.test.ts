@@ -209,3 +209,32 @@ describe('invitation opened', () => {
     expect(res.guest).not.toHaveProperty('firstOpenedAt');
   });
 });
+
+describe('reminders and RSVP filters', () => {
+  it('splits guests into who has not opened, who opened without answering, and who has not answered', async () => {
+    const sent = { invitationSent: true };
+    const a = await guests().create({ name: 'Ani', ...sent }); // sent, never opened
+    const b = await guests().create({ name: 'Budi', ...sent }); // opened, no answer
+    const c = await guests().create({ name: 'Cici', ...sent }); // opened and answered
+    await guests().recordOpen(b.slug);
+    await guests().recordOpen(c.slug);
+    await ctx.services.guestbook.submit({ guestSlug: c.slug, attendanceStatus: 'HADIR', numberOfGuests: 1, message: 'Selamat' });
+
+    const page = await guests().page({});
+    expect(page.reminders).toEqual({ unopened: 1, openedNoRsvp: 1, noRsvp: 2 });
+    expect(page.data.find((g) => g.id === c.id)?.rsvp).toBe('HADIR');
+    expect(page.data.find((g) => g.id === a.id)?.rsvp).toBeNull();
+
+    expect((await guests().page({ opened: 'OPENED', rsvp: 'NOT_REPLIED' })).data.map((g) => g.name)).toEqual(['Budi']);
+    expect((await guests().page({ rsvp: 'REPLIED' })).data.map((g) => g.name)).toEqual(['Cici']);
+  });
+
+  it('counts reminders sent', async () => {
+    const g = await guests().create({ name: 'Dedi' });
+    expect(await guests().bulk([g.id], { action: 'reminded' })).toEqual({ count: 1 });
+    await guests().bulk([g.id], { action: 'reminded' });
+    const [after] = (await guests().page({})).data;
+    expect(after).toMatchObject({ reminderCount: 2 });
+    expect(after.lastRemindedAt).toBeTruthy();
+  });
+});

@@ -197,6 +197,7 @@ export function cmsRoutes(s: Services): Router {
         sent: String(q.sent || 'ALL') as 'ALL',
         attendance: String(q.attendance || 'ALL') as 'ALL',
         opened: String(q.opened || 'ALL') as 'ALL',
+        rsvp: String(q.rsvp || 'ALL') as 'ALL',
         sort: String(q.sort || 'NAME') as 'NAME',
       });
     }, 'Gagal memuat daftar tamu.'),

@@ -149,6 +149,9 @@ model InvitedGuest {
   lastOpenedAt     DateTime?
   /// Distinct visits that opened the cover (reopening within a minute counts once).
   openCount        Int            @default(0)
+  /// Last WhatsApp reminder the couple sent this guest, and how many so far.
+  lastRemindedAt   DateTime?
+  reminderCount    Int            @default(0)
   isCheckedIn      Boolean        @default(false)
   checkInTime      DateTime?
   checkInMethod    CheckInMethod?

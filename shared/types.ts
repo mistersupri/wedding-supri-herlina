@@ -163,6 +163,11 @@ export interface InvitedGuest {
   lastOpenedAt?: string | null;
   /** How many separate visits opened the cover. */
   openCount?: number;
+  /** Last WhatsApp reminder sent to this guest and how many so far. */
+  lastRemindedAt?: string | null;
+  reminderCount?: number;
+  /** The guest's RSVP answer from the guest book, or null when they have not answered. Only in the CMS list. */
+  rsvp?: AttendanceStatus | null;
   isCheckedIn: boolean;
   checkInTime?: string | null;
   checkInMethod?: 'QR_SCAN' | 'MANUAL' | 'SELF' | null;
@@ -318,6 +323,8 @@ export interface GuestListQuery {
   attendance?: 'ALL' | 'CHECKED_IN' | 'NOT_CHECKED_IN';
   /** Whether the guest has opened the invitation. */
   opened?: 'ALL' | 'OPENED' | 'UNOPENED';
+  /** Whether the guest answered the RSVP in the guest book. */
+  rsvp?: 'ALL' | 'REPLIED' | 'NOT_REPLIED';
   sort?: 'NAME' | 'NEWEST' | 'CODE' | 'CATEGORY';
 }
 
@@ -334,6 +341,8 @@ export interface GuestListPage {
   sentCount: number;
   /** Guests who opened the invitation, across the whole list. */
   openedCount: number;
+  /** Who still needs a nudge, across the whole list. */
+  reminders: { unopened: number; openedNoRsvp: number; noRsvp: number };
   stats: PresensiStats;
 }
 
@@ -342,7 +351,9 @@ export type GuestBulkAction =
   | { action: 'sent'; value: boolean }
   | { action: 'category'; value: string }
   | { action: 'pax'; value: number }
-  | { action: 'table'; value: string };
+  | { action: 'table'; value: string }
+  /** WhatsApp reminders were sent to these guests. */
+  | { action: 'reminded' };
 
 export type InvitedGuestInput = Partial<
   Pick<InvitedGuest, 'slug' | 'phone' | 'instagram' | 'category' | 'pax' | 'tableNumber' | 'customNote' | 'invitationSent'>

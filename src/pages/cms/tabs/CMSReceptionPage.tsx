@@ -10,7 +10,7 @@ import { PageHeader, Pagination, Panel, Stat, usePagination } from '../../../com
 import { useToast } from '../../../components/cms/Toast.js';
 import { AttendanceRulesPanel } from '../../../components/cms/reception/AttendanceRulesPanel.js';
 import { useQrScanner } from '../../../components/cms/reception/useQrScanner.js';
-import { Button, IconButton } from '../../../components/ui/Button.js';
+import { Button } from '../../../components/ui/Button.js';
 import { Checkbox, Field, Input, Segmented } from '../../../components/ui/Field.js';
 import { Chip } from '../../../components/ui/StatusChip.js';
 import { EmptyState, ErrorState, LoadingState } from '../../../components/ui/StateView.js';
@@ -143,9 +143,9 @@ export const CMSReceptionPage: React.FC = () => {
           title="Pindai kartu tamu"
           actions={
             scanner.active && (
-              <IconButton label="Ganti kamera" onClick={scanner.flip}>
-                <RefreshCcw className="h-5 w-5" />
-              </IconButton>
+              <Button variant="secondary" size="sm" onClick={scanner.flip}>
+                <RefreshCcw className="h-4 w-4" aria-hidden="true" /> Ganti kamera
+              </Button>
             )
           }
         >

@@ -118,6 +118,17 @@ export function invitationService(d: Deps) {
       return { stats, counts: { eventsCount, galleryCount, storiesCount, giftsCount }, recentGuests, pendingMoments };
     },
 
+    /** What a chat app needs to preview the link: the couple, the date and a picture. Reads one row only. */
+    async shareInfo() {
+      const inv = await core();
+      return {
+        groomShortName: inv.groomShortName,
+        brideShortName: inv.brideShortName,
+        weddingDate: inv.weddingDate,
+        image: inv.heroImage || inv.bridePhoto || inv.groomPhoto || '',
+      };
+    },
+
     async general() {
       const inv = await core();
       return { invitationId: inv.id, weddingDate: inv.weddingDate, groomShortName: inv.groomShortName, brideShortName: inv.brideShortName };

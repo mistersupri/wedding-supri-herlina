@@ -3,7 +3,7 @@ import { HttpError, badRequest, notFound } from '../http/http.js';
 import { parsePhone } from '../../shared/phone.js';
 import { cleanInstagram, isInstagramHandle } from '../../shared/handles.js';
 import type { invitedGuestRepository } from '../repositories/guestRepositories.js';
-import type { GuestBulkAction, GuestListPage, GuestListQuery, InvitedGuest, InvitedGuestInput, PresensiStats, PublicGuest } from '../../shared/types.js';
+import type { AttendanceStatus, GuestBulkAction, GuestListPage, GuestListQuery, InvitedGuest, InvitedGuestInput, PresensiStats, PublicGuest } from '../../shared/types.js';
 
 const SLUG_ALPHABET = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
 
@@ -91,7 +91,11 @@ const cleanInput = (input: InvitedGuestInput, lenient = false) => ({
 });
 
 /** Invited-guest list, 4-character access codes, and the reception check-in. */
-export function guestService(repo: ReturnType<typeof invitedGuestRepository>) {
+export function guestService(
+  repo: ReturnType<typeof invitedGuestRepository>,
+  /** RSVP answers by invitation code, for the "who has not answered" filters. */
+  rsvpBySlug: () => Promise<Map<string, AttendanceStatus>> = async () => new Map(),
+) {
   const stats = (guests: InvitedGuest[]): PresensiStats => {
     const s: PresensiStats = { totalInvited: guests.length, totalPaxAllocated: 0, totalCheckedIn: 0, totalActualPax: 0, totalRemaining: 0, totalSouvenirsGiven: 0 };
     for (const g of guests) {
@@ -143,7 +147,8 @@ export function guestService(repo: ReturnType<typeof invitedGuestRepository>) {
 
     /** One page of the CMS guest list, with filters, sorting and the ids of everything that matched. */
     async page(query: GuestListQuery = {}): Promise<GuestListPage> {
-      const all = await repo.list();
+      const rsvps = await rsvpBySlug();
+      const all = (await repo.list()).map((g) => ({ ...g, rsvp: rsvps.get(g.slug.toUpperCase()) ?? null }));
       const q = (query.search || '').trim().toLowerCase();
       const category = query.category && query.category !== 'ALL' ? query.category.toLowerCase() : '';
       const matched = all.filter(
@@ -152,6 +157,7 @@ export function guestService(repo: ReturnType<typeof invitedGuestRepository>) {
           (!query.sent || query.sent === 'ALL' || (query.sent === 'SENT') === Boolean(g.invitationSent)) &&
           (!query.attendance || query.attendance === 'ALL' || (query.attendance === 'CHECKED_IN') === g.isCheckedIn) &&
           (!query.opened || query.opened === 'ALL' || (query.opened === 'OPENED') === Boolean(g.firstOpenedAt)) &&
+          (!query.rsvp || query.rsvp === 'ALL' || (query.rsvp === 'REPLIED') === Boolean(g.rsvp)) &&
           (!q || [g.name, g.slug, g.phone, g.tableNumber, g.category, g.instagram].some((v) => (v || '').toLowerCase().includes(q))),
       );
       const by = (f: (g: InvitedGuest) => string) => (a: InvitedGuest, b: InvitedGuest) => f(a).localeCompare(f(b), 'id', { sensitivity: 'base' });
@@ -171,6 +177,11 @@ export function guestService(repo: ReturnType<typeof invitedGuestRepository>) {
         categories: [...new Set(all.map((g) => g.category))].sort((a, b) => a.localeCompare(b, 'id')),
         sentCount: all.filter((g) => g.invitationSent).length,
         openedCount: all.filter((g) => g.firstOpenedAt).length,
+        reminders: {
+          unopened: all.filter((g) => g.invitationSent && !g.firstOpenedAt).length,
+          openedNoRsvp: all.filter((g) => g.firstOpenedAt && !g.rsvp).length,
+          noRsvp: all.filter((g) => !g.rsvp).length,
+        },
         stats: stats(all),
       };
     },
@@ -194,6 +205,8 @@ export function guestService(repo: ReturnType<typeof invitedGuestRepository>) {
           if (pax === undefined) throw badRequest('Jumlah kursi tidak valid.');
           return { count: await repo.updateMany(unique, { pax }) };
         }
+        case 'reminded':
+          return { count: await repo.markReminded(unique) };
         case 'table':
           return { count: await repo.updateMany(unique, { tableNumber: text(op.value, 40) }) };
         default:

@@ -1,3 +1,4 @@
+import fs from 'fs/promises';
 import path from 'path';
 import express, { type NextFunction, type Request, type Response } from 'express';
 import multer from 'multer';
@@ -28,6 +29,7 @@ import { publicRoutes } from './http/routes/public.js';
 import { authRoutes } from './http/routes/auth.js';
 import { cmsRoutes } from './http/routes/cms.js';
 import { securityHeaders, uploadStaticOptions } from './http/middleware/securityHeaders.js';
+import { guestFromQuery, withShareTags } from './http/share.js';
 import { cleanupOrphanUploads } from './services/uploadCleanup.js';
 
 /** Wire repositories into services. Routes only ever see this object. */
@@ -42,7 +44,7 @@ export function createServices(db: Db) {
   const invitedGuests = invitedGuestRepository(db);
   const cameraSettings = cameraSettingRepository(db);
 
-  const guestsService = guestService(invitedGuests);
+  const guestsService = guestService(invitedGuests, wishes.statusBySlug);
   const attendanceSettings = attendanceSettingRepository(db);
   const attendance = attendanceService({ settings: attendanceSettings, guests: invitedGuests, guestService: guestsService });
 
@@ -103,6 +105,22 @@ export async function createApp(services: Services) {
     res.status(404).json({ success: false, message: 'Endpoint tidak ditemukan.' });
   });
 
+  // The invitation page carries the couple's names and photo in its HTML, so WhatsApp can preview the link.
+  let shareCache: { at: number; info: Awaited<ReturnType<Services['invitation']['shareInfo']>> } | null = null;
+  const shareInfo = async () => {
+    if (!shareCache || Date.now() - shareCache.at > 30_000) shareCache = { at: Date.now(), info: await services.invitation.shareInfo() };
+    return shareCache.info;
+  };
+  const invitationHtml = async (req: Request, html: string) => {
+    try {
+      const origin = `${req.protocol}://${req.get('host')}`;
+      return withShareTags(html, await shareInfo(), origin, req.originalUrl.split('#')[0], guestFromQuery(req.query.to ?? req.query.guest ?? req.query.nama));
+    } catch {
+      // No invitation yet (or the database is down): the generic page is still better than an error.
+      return html;
+    }
+  };
+
   if (config.isProduction) {
     // The worker and manifest are not fingerprinted, so browsers must check them on every load to notice a new version.
     app.get(['/sw.js', '/manifest.webmanifest'], (req, res, next) => {
@@ -120,11 +138,26 @@ export async function createApp(services: Services) {
         return;
       }
       res.setHeader('Cache-Control', 'no-cache');
+      if (req.path === '/') {
+        void fs.readFile(path.join(config.distDir, 'index.html'), 'utf8').then(
+          async (html) => res.type('html').send(await invitationHtml(req, html)),
+          () => res.sendFile(path.join(config.distDir, 'index.html')),
+        );
+        return;
+      }
       res.sendFile(path.join(config.distDir, 'index.html'));
     });
   } else {
     const { createServer } = await import('vite');
     const vite = await createServer({ server: { middlewareMode: true }, appType: 'spa' });
+    app.get('/', async (req, res, next) => {
+      try {
+        const raw = await fs.readFile(path.join(process.cwd(), 'index.html'), 'utf8');
+        res.status(200).type('html').send(await invitationHtml(req, await vite.transformIndexHtml(req.originalUrl, raw)));
+      } catch (err) {
+        next(err);
+      }
+    });
     // Vite types its middleware as a connect server; Express accepts it as a handler at runtime.
     app.use(vite.middlewares as unknown as express.RequestHandler);
   }

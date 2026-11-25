@@ -58,6 +58,12 @@ export function wishRepository(db: Db) {
       return rows.map(toWish);
     },
 
+    /** RSVP answer of every invited guest who has written, by invitation code. */
+    async statusBySlug(): Promise<Map<string, AttendanceStatus>> {
+      const rows = await db.guestWish.findMany({ where: { guestSlug: { not: null } }, select: { guestSlug: true, attendanceStatus: true } });
+      return new Map(rows.map((r) => [r.guestSlug!.toUpperCase(), r.attendanceStatus as AttendanceStatus]));
+    },
+
     async recent(take: number) {
       return (await db.guestWish.findMany({ orderBy: { createdAt: 'desc' }, take })).map(toWish);
     },
@@ -120,6 +126,7 @@ const toInvited = (r: InvitedRow): InvitedGuest => ({
   invitationSentAt: iso(r.invitationSentAt),
   firstOpenedAt: iso(r.firstOpenedAt),
   lastOpenedAt: iso(r.lastOpenedAt),
+  lastRemindedAt: iso(r.lastRemindedAt),
   checkInTime: iso(r.checkInTime),
   checkInMethod: r.checkInMethod,
   createdAt: r.createdAt.toISOString(),
@@ -187,6 +194,10 @@ export function invitedGuestRepository(db: Db) {
       });
       if (counted.count === 0) await db.invitedGuest.updateMany({ where: { slug: code }, data: { lastOpenedAt: now } });
       return (await db.invitedGuest.count({ where: { slug: code } })) > 0;
+    },
+    /** A WhatsApp reminder went out to these guests. */
+    async markReminded(ids: string[]): Promise<number> {
+      return (await db.invitedGuest.updateMany({ where: { id: { in: ids } }, data: { lastRemindedAt: new Date(), reminderCount: { increment: 1 } } })).count;
     },
     async remove(id: string) {
       return (await orNull(db.invitedGuest.delete({ where: { id } }))) !== null;
