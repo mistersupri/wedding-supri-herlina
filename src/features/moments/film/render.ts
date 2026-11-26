@@ -3,7 +3,7 @@
  * Every effect is drawn from seeded randomness and sizes relative to the canvas, so the small live
  * preview and the full-size upload come out the same.
  */
-import type { FrameLayout } from './frameLayout.js';
+import { placedInArea, type FrameLayout } from './frameLayout.js';
 import { applyGrade, combineGrade, lookById, NO_EDITS, type Edits } from './looks.js';
 
 export type FrameStyle = 'none' | 'white' | 'black' | 'white-caption' | 'black-caption' | 'event';
@@ -279,6 +279,8 @@ export interface RenderOptions {
   date?: Date;
   /** Where the picture sits on the event frame (in front of it, or under it). */
   layout?: FrameLayout;
+  /** The picture is a collage sheet: its photos carry their own borders, so none is drawn around the whole area. */
+  collage?: boolean;
   /** Skip grading (used while dragging, for speed). */
   fast?: boolean;
 }
@@ -294,16 +296,24 @@ export function renderPhoto(source: HTMLCanvasElement | HTMLImageElement, recipe
   const ctx = canvas.getContext('2d', { willReadFrequently: !opts.fast })!;
   ctx.globalCompositeOperation = 'source-over';
 
-  // A solid frame goes underneath and the photo sits on top of it, inside the couple's margins.
-  const front = frame === 'event' && Boolean(opts.eventFrame) && Boolean(opts.layout?.front && opts.layout.area);
-  const area = front ? opts.layout!.area! : null;
-  const r = area
+  // The photo sits in the couple's own area when they set one. A solid frame goes underneath it; a transparent one stays on top.
+  const placed = frame === 'event' && Boolean(opts.eventFrame) && placedInArea(opts.layout);
+  const front = placed && Boolean(opts.layout!.front);
+  const area = placed ? opts.layout!.area! : null;
+  let r = area
     ? { x: Math.round(area.x * W), y: Math.round(area.y * H), w: Math.round(area.w * W), h: Math.round(area.h * H) }
     : frameLayout(frame, W, H);
   const dark = frame.startsWith('black');
   ctx.fillStyle = dark ? '#111110' : '#fbfaf6';
   ctx.fillRect(0, 0, W, H);
   if (front) ctx.drawImage(opts.eventFrame!, 0, 0, W, H);
+  // A border around the photo is drawn as a coloured plate with the photo inset, so the photo's place does not change size.
+  const border = placed && !opts.collage ? Math.min(Math.round((opts.layout!.border * W) / 1080), Math.floor(Math.min(r.w, r.h) / 4)) : 0;
+  if (border > 0) {
+    ctx.fillStyle = opts.layout!.borderColor;
+    ctx.fillRect(r.x, r.y, r.w, r.h);
+    r = { x: r.x + border, y: r.y + border, w: r.w - border * 2, h: r.h - border * 2 };
+  }
 
   // Photo, cropped into its area.
   const src = rotate(source, recipe.crop.rotation);

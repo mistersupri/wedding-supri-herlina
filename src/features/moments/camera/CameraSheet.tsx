@@ -4,6 +4,7 @@ import { useDialogBehaviour } from '../../../components/ui/Modal.js';
 import { useTemplateFonts } from '../../invitation/templates/shared/kit.js';
 import { availableLooks } from '../film/looks.js';
 import { resolveFrameLayout } from '../film/frameLayout.js';
+import { sheetFor } from '../film/sheet.js';
 import { collageSpec, composeCollage, cropToCell, type CollageLayout } from '../film/collage.js';
 import { aspectOf, isStoryAspect, loadImage, newRecipe, recipeAspect, renderPhoto, toBlob, type Recipe } from '../film/render.js';
 import { enqueue } from '../upload/queue.js';
@@ -62,14 +63,10 @@ export const CameraSheet: React.FC<CameraSheetProps> = ({ identity, config, rema
   const story = frameOn && isStoryAspect(aspectOf('event', eventFrame));
   // Over the photo, or under it: the frame decides where shots may land.
   const frameLayout = useMemo(() => resolveFrameLayout(eventFrame, config.frame), [eventFrame, config.frame]);
-  const photoInFront = frameOn && frameLayout.front && Boolean(frameLayout.area);
+  // Frame settings decide where shots may land: in the couple's own photo area, or inside the frame's clear window.
   const frameAspect = aspectOf('event', eventFrame);
-  // In front of the frame the picture fills the couple's photo area; over it, shots stay inside the frame's clear window.
-  const areaAspect = photoInFront && frameLayout.area ? (frameLayout.area.w / frameLayout.area.h) * frameAspect : undefined;
-
-  // Photo-strip: each shot is cropped to its cell; once the last one is in, the finished sheet goes to the darkroom like a single photo.
   // A collage uses one frame of the quota per shot, so a layout never offers more shots than the guest has left.
-  const sheet = collageSpec(layout, story, undefined, photoInFront ? { aspect: areaAspect } : { window: frameOn ? frameLayout.area : null });
+  const { spec: sheet, inArea: photoInArea, areaAspect } = sheetFor(layout, { frameOn, story, layout: frameLayout, frameAspect });
   useEffect(() => {
     if (layout > Math.max(1, remaining)) {
       setLayout(Math.max(1, Math.min(4, remaining)) as CollageLayout);
@@ -87,7 +84,7 @@ export const CameraSheet: React.FC<CameraSheetProps> = ({ identity, config, rema
   const takeShot = (shot: HTMLCanvasElement | HTMLImageElement) => {
     setSource(shot);
     setShotFrames(layout);
-    setRecipe((r) => ({ ...r, frame: frameOn ? 'event' : 'none', aspect: layout > 1 && !photoInFront ? sheet.width / sheet.height : undefined }));
+    setRecipe((r) => ({ ...r, frame: frameOn ? 'event' : 'none', aspect: layout > 1 && !photoInArea ? sheet.width / sheet.height : undefined }));
   };
   const collect = (shot: HTMLCanvasElement | HTMLImageElement) => {
     if (layout === 1) return takeShot(shot);
@@ -121,8 +118,8 @@ export const CameraSheet: React.FC<CameraSheetProps> = ({ identity, config, rema
       const cropWidth = Math.min(w, h * aspect);
       const cap = isStoryAspect(aspect) ? STORY_ORIGINAL_MAX : ORIGINAL_MAX;
       const width = Math.round(Math.max(FEED_WIDTH, Math.min(cap, cropWidth / recipe.crop.zoom)));
-      const original = await toBlob(renderPhoto(source, recipe, { width, eventFrame, layout: frameLayout }), 0.92);
-      const preview = await toBlob(renderPhoto(source, recipe, { width: FEED_WIDTH, eventFrame, layout: frameLayout }), 0.85);
+      const original = await toBlob(renderPhoto(source, recipe, { width, eventFrame, layout: frameLayout, collage: shotFrames > 1 }), 0.92);
+      const preview = await toBlob(renderPhoto(source, recipe, { width: FEED_WIDTH, eventFrame, layout: frameLayout, collage: shotFrames > 1 }), 0.85);
       await enqueue({ identity, caption: recipe.caption.trim(), look: recipe.look, frames: shotFrames, original, preview });
       onQueued();
       setNote('Foto masuk antrean kirim. Lanjut jepret!');
@@ -146,7 +143,7 @@ export const CameraSheet: React.FC<CameraSheetProps> = ({ identity, config, rema
           looks={looks}
           eventFrame={eventFrame}
           frameLayout={frameLayout}
-          frameLocked={photoInFront && shotFrames > 1}
+          frameLocked={photoInArea && shotFrames > 1}
           remaining={remaining}
           cost={shotFrames}
           sending={sending}

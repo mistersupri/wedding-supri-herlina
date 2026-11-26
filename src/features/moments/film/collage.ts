@@ -23,6 +23,10 @@ export interface CollageSpec {
   cells: Cell[];
   /** Width over height of one cell: the shape the viewfinder guide shows for each shot. */
   cellRatio: number;
+  /** Border around each cell in sheet pixels, and its colour. */
+  border: number;
+  borderColor: string;
+  transparent: boolean;
 }
 
 /** Sheet width in px. The darkroom scales it down for the preview and for the feed copy. */
@@ -33,14 +37,22 @@ export interface CollageOptions {
   aspect?: number;
   /** The clear window of the couple's frame, as fractions of the sheet: the cells stay inside it, so no shot ends up behind a border. */
   window?: Rect | null;
+  /** Gap between photos and border around each, in px on a 1080 px wide sheet. */
+  gap?: number;
+  border?: number;
+  borderColor?: string;
+  /** Leave the sheet's background clear, so the frame shows through the gaps (photo placed in the couple's own area). */
+  transparent?: boolean;
 }
 
 export function collageSpec(layout: CollageLayout, story: boolean, width = SHEET_WIDTH, options: CollageOptions = {}): CollageSpec {
   const aspect = options.aspect ?? (story ? STORY_ASPECT : ASPECT);
   const height = Math.round(width / aspect);
-  if (layout === 1) return { width, height, cells: [{ x: 0, y: 0, w: width, h: height }], cellRatio: aspect };
+  if (layout === 1) return { width, height, cells: [{ x: 0, y: 0, w: width, h: height }], cellRatio: aspect, border: 0, borderColor: '#FFFFFF', transparent: false };
 
-  const gap = Math.round(width * 0.035);
+  const gap = Math.round((width * (options.gap ?? 38)) / 1080);
+  const border = Math.round((width * (options.border ?? 0)) / 1080);
+  const borderColor = options.borderColor ?? '#FFFFFF';
   // The usable region: a clear window of the frame, else the whole sheet with a margin (a Story also keeps clear of
   // the top and bottom, where Instagram puts its own buttons).
   const win = options.window;
@@ -63,7 +75,7 @@ export function collageSpec(layout: CollageLayout, story: boolean, width = SHEET
     const h = Math.floor((innerH - gap * (layout - 1)) / layout);
     for (let i = 0; i < layout; i++) cells.push({ x: left, y: top + i * (h + gap), w: innerW, h });
   }
-  return { width, height, cells, cellRatio: cells[0].w / cells[0].h };
+  return { width, height, cells, cellRatio: cells[0].w / cells[0].h, border, borderColor, transparent: Boolean(options.transparent) };
 }
 
 type Source = HTMLCanvasElement | HTMLImageElement;
@@ -93,9 +105,20 @@ export function composeCollage(spec: CollageSpec, shots: HTMLCanvasElement[]): H
   c.width = spec.width;
   c.height = spec.height;
   const ctx = c.getContext('2d')!;
-  ctx.fillStyle = '#fbf8f2';
-  ctx.fillRect(0, 0, c.width, c.height);
-  shots.forEach((shot, i) => spec.cells[i] && drawCover(ctx, shot, spec.cells[i]));
+  if (!spec.transparent) {
+    ctx.fillStyle = '#fbf8f2';
+    ctx.fillRect(0, 0, c.width, c.height);
+  }
+  shots.forEach((shot, i) => {
+    const cell = spec.cells[i];
+    if (!cell) return;
+    if (spec.border > 0) {
+      ctx.fillStyle = spec.borderColor;
+      ctx.fillRect(cell.x, cell.y, cell.w, cell.h);
+    }
+    const b = Math.min(spec.border, Math.floor(Math.min(cell.w, cell.h) / 4));
+    drawCover(ctx, shot, { x: cell.x + b, y: cell.y + b, w: cell.w - b * 2, h: cell.h - b * 2 });
+  });
   return c;
 }
 

@@ -85,10 +85,10 @@ export const Darkroom: React.FC<DarkroomProps> = ({
     if (!canvas || !box) return;
     const id = requestAnimationFrame(() => {
       const width = Math.min(1080, box.clientWidth * Math.min(2, window.devicePixelRatio || 1));
-      renderPhoto(previewSrc, recipe, { width, eventFrame, layout: frameLayout, fast: dragging }, canvas);
+      renderPhoto(previewSrc, recipe, { width, eventFrame, layout: frameLayout, collage: cost > 1, fast: dragging }, canvas);
     });
     return () => cancelAnimationFrame(id);
-  }, [previewSrc, recipe, eventFrame, frameLayout, dragging]);
+  }, [previewSrc, recipe, eventFrame, frameLayout, cost, dragging]);
 
   // --- Gestures: one finger pans, two fingers zoom, a wheel zooms. ---
   const onPointerDown = (e: React.PointerEvent) => {

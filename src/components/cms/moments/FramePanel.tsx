@@ -9,6 +9,8 @@ import { Panel } from '../CmsPage.js';
 import { MediaField } from '../MediaField.js';
 import { useToast } from '../Toast.js';
 import { Button } from '../../ui/Button.js';
+import { FramePreview } from './FramePreview.js';
+import type { CollageLayout } from '../../../features/moments/film/collage.js';
 import { Checkbox, Field, Input } from '../../ui/Field.js';
 import type { PhotoFrameConfig, PhotoInset } from '@shared/types';
 
@@ -52,6 +54,127 @@ const SafeZones: React.FC = () => (
     <span className="absolute inset-x-0 bottom-0 border-t border-dashed border-white/80 bg-black/20" style={{ height: `${(STORY_SAFE.bottom / FRAME_HEIGHT) * 100}%` }} />
   </span>
 );
+
+
+/** A slider with its label, current value, and a plain-language hint. */
+const Slider: React.FC<{ label: string; unit: string; value: number; min: number; max: number; onChange: (v: number) => void; hint?: string }> = ({
+  label,
+  unit,
+  value,
+  min,
+  max,
+  onChange,
+  hint,
+}) => (
+  <Field label={label} aside={`${value}${unit}`} hint={hint}>
+    {(p) => (
+      <input {...p} type="range" min={min} max={max} step={1} value={value} onChange={(e) => onChange(Number(e.target.value))} className="h-11 w-full accent-[var(--primary)]" />
+    )}
+  </Field>
+);
+
+const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v));
+
+/** Size and place of the photo, its border, and the gap between collage photos, with a live preview. */
+const FramePhotoStyle: React.FC<{ form: PhotoFrameConfig; onChange: (next: PhotoFrameConfig) => void }> = ({ form, onChange }) => {
+  const [shots, setShots] = useState<CollageLayout>(1);
+  const inset = form.photoInset ?? DEFAULT_INSET;
+  const manual = Boolean(form.photoInFront || form.photoManualArea);
+  // The settings store margins; the sliders speak in size and place, which is how people think about it.
+  const rect = { x: inset.left, y: inset.top, w: 100 - inset.left - inset.right, h: 100 - inset.top - inset.bottom };
+  const setRect = (next: Partial<typeof rect>) => {
+    const r = { ...rect, ...next };
+    const w = clamp(r.w, 20, 100);
+    const h = clamp(r.h, 20, 100);
+    const x = clamp(r.x, 0, 100 - w);
+    const y = clamp(r.y, 0, 100 - h);
+    onChange({ ...form, photoInset: { left: x, top: y, right: 100 - x - w, bottom: 100 - y - h } });
+  };
+  const border = form.photoBorder ?? 0;
+  const gap = form.photoGap ?? 38;
+  const color = form.photoBorderColor || '#FFFFFF';
+
+  return (
+    <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_16rem]">
+      <div className="space-y-6">
+        <section aria-labelledby="photo-size-title">
+          <h3 id="photo-size-title" className="mb-2 text-sm font-semibold">
+            Ukuran dan posisi foto
+          </h3>
+          {!form.photoInFront && (
+            <Checkbox
+              label="Atur ukuran dan posisi foto sendiri"
+              description="Bila mati, foto memenuhi seluruh gambar di bawah bingkai, dan kolase otomatis memakai jendela bening bingkai."
+              checked={Boolean(form.photoManualArea)}
+              onChange={(e) => onChange({ ...form, photoManualArea: e.target.checked, photoInset: form.photoInset ?? DEFAULT_INSET })}
+            />
+          )}
+          {manual ? (
+            <div className="mt-2 grid gap-x-5 gap-y-2 sm:grid-cols-2">
+              <Slider label="Lebar foto" unit="%" value={rect.w} min={20} max={100} onChange={(w) => setRect({ w })} hint="Dari lebar bingkai." />
+              <Slider label="Tinggi foto" unit="%" value={rect.h} min={20} max={100} onChange={(h) => setRect({ h })} hint="Dari tinggi bingkai." />
+              <Slider label="Posisi dari kiri" unit="%" value={rect.x} min={0} max={100 - rect.w} onChange={(x) => setRect({ x })} />
+              <Slider label="Posisi dari atas" unit="%" value={rect.y} min={0} max={100 - rect.h} onChange={(y) => setRect({ y })} />
+              <div className="flex flex-wrap gap-2 sm:col-span-2">
+                <Button variant="secondary" size="sm" onClick={() => setRect({ x: Math.round((100 - rect.w) / 2) })}>
+                  Tengahkan ke samping
+                </Button>
+                <Button variant="secondary" size="sm" onClick={() => setRect({ y: Math.round((100 - rect.h) / 2) })}>
+                  Tengahkan ke atas-bawah
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => onChange({ ...form, photoInset: DEFAULT_INSET })}>
+                  Kembalikan ukuran bawaan
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <p className="mt-1 text-sm text-ink-soft">Ukuran dan posisi diatur otomatis mengikuti bingkai.</p>
+          )}
+        </section>
+
+        <section aria-labelledby="photo-border-title">
+          <h3 id="photo-border-title" className="mb-2 text-sm font-semibold">
+            Border dan jarak
+          </h3>
+          <div className="grid gap-x-5 gap-y-2 sm:grid-cols-2">
+            <Slider
+              label="Tebal border"
+              unit=" px"
+              value={border}
+              min={0}
+              max={64}
+              onChange={(v) => onChange({ ...form, photoBorder: v })}
+              hint={manual ? 'Garis di sekeliling setiap foto. 0 berarti tanpa border.' : 'Pada foto tunggal, border berlaku bila ukuran dan posisi diatur sendiri. Pada kolase selalu berlaku.'}
+            />
+            <Slider label="Jarak antar foto kolase" unit=" px" value={gap} min={0} max={120} onChange={(v) => onChange({ ...form, photoGap: v })} hint="Celah antara foto pada kolase 2 sampai 4 foto." />
+            <Field label="Warna border" aside={color.toUpperCase()}>
+              {(p) => <input {...p} type="color" value={color} onChange={(e) => onChange({ ...form, photoBorderColor: e.target.value.toUpperCase() })} className="h-11 w-24 cursor-pointer rounded-xs border border-field bg-card p-1" />}
+            </Field>
+          </div>
+          <p className="mt-2 text-xs text-ink-soft">Ukuran dalam piksel pada gambar selebar 1080 px; di HP tamu otomatis menyesuaikan.</p>
+        </section>
+      </div>
+
+      <div>
+        <p className="mb-2 text-sm font-semibold">Pratinjau</p>
+        <div role="group" aria-label="Contoh isi pratinjau" className="mb-3 flex flex-wrap gap-1.5">
+          {([1, 2, 4] as CollageLayout[]).map((n) => (
+            <button
+              key={n}
+              type="button"
+              aria-pressed={shots === n}
+              onClick={() => setShots(n)}
+              className={`min-h-11 rounded-sm border px-3 text-sm font-semibold ${shots === n ? 'border-primary bg-paper-2' : 'border-field bg-card hover:bg-paper-2'}`}
+            >
+              {n === 1 ? '1 foto' : `Kolase ${n}`}
+            </button>
+          ))}
+        </div>
+        <FramePreview config={form} shots={shots} />
+      </div>
+    </div>
+  );
+};
 
 /**
  * The couple's event frame for the guest camera. Frames are 9:16, the shape of an Instagram Story, so a guest's
@@ -144,48 +267,9 @@ export const FramePanel: React.FC = () => {
           })}
         </div>
 
-        {form.photoInFront && (
-          <div className="mt-4 grid gap-5 sm:grid-cols-[minmax(0,12rem)_1fr]">
-            <div>
-              <p className="mb-1.5 text-sm font-semibold">Pratinjau area foto</p>
-              <span className="relative block aspect-[9/16] w-full max-w-48 overflow-hidden rounded-xs border border-line bg-paper-2">
-                {form.frameOverlayUrl && <img src={form.frameOverlayUrl} alt="" className="absolute inset-0 h-full w-full" />}
-                <span
-                  className="absolute grid place-items-center bg-[linear-gradient(160deg,#6f6253,#c9b79d_55%,#8a7a68)] text-xs font-semibold text-white"
-                  style={{
-                    left: `${(form.photoInset ?? DEFAULT_INSET).left}%`,
-                    right: `${(form.photoInset ?? DEFAULT_INSET).right}%`,
-                    top: `${(form.photoInset ?? DEFAULT_INSET).top}%`,
-                    bottom: `${(form.photoInset ?? DEFAULT_INSET).bottom}%`,
-                  }}
-                >
-                  Foto tamu
-                </span>
-              </span>
-            </div>
-            <div>
-              <p className="mb-2 text-sm text-ink-soft">Jarak area foto dari tepi bingkai, dalam persen. Kolase dan foto tunggal sama-sama mengisi area ini.</p>
-              <div className="grid grid-cols-2 gap-3">
-                {INSET_SIDES.map(({ key, label }) => (
-                  <Field key={key} label={`${label} (%)`}>
-                    {(p) => (
-                      <Input
-                        {...p}
-                        type="number"
-                        inputMode="numeric"
-                        min={0}
-                        max={45}
-                        value={(form.photoInset ?? DEFAULT_INSET)[key]}
-                        onChange={(e) => setForm({ ...form, photoInset: { ...(form.photoInset ?? DEFAULT_INSET), [key]: Math.min(45, Math.max(0, Number(e.target.value) || 0)) } })}
-                      />
-                    )}
-                  </Field>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
       </fieldset>
+
+      <FramePhotoStyle form={form} onChange={setForm} />
 
       <div role="radiogroup" aria-label="Pilihan bingkai" className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
         {presets.map((p) => {

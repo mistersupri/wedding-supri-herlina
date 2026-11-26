@@ -32,6 +32,7 @@ async function assertStoredPhoto(url: unknown, message: string) {
   return url;
 }
 export const DEFAULT_INSET = { top: 8, right: 8, bottom: 24, left: 8 };
+const HEX_COLOR = /^#[0-9a-fA-F]{6}$/;
 const isGenericName = (name: string) => !name.trim() || name.trim().toLowerCase() === 'tamu undangan';
 const clean = (v: unknown, max: number) => (typeof v === 'string' ? v.replace(/\s+/g, ' ').trim().slice(0, max) : '');
 
@@ -202,14 +203,19 @@ export function photoMomentService(d: Deps) {
     },
 
     async frame(): Promise<PhotoFrameConfig> {
-      return (await d.frames.get()) ?? { enabled: false, frameOverlayUrl: '', allowGuestToggle: true, photoInFront: false, photoInset: DEFAULT_INSET };
+      return (await d.frames.get()) ?? { enabled: false, frameOverlayUrl: '', allowGuestToggle: true, photoInFront: false, photoInset: DEFAULT_INSET, photoManualArea: false, photoBorder: 0, photoBorderColor: '#FFFFFF', photoGap: 38 };
     },
 
     async saveFrame(patch: Partial<PhotoFrameConfig>) {
       const current = await this.frame();
       const next: PhotoFrameConfig = { ...current, ...patch };
       next.photoInFront = Boolean(next.photoInFront);
-      const pct = (v: unknown, fallback: number) => Math.min(45, Math.max(0, Math.round(Number(v)) || (v === 0 ? 0 : fallback)));
+      next.photoManualArea = Boolean(next.photoManualArea);
+      const px = (v: unknown, max: number, fallback: number) => (Number.isFinite(Number(v)) ? Math.min(max, Math.max(0, Math.round(Number(v)))) : fallback);
+      next.photoBorder = px(next.photoBorder, 64, 0);
+      next.photoGap = px(next.photoGap, 120, 38);
+      next.photoBorderColor = typeof next.photoBorderColor === 'string' && HEX_COLOR.test(next.photoBorderColor) ? next.photoBorderColor.toUpperCase() : '#FFFFFF';
+      const pct = (v: unknown, fallback: number) => Math.min(80, Math.max(0, Math.round(Number(v)) || (v === 0 ? 0 : fallback)));
       const inset = { ...DEFAULT_INSET, ...(next.photoInset ?? {}) };
       next.photoInset = { top: pct(inset.top, 8), right: pct(inset.right, 8), bottom: pct(inset.bottom, 24), left: pct(inset.left, 8) };
       if (next.photoInset.left + next.photoInset.right > 80 || next.photoInset.top + next.photoInset.bottom > 80) {

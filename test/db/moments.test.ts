@@ -96,10 +96,18 @@ describe('reactions', () => {
 describe('event frame settings', () => {
   it('stores photo-in-front with clamped margins and rejects an area that is too small', async () => {
     const { services } = await freshServices();
-    const saved = await services.moments.saveFrame({ photoInFront: true, photoInset: { top: 12, right: 99, bottom: 20, left: 5 } });
-    expect(saved).toMatchObject({ photoInFront: true, photoInset: { top: 12, right: 45, bottom: 20, left: 5 } });
+    const saved = await services.moments.saveFrame({ photoInFront: true, photoInset: { top: 12, right: 150, bottom: 20, left: 0 } });
+    expect(saved).toMatchObject({ photoInFront: true, photoInset: { top: 12, right: 80, bottom: 20, left: 0 } });
     expect((await services.moments.frame()).photoInFront).toBe(true);
     await expect(services.moments.saveFrame({ photoInset: { top: 45, right: 45, bottom: 45, left: 45 } })).rejects.toMatchObject({ status: 400 });
+  });
+
+  it('keeps border, gap and colour within sane limits', async () => {
+    const { services } = await freshServices();
+    const saved = await services.moments.saveFrame({ photoManualArea: true, photoBorder: 500, photoGap: -4, photoBorderColor: '#c9a253' });
+    expect(saved).toMatchObject({ photoManualArea: true, photoBorder: 64, photoGap: 0, photoBorderColor: '#C9A253' });
+    const bad = await services.moments.saveFrame({ photoBorderColor: 'red; background:url(x)' });
+    expect(bad.photoBorderColor).toBe('#FFFFFF');
   });
 });
 
