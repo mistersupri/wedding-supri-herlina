@@ -268,6 +268,12 @@ model PhotoFrameSetting {
   photoInsetRight  Int     @default(8)
   photoInsetBottom Int     @default(24)
   photoInsetLeft   Int     @default(8)
+  /// Behind-the-frame mode only: place the photo inside the margins above instead of letting it fill the picture.
+  photoManualArea  Boolean @default(false)
+  /// Border around each photo, and the gap between photos of a collage, in pixels on a 1080 px wide picture.
+  photoBorder      Int     @default(0)
+  photoBorderColor String  @default("#FFFFFF")
+  photoGap         Int     @default(38)
 }
 
 model AdminUser {

@@ -437,6 +437,10 @@ export function frameRepository(db: Db) {
     allowGuestToggle: r.allowGuestToggle,
     photoInFront: r.photoInFront,
     photoInset: { top: r.photoInsetTop, right: r.photoInsetRight, bottom: r.photoInsetBottom, left: r.photoInsetLeft },
+    photoManualArea: r.photoManualArea,
+    photoBorder: r.photoBorder,
+    photoBorderColor: r.photoBorderColor,
+    photoGap: r.photoGap,
   });
   const columns = ({ photoInset, ...rest }: PhotoFrameConfig) => ({
     ...rest,

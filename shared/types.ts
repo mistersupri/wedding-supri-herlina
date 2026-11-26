@@ -275,6 +275,13 @@ export interface PhotoFrameConfig {
   photoInFront?: boolean;
   /** Margins of the photo area when it is in front: percent of the frame's width (left, right) and height (top, bottom). */
   photoInset?: PhotoInset;
+  /** With the frame over the photo: use `photoInset` as the photo's place instead of filling the whole picture. */
+  photoManualArea?: boolean;
+  /** Border around each photo, in px on a 1080 px wide picture (0 = none). */
+  photoBorder?: number;
+  photoBorderColor?: string;
+  /** Gap between the photos of a collage, in px on a 1080 px wide picture. */
+  photoGap?: number;
 }
 
 export interface PhotoInset {

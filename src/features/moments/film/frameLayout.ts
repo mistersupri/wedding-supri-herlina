@@ -17,12 +17,20 @@ export interface Rect {
 }
 
 export interface FrameLayout {
+  /** The photo is drawn on top of the frame picture (a solid frame) instead of under it. */
   front: boolean;
-  /** Front: where the photo goes. Behind: the clear window of the frame, or null when the frame leaves no usable window. */
+  /** The couple fixed the photo's size and place (`area`); otherwise the photo fills the picture (or a collage fits the clear window). */
+  manual: boolean;
+  /** Manual: where the photo goes. Otherwise the clear window of the frame, or null when the frame leaves no usable window. */
   area: Rect | null;
+  /** Border around each photo and gap between collage photos, in px on a 1080 px wide picture. */
+  border: number;
+  borderColor: string;
+  gap: number;
 }
 
-export const FULL_LAYOUT: FrameLayout = { front: false, area: null };
+export const DEFAULT_GAP = 38;
+export const FULL_LAYOUT: FrameLayout = { front: false, manual: false, area: null, border: 0, borderColor: '#FFFFFF', gap: DEFAULT_GAP };
 
 /** Pixels more opaque than this count as "frame" when looking for the clear window. */
 const OPAQUE_ALPHA = 64;
@@ -87,11 +95,27 @@ export function frameWindow(img: HTMLImageElement): Rect | null {
 /** The margins the couple set, as the rectangle left for the photo. */
 export const insetRect = (i: PhotoInset): Rect => ({ x: i.left / 100, y: i.top / 100, w: 1 - (i.left + i.right) / 100, h: 1 - (i.top + i.bottom) / 100 });
 
-export function resolveFrameLayout(
-  img: HTMLImageElement | null,
-  config: { photoInFront?: boolean; photoInset?: PhotoInset } | undefined,
-): FrameLayout {
-  if (!img) return FULL_LAYOUT;
-  if (config?.photoInFront && config.photoInset) return { front: true, area: insetRect(config.photoInset) };
-  return { front: false, area: frameWindow(img) };
+export interface FrameStyleConfig {
+  photoInFront?: boolean;
+  photoInset?: PhotoInset;
+  photoManualArea?: boolean;
+  photoBorder?: number;
+  photoBorderColor?: string;
+  photoGap?: number;
 }
+
+export function resolveFrameLayout(img: HTMLImageElement | null, config: FrameStyleConfig | undefined): FrameLayout {
+  if (!img) return FULL_LAYOUT;
+  const style = {
+    border: Math.max(0, config?.photoBorder ?? 0),
+    borderColor: config?.photoBorderColor || '#FFFFFF',
+    gap: config?.photoGap ?? DEFAULT_GAP,
+  };
+  if (config?.photoInset && (config.photoInFront || config.photoManualArea)) {
+    return { front: Boolean(config.photoInFront), manual: true, area: insetRect(config.photoInset), ...style };
+  }
+  return { front: false, manual: false, area: frameWindow(img), ...style };
+}
+
+/** Whether the photo is placed in the couple's own area (rather than filling the picture). */
+export const placedInArea = (layout: FrameLayout | undefined): layout is FrameLayout & { area: Rect } => Boolean(layout?.manual && layout.area);
